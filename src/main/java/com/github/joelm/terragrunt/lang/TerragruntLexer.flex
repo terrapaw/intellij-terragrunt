@@ -62,16 +62,17 @@ ESCAPE_SEQ = \\[nrt\"\\] | \\u[0-9a-fA-F]{4} | \\U[0-9a-fA-F]{8}
   // String
   \"                      { pushState(STRING); return STRING_LITERAL; }
 
-  // Keywords - must come before IDENTIFIER
-  "true"  / [^a-zA-Z0-9_\-]  { return TRUE; }
-  "false" / [^a-zA-Z0-9_\-]  { return FALSE; }
-  "null"  / [^a-zA-Z0-9_\-]  { return NULL; }
-  "for"   / [^a-zA-Z0-9_\-]  { return FOR; }
-  "in"    / [^a-zA-Z0-9_\-]  { return IN; }
-  "if"    / [^a-zA-Z0-9_\-]  { return IF; }
-  "else"  / [^a-zA-Z0-9_\-]  { return ELSE; }
-  "endif" / [^a-zA-Z0-9_\-]  { return ENDIF; }
-  "endfor" / [^a-zA-Z0-9_\-] { return ENDFOR; }
+  // Keywords - JFlex longest-match ensures these only match standalone
+  // (e.g. "include" matches IDENTIFIER since it's longer than "in")
+  "true"    { return TRUE; }
+  "false"   { return FALSE; }
+  "null"    { return NULL; }
+  "for"     { return FOR; }
+  "in"      { return IN; }
+  "if"      { return IF; }
+  "else"    { return ELSE; }
+  "endif"   { return ENDIF; }
+  "endfor"  { return ENDFOR; }
 
   // Multi-char operators (must come before single-char)
   "=>"                    { return FAT_ARROW; }

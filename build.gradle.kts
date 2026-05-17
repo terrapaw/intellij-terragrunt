@@ -1,3 +1,7 @@
+import org.gradle.api.tasks.testing.TestDescriptor
+import org.gradle.api.tasks.testing.TestResult
+import org.gradle.kotlin.dsl.KotlinClosure2
+
 plugins {
     id("java")
     id("org.jetbrains.intellij.platform") version "2.12.0"
@@ -67,5 +71,27 @@ tasks {
 
     withType<JavaCompile> {
         dependsOn(generateLexer, generateParser)
+    }
+
+    test {
+        testLogging {
+            events("passed", "failed", "skipped")
+            showStandardStreams = false
+            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.SHORT
+            showCauses = true
+            showExceptions = true
+
+            afterSuite(KotlinClosure2<TestDescriptor, TestResult, Unit>({ desc, result ->
+                if (desc.parent == null) {
+                    println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    println("  Results: ${result.resultType}")
+                    println("  Tests:   ${result.testCount}")
+                    println("  Passed:  ${result.successfulTestCount}")
+                    println("  Failed:  ${result.failedTestCount}")
+                    println("  Skipped: ${result.skippedTestCount}")
+                    println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                }
+            }))
+        }
     }
 }
