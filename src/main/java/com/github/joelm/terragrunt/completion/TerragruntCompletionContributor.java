@@ -1,20 +1,18 @@
 package com.github.joelm.terragrunt.completion;
 
-import com.github.joelm.terragrunt.lang.psi.TerragruntBlock;
-import com.github.joelm.terragrunt.lang.psi.TerragruntBody;
-import com.github.joelm.terragrunt.lang.psi.TerragruntTypes;
+import com.github.joelm.terragrunt.lang.psi.*;
 import com.github.joelm.terragrunt.schema.TerragruntSchema;
 import com.intellij.codeInsight.completion.*;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.patterns.PlatformPatterns;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.ProcessingContext;
 import org.jetbrains.annotations.NotNull;
 
 public class TerragruntCompletionContributor extends CompletionContributor {
     public TerragruntCompletionContributor() {
-        // Completion at identifier positions
         extend(CompletionType.BASIC,
                 PlatformPatterns.psiElement(),
                 new CompletionProvider<>() {
@@ -23,27 +21,52 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                                                   @NotNull ProcessingContext context,
                                                   @NotNull CompletionResultSet result) {
                         PsiElement position = parameters.getPosition();
-                        PsiElement parent = position.getParent();
 
-                        // Determine context
-                        TerragruntBlock enclosingBlock = PsiTreeUtil.getParentOfType(position, TerragruntBlock.class);
-
-                        if (enclosingBlock == null || isTopLevelBody(parent)) {
-                            addTopLevelCompletions(result);
-                        } else {
-                            addBlockAttributeCompletions(enclosingBlock, result);
+                        if (isInBody(position)) {
+                            // Inside a block body or top-level — offer attributes/blocks
+                            TerragruntBlock enclosingBlock = getDirectEnclosingBlock(position);
+                            if (enclosingBlock == null) {
+                                addTopLevelCompletions(result);
+                            } else {
+                                addBlockAttributeCompletions(enclosingBlock, result);
+                            }
+                        } else if (isInExpression(position)) {
+                            if (isAfterDot(position)) {
+                                addDotCompletions(position, result);
+                            } else {
+                                addExpressionCompletions(result);
+                            }
                         }
-
-                        // Always offer functions in expression context
-                        addFunctionCompletions(result);
                     }
                 });
     }
 
-    private boolean isTopLevelBody(PsiElement element) {
-        TerragruntBody body = PsiTreeUtil.getParentOfType(element, TerragruntBody.class);
-        return body != null && body.getParent() != null &&
-               !(body.getParent() instanceof TerragruntBlock);
+    private boolean isInBody(PsiElement position) {
+        // Check if we're directly in a Body (not nested inside an expression)
+        PsiElement parent = position.getParent();
+        // The dummy identifier parent during completion
+        if (parent != null) parent = parent.getParent();
+        return parent instanceof TerragruntBody;
+    }
+
+    private boolean isInExpression(PsiElement position) {
+        return PsiTreeUtil.getParentOfType(position, TerragruntAttribute.class) != null
+                || PsiTreeUtil.getParentOfType(position, TerragruntObjectExpr.class) != null;
+    }
+
+    private boolean isAfterDot(PsiElement position) {
+        // Check if we're inside a GetAttr (i.e., after a dot)
+        return PsiTreeUtil.getParentOfType(position, TerragruntGetAttr.class) != null;
+    }
+
+    private TerragruntBlock getDirectEnclosingBlock(PsiElement position) {
+        // Walk up: position -> dummy -> body -> block?
+        PsiElement parent = position.getParent();
+        if (parent != null) parent = parent.getParent(); // body
+        if (parent instanceof TerragruntBody body && body.getParent() instanceof TerragruntBlock block) {
+            return block;
+        }
+        return null;
     }
 
     private void addTopLevelCompletions(@NotNull CompletionResultSet result) {
@@ -71,9 +94,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     }
 
     private void addBlockAttributeCompletions(@NotNull TerragruntBlock block, @NotNull CompletionResultSet result) {
-        PsiElement firstChild = block.getFirstChild();
-        if (firstChild == null) return;
-        String blockType = firstChild.getText();
+        String blockType = block.getIdentifier().getText();
         TerragruntSchema.BlockDef def = TerragruntSchema.getBlock(blockType);
         if (def == null) return;
 
@@ -97,8 +118,14 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                     .bold());
         }
     }
+    private void addExpressionCompletions(@NotNull CompletionResultSet result) {
+        // Variable prefixes
+        result.addElement(LookupElementBuilder.create("local").withTypeText("locals reference").bold());
+        result.addElement(LookupElementBuilder.create("dependency").withTypeText("dependency reference").bold());
+        result.addElement(LookupElementBuilder.create("feature").withTypeText("feature reference").bold());
+        result.addElement(LookupElementBuilder.create("include").withTypeText("include reference").bold());
 
-    private void addFunctionCompletions(@NotNull CompletionResultSet result) {
+        // Functions
         for (var func : TerragruntSchema.getFunctions()) {
             result.addElement(LookupElementBuilder.create(func.name())
                     .withTailText(func.signature())
@@ -108,6 +135,91 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                         ctx.getDocument().replaceString(ctx.getStartOffset(), ctx.getTailOffset(), insert);
                         ctx.getEditor().getCaretModel().moveToOffset(ctx.getStartOffset() + insert.length() - 1);
                     }));
+        }
+    }
+
+    private void addDotCompletions(@NotNull PsiElement position, @NotNull CompletionResultSet result) {
+        TerragruntPostfixExpr postfix = PsiTreeUtil.getParentOfType(position, TerragruntPostfixExpr.class);
+        if (postfix == null) return;
+
+        TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+        if (primary == null) return;
+        TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+        if (varExpr == null) return;
+        String rootVar = varExpr.getIdentifier().getText();
+
+        // Count completed get_attrs before the current one (the one being typed)
+        TerragruntGetAttr currentGetAttr = PsiTreeUtil.getParentOfType(position, TerragruntGetAttr.class);
+        PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+        int depth = 0;
+        if (getAttrs != null) {
+            for (PsiElement ga : getAttrs) {
+                if (ga != currentGetAttr && ga.getTextOffset() < position.getTextOffset()) depth++;
+            }
+        }
+
+        PsiFile file = position.getContainingFile();
+
+        if ("dependency".equals(rootVar)) {
+            if (depth == 0) {
+                // dependency. -> suggest dependency names
+                for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+                    if ("dependency".equals(block.getIdentifier().getText())) {
+                        for (TerragruntLabel label : block.getLabelList()) {
+                            String name = label.getText().replace("\"", "");
+                            result.addElement(LookupElementBuilder.create(name).withTypeText("dependency").bold());
+                        }
+                    }
+                }
+            } else if (depth == 1) {
+                // dependency.vpc. -> suggest "outputs"
+                result.addElement(LookupElementBuilder.create("outputs").withTypeText("dependency outputs").bold());
+            }
+        } else if ("local".equals(rootVar)) {
+            if (depth == 0) {
+                // local. -> suggest locals attributes
+                for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+                    if ("locals".equals(block.getIdentifier().getText())) {
+                        TerragruntBody body = block.getBody();
+                        if (body == null) continue;
+                        for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                            result.addElement(LookupElementBuilder.create(attr.getIdentifier().getText()).withTypeText("local"));
+                        }
+                    }
+                }
+            }
+        } else if ("feature".equals(rootVar)) {
+            if (depth == 0) {
+                // feature. -> suggest feature names
+                for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+                    if ("feature".equals(block.getIdentifier().getText())) {
+                        for (TerragruntLabel label : block.getLabelList()) {
+                            String name = label.getText().replace("\"", "");
+                            result.addElement(LookupElementBuilder.create(name).withTypeText("feature").bold());
+                        }
+                    }
+                }
+            } else if (depth == 1) {
+                // feature.X. -> suggest "value"
+                result.addElement(LookupElementBuilder.create("value").withTypeText("feature value").bold());
+            }
+        } else if ("include".equals(rootVar)) {
+            if (depth == 0) {
+                // include. -> suggest include labels
+                for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+                    if ("include".equals(block.getIdentifier().getText())) {
+                        for (TerragruntLabel label : block.getLabelList()) {
+                            String name = label.getText().replace("\"", "");
+                            result.addElement(LookupElementBuilder.create(name).withTypeText("include").bold());
+                        }
+                    }
+                }
+            } else if (depth == 1) {
+                // include.X. -> suggest exposed attributes
+                result.addElement(LookupElementBuilder.create("locals").withTypeText("exposed config"));
+                result.addElement(LookupElementBuilder.create("inputs").withTypeText("exposed config"));
+                result.addElement(LookupElementBuilder.create("remote_state").withTypeText("exposed config"));
+            }
         }
     }
 }
