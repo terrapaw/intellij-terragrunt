@@ -1,0 +1,3 @@
+foobar {
+  something = "value"
+}

@@ -1,0 +1,7 @@
+.gradle/
+build/
+.intellijPlatform/
+src/main/gen/
+*.iml
+.idea/
+out/
