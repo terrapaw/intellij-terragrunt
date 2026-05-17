@@ -55,5 +55,7 @@
                          implementationClass="com.github.joelm.terragrunt.inspection.TerragruntUnresolvedPathInspection"/>
         <psi.referenceContributor language="Terragrunt"
                                   implementationClass="com.github.joelm.terragrunt.reference.TerragruntReferenceContributor"/>
+        <gotoDeclarationHandler
+                                  implementationClass="com.github.joelm.terragrunt.reference.TerragruntGotoDeclarationHandler"/>
     </extensions>
 </idea-plugin>
