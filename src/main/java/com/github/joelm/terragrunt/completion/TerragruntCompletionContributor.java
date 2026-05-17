@@ -42,16 +42,25 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     }
 
     private boolean isInBody(PsiElement position) {
-        // Check if we're directly in a Body (not nested inside an expression)
-        PsiElement parent = position.getParent();
-        // The dummy identifier parent during completion
-        if (parent != null) parent = parent.getParent();
-        return parent instanceof TerragruntBody;
+        // Walk up to find if we're directly in a body (not inside an expression value)
+        // During completion, structure is: leaf -> dummy/error -> possibly attribute -> body
+        if (PsiTreeUtil.getParentOfType(position, TerragruntGetAttr.class) != null) return false;
+        if (PsiTreeUtil.getParentOfType(position, TerragruntObjectExpr.class) != null) return false;
+        if (PsiTreeUtil.getParentOfType(position, TerragruntTupleExpr.class) != null) return false;
+        // Check if there's an attribute ancestor with an expression (meaning we're in the value part)
+        TerragruntAttribute attr = PsiTreeUtil.getParentOfType(position, TerragruntAttribute.class);
+        if (attr != null && attr.getExpression() != null && attr.getExpression().getTextRange().contains(position.getTextOffset())) {
+            return false;
+        }
+        return PsiTreeUtil.getParentOfType(position, TerragruntBody.class) != null;
     }
 
     private boolean isInExpression(PsiElement position) {
-        return PsiTreeUtil.getParentOfType(position, TerragruntAttribute.class) != null
-                || PsiTreeUtil.getParentOfType(position, TerragruntObjectExpr.class) != null;
+        if (PsiTreeUtil.getParentOfType(position, TerragruntGetAttr.class) != null) return true;
+        if (PsiTreeUtil.getParentOfType(position, TerragruntObjectExpr.class) != null) return true;
+        if (PsiTreeUtil.getParentOfType(position, TerragruntTupleExpr.class) != null) return true;
+        TerragruntAttribute attr = PsiTreeUtil.getParentOfType(position, TerragruntAttribute.class);
+        return attr != null && attr.getExpression() != null && attr.getExpression().getTextRange().contains(position.getTextOffset());
     }
 
     private boolean isAfterDot(PsiElement position) {
@@ -60,10 +69,8 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     }
 
     private TerragruntBlock getDirectEnclosingBlock(PsiElement position) {
-        // Walk up: position -> dummy -> body -> block?
-        PsiElement parent = position.getParent();
-        if (parent != null) parent = parent.getParent(); // body
-        if (parent instanceof TerragruntBody body && body.getParent() instanceof TerragruntBlock block) {
+        TerragruntBody body = PsiTreeUtil.getParentOfType(position, TerragruntBody.class);
+        if (body != null && body.getParent() instanceof TerragruntBlock block) {
             return block;
         }
         return null;
