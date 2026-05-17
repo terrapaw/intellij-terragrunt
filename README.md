@@ -5,13 +5,20 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
 ## Features
 
 - **Syntax highlighting** — keywords, strings, numbers, comments, operators, interpolation
-- **Code completion** — Terragrunt blocks, attributes, and 60+ built-in functions with signatures
+- **Code completion**
+  - Terragrunt blocks and attributes (context-aware)
+  - 60+ built-in functions with signatures
+  - Dot-completion: `dependency.` → names, `dependency.vpc.` → `outputs`, `local.` → variables, `feature.X.` → `value`
 - **Inspections/Linting**
   - Unknown block types
   - Missing required attributes
   - Deprecated attributes
   - Unresolved file paths in `include` and `dependency` blocks
-- **Navigation** — Ctrl+Click on `include` paths and `dependency` config_paths to jump to referenced files
+- **Navigation (Ctrl+Click / Ctrl+B)**
+  - `include` paths and `dependency` config_paths → jump to referenced files
+  - `local.app_name` → jump to definition in `locals` block
+  - `dependency.vpc` → jump to `dependency "vpc"` block
+  - `feature.flag` → jump to `feature "flag"` block
 - **Editor support** — code folding, brace matching, comment/uncomment
 
 ## Supported Blocks
@@ -45,6 +52,8 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ```bash
 ./gradlew test
 ```
+
+71 tests covering lexer, parser, inspections, completion, and navigation.
 
 ## Installation
 
