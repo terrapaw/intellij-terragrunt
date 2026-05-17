@@ -1,0 +1,59 @@
+<idea-plugin>
+    <id>com.github.joelm.terragrunt</id>
+    <name>Terragrunt HCL</name>
+    <vendor>joelm</vendor>
+    <description><![CDATA[IntelliSense and linting for Terragrunt HCL configuration files.]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileType name="Terragrunt HCL"
+                  implementationClass="com.github.joelm.terragrunt.lang.TerragruntFileType"
+                  fieldName="INSTANCE"
+                  language="Terragrunt"
+                  fileNames="terragrunt.hcl;root.hcl;terragrunt.stack.hcl"
+                  extensions=""/>
+        <lang.parserDefinition language="Terragrunt"
+                               implementationClass="com.github.joelm.terragrunt.lang.TerragruntParserDefinition"/>
+        <lang.syntaxHighlighterFactory language="Terragrunt"
+                                       implementationClass="com.github.joelm.terragrunt.highlight.TerragruntSyntaxHighlighterFactory"/>
+        <lang.braceMatcher language="Terragrunt"
+                           implementationClass="com.github.joelm.terragrunt.editor.TerragruntBraceMatcher"/>
+        <lang.commenter language="Terragrunt"
+                        implementationClass="com.github.joelm.terragrunt.editor.TerragruntCommenter"/>
+        <lang.foldingBuilder language="Terragrunt"
+                             implementationClass="com.github.joelm.terragrunt.editor.TerragruntFoldingBuilder"/>
+        <completion.contributor language="Terragrunt"
+                                implementationClass="com.github.joelm.terragrunt.completion.TerragruntCompletionContributor"/>
+        <localInspection language="Terragrunt"
+                         shortName="TerragruntUnknownBlock"
+                         displayName="Unknown Terragrunt block"
+                         groupName="Terragrunt"
+                         enabledByDefault="true"
+                         level="WARNING"
+                         implementationClass="com.github.joelm.terragrunt.inspection.TerragruntUnknownBlockInspection"/>
+        <localInspection language="Terragrunt"
+                         shortName="TerragruntMissingAttribute"
+                         displayName="Missing required attribute"
+                         groupName="Terragrunt"
+                         enabledByDefault="true"
+                         level="WARNING"
+                         implementationClass="com.github.joelm.terragrunt.inspection.TerragruntMissingAttributeInspection"/>
+        <localInspection language="Terragrunt"
+                         shortName="TerragruntDeprecatedAttribute"
+                         displayName="Deprecated attribute"
+                         groupName="Terragrunt"
+                         enabledByDefault="true"
+                         level="WEAK WARNING"
+                         implementationClass="com.github.joelm.terragrunt.inspection.TerragruntDeprecatedAttributeInspection"/>
+        <localInspection language="Terragrunt"
+                         shortName="TerragruntUnresolvedPath"
+                         displayName="Unresolved file path"
+                         groupName="Terragrunt"
+                         enabledByDefault="true"
+                         level="WARNING"
+                         implementationClass="com.github.joelm.terragrunt.inspection.TerragruntUnresolvedPathInspection"/>
+        <psi.referenceContributor language="Terragrunt"
+                                  implementationClass="com.github.joelm.terragrunt.reference.TerragruntReferenceContributor"/>
+    </extensions>
+</idea-plugin>

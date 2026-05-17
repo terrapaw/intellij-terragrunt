@@ -1,0 +1,122 @@
+{
+  parserClass="com.github.joelm.terragrunt.lang.parser.TerragruntParser"
+  extends="com.intellij.extapi.psi.ASTWrapperPsiElement"
+
+  psiClassPrefix="Terragrunt"
+  psiImplClassSuffix="Impl"
+  psiPackage="com.github.joelm.terragrunt.lang.psi"
+  psiImplPackage="com.github.joelm.terragrunt.lang.psi.impl"
+
+  elementTypeHolderClass="com.github.joelm.terragrunt.lang.psi.TerragruntTypes"
+  elementTypeClass="com.github.joelm.terragrunt.lang.TerragruntElementType"
+  tokenTypeClass="com.github.joelm.terragrunt.lang.TerragruntTokenType"
+
+  tokens = [
+    WHITE_SPACE='regexp:\s+'
+    NEWLINE='regexp:\r\n|\r|\n'
+    LINE_COMMENT='regexp:(#|//).*'
+    BLOCK_COMMENT='regexp:/\*([^*]|\*[^/])*\*/'
+    NUMBER='regexp:\d+(\.\d+)?([eE][+-]?\d+)?'
+    IDENTIFIER='regexp:[a-zA-Z_][a-zA-Z0-9_\-]*'
+    STRING_LITERAL='regexp:"([^"\\]|\\.)*"'
+    HEREDOC_START='regexp:<<-?'
+    HEREDOC_CONTENT='regexp:[^\r\n]+'
+    HEREDOC_END='regexp:[a-zA-Z_][a-zA-Z0-9_]*'
+    INTERPOLATION_START='${'
+    DIRECTIVE_START='%{'
+    LBRACE='{'
+    RBRACE='}'
+    LBRACKET='['
+    RBRACKET=']'
+    LPAREN='('
+    RPAREN=')'
+    EQUALS='='
+    FAT_ARROW='=>'
+    DOT='.'
+    COMMA=','
+    COLON=':'
+    QUESTION='?'
+    ELLIPSIS='...'
+    STAR='*'
+    PLUS='+'
+    MINUS='-'
+    SLASH='/'
+    PERCENT='%'
+    EQEQ='=='
+    NEQ='!='
+    LT='<'
+    GT='>'
+    LTEQ='<='
+    GTEQ='>='
+    AND='&&'
+    OR='||'
+    NOT='!'
+    TRUE='true'
+    FALSE='false'
+    NULL='null'
+    FOR='for'
+    IN='in'
+    IF='if'
+    ELSE='else'
+    ENDIF='endif'
+    ENDFOR='endfor'
+  ]
+}
+
+file ::= body
+body ::= body_item *
+private body_item ::= block | attribute {recoverWhile=body_item_recover}
+private body_item_recover ::= !(IDENTIFIER | RBRACE)
+
+block ::= IDENTIFIER label * LBRACE body RBRACE {pin=3}
+label ::= STRING_LITERAL + | IDENTIFIER
+
+attribute ::= IDENTIFIER EQUALS expression {pin=2}
+
+// Expressions with precedence
+expression ::= conditional_expr
+conditional_expr ::= or_expr (QUESTION expression COLON expression)?
+or_expr ::= and_expr (OR and_expr)*
+and_expr ::= equality_expr (AND equality_expr)*
+equality_expr ::= comparison_expr ((EQEQ | NEQ) comparison_expr)*
+comparison_expr ::= additive_expr ((LT | GT | LTEQ | GTEQ) additive_expr)*
+additive_expr ::= multiplicative_expr ((PLUS | MINUS) multiplicative_expr)*
+multiplicative_expr ::= unary_expr ((STAR | SLASH | PERCENT) unary_expr)*
+unary_expr ::= (MINUS | NOT)? postfix_expr
+postfix_expr ::= primary_expr (index_access | get_attr | splat)*
+
+index_access ::= LBRACKET expression RBRACKET
+get_attr ::= DOT IDENTIFIER
+splat ::= DOT STAR get_attr* | LBRACKET STAR RBRACKET (get_attr | index_access)*
+
+primary_expr ::= for_expr
+              | function_call
+              | paren_expr
+              | literal_value
+              | collection_value
+              | template_expr
+              | variable_expr
+
+literal_value ::= NUMBER | TRUE | FALSE | NULL
+variable_expr ::= IDENTIFIER
+
+function_call ::= IDENTIFIER LPAREN arg_list? RPAREN {pin=2}
+arg_list ::= expression (COMMA expression)* (COMMA | ELLIPSIS)?
+
+paren_expr ::= LPAREN expression RPAREN
+
+collection_value ::= tuple_expr | object_expr
+tuple_expr ::= LBRACKET (expression (COMMA? expression)* COMMA?)? RBRACKET {pin=1}
+object_expr ::= LBRACE object_elem* RBRACE
+object_elem ::= (IDENTIFIER | expression) (EQUALS | COLON) expression COMMA?
+
+for_expr ::= for_tuple_expr | for_object_expr
+for_tuple_expr ::= LBRACKET for_intro expression for_cond? RBRACKET
+for_object_expr ::= LBRACE for_intro expression FAT_ARROW expression ELLIPSIS? for_cond? RBRACE
+for_intro ::= FOR IDENTIFIER (COMMA IDENTIFIER)? IN expression COLON
+for_cond ::= IF expression
+
+template_expr ::= string_lit | heredoc_expr
+string_lit ::= STRING_LITERAL +
+heredoc_expr ::= HEREDOC_START IDENTIFIER NEWLINE heredoc_body HEREDOC_END
+heredoc_body ::= (HEREDOC_CONTENT | NEWLINE)*
