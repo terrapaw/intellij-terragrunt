@@ -53,6 +53,13 @@
                          enabledByDefault="true"
                          level="WARNING"
                          implementationClass="com.github.joelm.terragrunt.inspection.TerragruntUnresolvedPathInspection"/>
+        <localInspection language="Terragrunt"
+                         shortName="TerragruntUnresolvedVariable"
+                         displayName="Unresolved variable reference"
+                         groupName="Terragrunt"
+                         enabledByDefault="true"
+                         level="WARNING"
+                         implementationClass="com.github.joelm.terragrunt.inspection.TerragruntUnresolvedVariableInspection"/>
         <psi.referenceContributor language="Terragrunt"
                                   implementationClass="com.github.joelm.terragrunt.reference.TerragruntReferenceContributor"/>
         <gotoDeclarationHandler
