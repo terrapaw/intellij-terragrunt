@@ -26,6 +26,9 @@
                         implementationClass="com.github.joelm.terragrunt.editor.TerragruntCommenter"/>
         <lang.foldingBuilder language="Terragrunt"
                              implementationClass="com.github.joelm.terragrunt.editor.TerragruntFoldingBuilder"/>
+        <lang.formatter language="Terragrunt"
+                        implementationClass="com.github.joelm.terragrunt.editor.TerragruntFormattingModelBuilder"/>
+        <langCodeStyleSettingsProvider implementation="com.github.joelm.terragrunt.editor.TerragruntCodeStyleSettingsProvider"/>
         <completion.contributor language="Terragrunt"
                                 implementationClass="com.github.joelm.terragrunt.completion.TerragruntCompletionContributor"/>
         <localInspection language="Terragrunt"

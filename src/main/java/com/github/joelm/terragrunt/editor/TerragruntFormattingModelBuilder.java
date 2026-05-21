@@ -10,13 +10,7 @@ public class TerragruntFormattingModelBuilder implements FormattingModelBuilder 
     @Override
     public @NotNull FormattingModel createModel(@NotNull FormattingContext formattingContext) {
         CodeStyleSettings settings = formattingContext.getCodeStyleSettings();
-        SpacingBuilder spacingBuilder = new SpacingBuilder(settings, TerragruntLanguage.INSTANCE)
-                .after(TerragruntTypes.LBRACE).lineBreakInCode()
-                .before(TerragruntTypes.RBRACE).lineBreakInCode()
-                .after(TerragruntTypes.EQUALS).spaces(1)
-                .before(TerragruntTypes.EQUALS).spaces(1)
-                .after(TerragruntTypes.COMMA).spaces(1)
-                .after(TerragruntTypes.COLON).spaces(1);
+        SpacingBuilder spacingBuilder = new SpacingBuilder(settings, TerragruntLanguage.INSTANCE);
 
         TerragruntFormattingBlock rootBlock = new TerragruntFormattingBlock(
                 formattingContext.getNode(), null, null, spacingBuilder);
