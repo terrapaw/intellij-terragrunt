@@ -64,5 +64,10 @@
                                   implementationClass="com.github.joelm.terragrunt.reference.TerragruntReferenceContributor"/>
         <gotoDeclarationHandler
                                   implementationClass="com.github.joelm.terragrunt.reference.TerragruntGotoDeclarationHandler"/>
+        <lang.refactoringSupport language="Terragrunt"
+                                 implementationClass="com.github.joelm.terragrunt.refactor.TerragruntRefactoringSupportProvider"/>
+        <lang.namesValidator language="Terragrunt"
+                             implementationClass="com.github.joelm.terragrunt.refactor.TerragruntNamesValidator"/>
+        <renameHandler implementationClass="com.github.joelm.terragrunt.refactor.TerragruntRenameHandler"/>
     </extensions>
 </idea-plugin>
