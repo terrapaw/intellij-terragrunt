@@ -64,9 +64,8 @@
                          level="WARNING"
                          implementationClass="com.github.joelm.terragrunt.inspection.TerragruntUnresolvedVariableInspection"/>
         <psi.referenceContributor language="Terragrunt"
-                                  implementationClass="com.github.joelm.terragrunt.reference.TerragruntReferenceContributor"/>
-        <gotoDeclarationHandler
-                                  implementationClass="com.github.joelm.terragrunt.reference.TerragruntGotoDeclarationHandler"/>
+                                  implementation="com.github.joelm.terragrunt.reference.TerragruntReferenceContributor"/>
+        <gotoDeclarationHandler implementationClass="com.github.joelm.terragrunt.reference.TerragruntGotoDeclarationHandler"/>
         <lang.refactoringSupport language="Terragrunt"
                                  implementationClass="com.github.joelm.terragrunt.refactor.TerragruntRefactoringSupportProvider"/>
         <lang.namesValidator language="Terragrunt"

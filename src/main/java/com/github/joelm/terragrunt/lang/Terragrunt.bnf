@@ -23,6 +23,7 @@
     HEREDOC_CONTENT='regexp:[^\r\n]+'
     HEREDOC_END='regexp:[a-zA-Z_][a-zA-Z0-9_]*'
     INTERPOLATION_START='${'
+    INTERPOLATION_END='INTERPOLATION_END'
     DIRECTIVE_START='%{'
     LBRACE='{'
     RBRACE='}'
@@ -117,6 +118,7 @@ for_intro ::= FOR IDENTIFIER (COMMA IDENTIFIER)? IN expression COLON
 for_cond ::= IF expression
 
 template_expr ::= string_lit | heredoc_expr
-string_lit ::= STRING_LITERAL +
-heredoc_expr ::= HEREDOC_START IDENTIFIER NEWLINE heredoc_body HEREDOC_END
-heredoc_body ::= (HEREDOC_CONTENT | NEWLINE)*
+string_lit ::= STRING_LITERAL (STRING_LITERAL | interpolation)*
+interpolation ::= INTERPOLATION_START expression INTERPOLATION_END | DIRECTIVE_START expression INTERPOLATION_END
+heredoc_expr ::= HEREDOC_START IDENTIFIER heredoc_body HEREDOC_END
+heredoc_body ::= (HEREDOC_CONTENT | interpolation) *

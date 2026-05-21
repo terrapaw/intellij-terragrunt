@@ -61,10 +61,14 @@ public class TerragruntLexerTest extends BasePlatformTestCase {
     }
 
     public void testStringWithInterpolation() {
-        // "${var}" inside a string should all be STRING_LITERAL (we treat interpolation as string content)
+        // "${func()}" inside a string should tokenize the interpolation content
         List<IElementType> tokens = getTokenTypes("\"${path_relative_to_include()}/state\"");
-        assertTrue("Interpolated string should be all STRING_LITERAL",
-                tokens.stream().allMatch(t -> t == TerragruntTypes.STRING_LITERAL));
+        assertTrue("Should contain INTERPOLATION_START", tokens.contains(TerragruntTypes.INTERPOLATION_START));
+        assertTrue("Should contain IDENTIFIER for function name", tokens.contains(TerragruntTypes.IDENTIFIER));
+        assertTrue("Should contain LPAREN", tokens.contains(TerragruntTypes.LPAREN));
+        assertTrue("Should contain RPAREN", tokens.contains(TerragruntTypes.RPAREN));
+        assertTrue("Should contain INTERPOLATION_END", tokens.contains(TerragruntTypes.INTERPOLATION_END));
+        assertTrue("Should contain STRING_LITERAL for /state part", tokens.contains(TerragruntTypes.STRING_LITERAL));
     }
 
     public void testOperators() {

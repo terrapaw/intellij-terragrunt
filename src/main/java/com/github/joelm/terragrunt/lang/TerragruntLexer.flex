@@ -15,6 +15,7 @@ import static com.intellij.psi.TokenType.WHITE_SPACE;
 %type IElementType
 
 %state STRING
+%state INTERPOLATION
 %state BLOCK_COMMENT_STATE
 %state HEREDOC_ID
 %state HEREDOC_BODY
@@ -22,6 +23,7 @@ import static com.intellij.psi.TokenType.WHITE_SPACE;
 %{
   private String heredocId = null;
   private java.util.Deque<Integer> stateStack = new java.util.ArrayDeque<>();
+  private int interpolationBraceDepth = 0;
 
   private void pushState(int state) {
     stateStack.push(yystate());
@@ -62,8 +64,7 @@ ESCAPE_SEQ = \\[nrt\"\\] | \\u[0-9a-fA-F]{4} | \\U[0-9a-fA-F]{8}
   // String
   \"                      { pushState(STRING); return STRING_LITERAL; }
 
-  // Keywords - JFlex longest-match ensures these only match standalone
-  // (e.g. "include" matches IDENTIFIER since it's longer than "in")
+  // Keywords
   "true"    { return TRUE; }
   "false"   { return FALSE; }
   "null"    { return NULL; }
@@ -74,7 +75,7 @@ ESCAPE_SEQ = \\[nrt\"\\] | \\u[0-9a-fA-F]{4} | \\U[0-9a-fA-F]{8}
   "endif"   { return ENDIF; }
   "endfor"  { return ENDFOR; }
 
-  // Multi-char operators (must come before single-char)
+  // Multi-char operators
   "=>"                    { return FAT_ARROW; }
   "=="                    { return EQEQ; }
   "!="                    { return NEQ; }
@@ -124,12 +125,74 @@ ESCAPE_SEQ = \\[nrt\"\\] | \\u[0-9a-fA-F]{4} | \\U[0-9a-fA-F]{8}
   {ESCAPE_SEQ}            { return STRING_LITERAL; }
   "$${"                   { return STRING_LITERAL; }
   "%%{"                   { return STRING_LITERAL; }
-  "${"                    { return STRING_LITERAL; }
-  "%{"                    { return STRING_LITERAL; }
+  "${"                    { interpolationBraceDepth = 0; pushState(INTERPOLATION); return INTERPOLATION_START; }
+  "%{"                    { interpolationBraceDepth = 0; pushState(INTERPOLATION); return DIRECTIVE_START; }
   [^\"\\\$\%\r\n]+        { return STRING_LITERAL; }
   [\$\%]                  { return STRING_LITERAL; }
   \\                      { return STRING_LITERAL; }
   {NEWLINE}               { popState(); return BAD_CHARACTER; }
+}
+
+<INTERPOLATION> {
+  {WS}                    { return WHITE_SPACE; }
+  {NEWLINE}               { return WHITE_SPACE; }
+
+  // Nested string inside interpolation
+  \"                      { pushState(STRING); return STRING_LITERAL; }
+
+  // Track brace depth for nested objects
+  "{"                     { interpolationBraceDepth++; return LBRACE; }
+  "}"                     {
+                            if (interpolationBraceDepth > 0) {
+                              interpolationBraceDepth--;
+                              return RBRACE;
+                            }
+                            // End of interpolation - return to string
+                            popState();
+                            return INTERPOLATION_END;
+                          }
+
+  // Keywords
+  "true"    { return TRUE; }
+  "false"   { return FALSE; }
+  "null"    { return NULL; }
+  "for"     { return FOR; }
+  "in"      { return IN; }
+  "if"      { return IF; }
+  "else"    { return ELSE; }
+
+  // Operators
+  "=>"                    { return FAT_ARROW; }
+  "=="                    { return EQEQ; }
+  "!="                    { return NEQ; }
+  "<="                    { return LTEQ; }
+  ">="                    { return GTEQ; }
+  "&&"                    { return AND; }
+  "||"                    { return OR; }
+  "..."                   { return ELLIPSIS; }
+
+  "["                     { return LBRACKET; }
+  "]"                     { return RBRACKET; }
+  "("                     { return LPAREN; }
+  ")"                     { return RPAREN; }
+  "="                     { return EQUALS; }
+  "."                     { return DOT; }
+  ","                     { return COMMA; }
+  ":"                     { return COLON; }
+  "?"                     { return QUESTION; }
+  "*"                     { return STAR; }
+  "+"                     { return PLUS; }
+  "-"                     { return MINUS; }
+  "/"                     { return SLASH; }
+  "%"                     { return PERCENT; }
+  "<"                     { return LT; }
+  ">"                     { return GT; }
+  "!"                     { return NOT; }
+
+  {NUMBER}                { return NUMBER; }
+  {IDENTIFIER}            { return IDENTIFIER; }
+
+  [^]                     { return BAD_CHARACTER; }
 }
 
 <HEREDOC_ID> {
@@ -140,8 +203,12 @@ ESCAPE_SEQ = \\[nrt\"\\] | \\u[0-9a-fA-F]{4} | \\U[0-9a-fA-F]{8}
 }
 
 <HEREDOC_BODY> {
+  "${"                    { interpolationBraceDepth = 0; pushState(INTERPOLATION); return INTERPOLATION_START; }
+  "%{"                    { interpolationBraceDepth = 0; pushState(INTERPOLATION); return DIRECTIVE_START; }
+  "$${"                   { return HEREDOC_CONTENT; }
+  "%%{"                   { return HEREDOC_CONTENT; }
   {NEWLINE}               { return HEREDOC_CONTENT; }
-  [^\r\n]+                {
+  [^\r\n\$\%]+            {
                             String text = yytext().toString().trim();
                             if (heredocId != null && text.equals(heredocId)) {
                               heredocId = null;
@@ -150,4 +217,5 @@ ESCAPE_SEQ = \\[nrt\"\\] | \\u[0-9a-fA-F]{4} | \\U[0-9a-fA-F]{8}
                             }
                             return HEREDOC_CONTENT;
                           }
+  [\$\%]                  { return HEREDOC_CONTENT; }
 }
