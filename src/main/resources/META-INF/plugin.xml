@@ -17,6 +17,9 @@
                                implementationClass="com.github.joelm.terragrunt.lang.TerragruntParserDefinition"/>
         <lang.syntaxHighlighterFactory language="Terragrunt"
                                        implementationClass="com.github.joelm.terragrunt.highlight.TerragruntSyntaxHighlighterFactory"/>
+        <colorSettingsPage implementationClass="com.github.joelm.terragrunt.highlight.TerragruntColorSettingsPage"/>
+        <lang.documentationProvider language="Terragrunt"
+                                    implementationClass="com.github.joelm.terragrunt.editor.TerragruntDocumentationProvider"/>
         <lang.braceMatcher language="Terragrunt"
                            implementationClass="com.github.joelm.terragrunt.editor.TerragruntBraceMatcher"/>
         <lang.commenter language="Terragrunt"
@@ -69,5 +72,6 @@
         <lang.namesValidator language="Terragrunt"
                              implementationClass="com.github.joelm.terragrunt.refactor.TerragruntNamesValidator"/>
         <renameHandler implementationClass="com.github.joelm.terragrunt.refactor.TerragruntRenameHandler"/>
+        <defaultLiveTemplates file="/liveTemplates/Terragrunt.xml"/>
     </extensions>
 </idea-plugin>
