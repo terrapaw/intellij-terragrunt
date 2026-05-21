@@ -11,15 +11,21 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Dot-completion: `dependency.` → names, `dependency.vpc.` → `outputs`, `local.` → variables, `feature.X.` → `value`
 - **Inspections/Linting**
   - Unknown block types
-  - Missing required attributes
+  - Missing required attributes (with quick-fix to insert them)
   - Deprecated attributes
   - Unresolved file paths in `include` and `dependency` blocks
+  - Unresolved variable references (`local.X`, `dependency.X`, `feature.X`)
 - **Navigation (Ctrl+Click / Ctrl+B)**
   - `include` paths and `dependency` config_paths → jump to referenced files
   - `local.app_name` → jump to definition in `locals` block
   - `dependency.vpc` → jump to `dependency "vpc"` block
   - `feature.flag` → jump to `feature "flag"` block
-- **Editor support** — code folding, brace matching, comment/uncomment
+  - From definition → find all usages (Ctrl+B on `app_name` in `locals`)
+- **Refactoring**
+  - Rename local variables (Shift+F6) — updates definition and all `local.X` usages
+- **Documentation (Ctrl+Q)** — shows function signatures and descriptions
+- **Live templates** — `dep`, `inc`, `gen`, `feat`, `loc`, `inp` (type + Tab to expand)
+- **Editor support** — code folding, brace matching, comment/uncomment, color settings
 
 ## Supported Blocks
 
