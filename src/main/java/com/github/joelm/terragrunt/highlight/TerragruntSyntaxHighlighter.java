@@ -49,6 +49,7 @@ public class TerragruntSyntaxHighlighter extends SyntaxHighlighterBase {
     public TextAttributesKey @NotNull [] getTokenHighlights(IElementType tokenType) {
         if (TerragruntTokenTypes.KEYWORDS.contains(tokenType)) return KEYWORD_KEYS;
         if (tokenType == TerragruntTypes.STRING_LITERAL || tokenType == TerragruntTypes.HEREDOC_CONTENT) return STRING_KEYS;
+        if (tokenType == TerragruntTypes.INTERPOLATION_START || tokenType == TerragruntTypes.INTERPOLATION_END || tokenType == TerragruntTypes.DIRECTIVE_START) return IDENTIFIER_KEYS;
         if (tokenType == TerragruntTypes.NUMBER) return NUMBER_KEYS;
         if (tokenType == TerragruntTypes.LINE_COMMENT) return LINE_COMMENT_KEYS;
         if (tokenType == TerragruntTypes.BLOCK_COMMENT) return BLOCK_COMMENT_KEYS;
@@ -56,7 +57,6 @@ public class TerragruntSyntaxHighlighter extends SyntaxHighlighterBase {
         if (tokenType == TerragruntTypes.LBRACE || tokenType == TerragruntTypes.RBRACE) return BRACES_KEYS;
         if (tokenType == TerragruntTypes.LBRACKET || tokenType == TerragruntTypes.RBRACKET) return BRACKETS_KEYS;
         if (tokenType == TerragruntTypes.LPAREN || tokenType == TerragruntTypes.RPAREN) return PARENTHESES_KEYS;
-        if (tokenType == TerragruntTypes.INTERPOLATION_START || tokenType == TerragruntTypes.DIRECTIVE_START) return INTERPOLATION_KEYS;
         if (tokenType == TerragruntTypes.EQEQ || tokenType == TerragruntTypes.NEQ ||
             tokenType == TerragruntTypes.AND || tokenType == TerragruntTypes.OR ||
             tokenType == TerragruntTypes.LT || tokenType == TerragruntTypes.GT ||

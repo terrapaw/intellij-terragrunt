@@ -26,6 +26,9 @@
                         implementationClass="com.github.joelm.terragrunt.editor.TerragruntCommenter"/>
         <lang.foldingBuilder language="Terragrunt"
                              implementationClass="com.github.joelm.terragrunt.editor.TerragruntFoldingBuilder"/>
+        <lang.formatter language="Terragrunt"
+                        implementationClass="com.github.joelm.terragrunt.editor.TerragruntFormattingModelBuilder"/>
+        <langCodeStyleSettingsProvider implementation="com.github.joelm.terragrunt.editor.TerragruntCodeStyleSettingsProvider"/>
         <completion.contributor language="Terragrunt"
                                 implementationClass="com.github.joelm.terragrunt.completion.TerragruntCompletionContributor"/>
         <localInspection language="Terragrunt"
@@ -64,9 +67,8 @@
                          level="WARNING"
                          implementationClass="com.github.joelm.terragrunt.inspection.TerragruntUnresolvedVariableInspection"/>
         <psi.referenceContributor language="Terragrunt"
-                                  implementationClass="com.github.joelm.terragrunt.reference.TerragruntReferenceContributor"/>
-        <gotoDeclarationHandler
-                                  implementationClass="com.github.joelm.terragrunt.reference.TerragruntGotoDeclarationHandler"/>
+                                  implementation="com.github.joelm.terragrunt.reference.TerragruntReferenceContributor"/>
+        <gotoDeclarationHandler implementationClass="com.github.joelm.terragrunt.reference.TerragruntGotoDeclarationHandler"/>
         <lang.refactoringSupport language="Terragrunt"
                                  implementationClass="com.github.joelm.terragrunt.refactor.TerragruntRefactoringSupportProvider"/>
         <lang.namesValidator language="Terragrunt"

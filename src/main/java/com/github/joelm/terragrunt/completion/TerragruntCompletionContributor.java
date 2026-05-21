@@ -181,6 +181,34 @@ public class TerragruntCompletionContributor extends CompletionContributor {
             } else if (depth == 1) {
                 // dependency.vpc. -> suggest "outputs"
                 result.addElement(LookupElementBuilder.create("outputs").withTypeText("dependency outputs").bold());
+            } else if (depth == 2) {
+                // dependency.vpc.outputs. -> suggest mock_outputs keys
+                String depName = getAttrs != null && getAttrs.length > 0
+                        ? ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText() : null;
+                if (depName != null) {
+                    for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+                        if (!"dependency".equals(block.getIdentifier().getText())) continue;
+                        for (TerragruntLabel label : block.getLabelList()) {
+                            if (!depName.equals(label.getText().replace("\"", ""))) continue;
+                        }
+                        // Find mock_outputs attribute in this block
+                        TerragruntBody body = block.getBody();
+                        if (body == null) continue;
+                        for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                            if (!"mock_outputs".equals(attr.getIdentifier().getText())) continue;
+                            // Find object keys in mock_outputs value
+                            TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                            if (obj == null) continue;
+                            for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                                PsiElement key = elem.getFirstChild();
+                                if (key != null) {
+                                    result.addElement(LookupElementBuilder.create(key.getText())
+                                            .withTypeText("output").bold());
+                                }
+                            }
+                        }
+                    }
+                }
             }
         } else if ("local".equals(rootVar)) {
             if (depth == 0) {
