@@ -41,7 +41,6 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                             TerragruntAttribute attr = PsiTreeUtil.getParentOfType(position, TerragruntAttribute.class);
                             if (attr != null) {
                                 addExpressionCompletions(result);
-                                addDotCompletions(position, result);
                             }
                         }
                     }
