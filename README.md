@@ -10,6 +10,8 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - 60+ built-in functions with signatures
   - Dot-completion: `dependency.` → names, `dependency.vpc.` → `outputs`, `dependency.vpc.outputs.` → mock_outputs keys, `local.` → variables, `feature.X.` → `value`
   - Cross-file: `include.root.locals.` → suggests attributes from included file
+  - Alias-aware: `local.root_config.` → suggests attributes when `root_config = include.root.locals`
+  - `read_terragrunt_config`: `local.common.locals.` and `local.common.inputs.` → suggests from loaded file
 - **Inspections/Linting**
   - Unknown block types
   - Missing required attributes (with quick-fix to insert them)
@@ -67,7 +69,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-131 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+133 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
