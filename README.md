@@ -9,6 +9,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Terragrunt blocks and attributes (context-aware)
   - 60+ built-in functions with signatures
   - Dot-completion: `dependency.` → names, `dependency.vpc.` → `outputs`, `dependency.vpc.outputs.` → mock_outputs keys, `local.` → variables, `feature.X.` → `value`
+  - Cross-file: `include.root.locals.` → suggests attributes from included file
 - **Inspections/Linting**
   - Unknown block types
   - Missing required attributes (with quick-fix to insert them)
@@ -20,7 +21,10 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - `local.app_name` → jump to definition in `locals` block
   - `dependency.vpc` → jump to `dependency "vpc"` block
   - `feature.flag` → jump to `feature "flag"` block
+  - `include.root.locals.region` → jump to `region` in the included file
+  - `local.env_vars.environment` → resolves alias (`env_vars = include.env.locals`), jumps to included file
   - From definition → find all usages (Ctrl+B on `app_name` in `locals`)
+  - Cross-file find usages — finds both direct and aliased references across project
 - **Refactoring**
   - Rename local variables (Shift+F6) — updates definition and all `local.X` usages
 - **Documentation (Ctrl+Q)** — shows function signatures and descriptions
@@ -36,8 +40,9 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
 ## File Detection
 
 The plugin activates for:
-- Files named `terragrunt.hcl`, `root.hcl`, or `terragrunt.stack.hcl`
+- Files named `terragrunt.hcl`, `root.hcl`, `terragrunt.stack.hcl`, or `terragrunt.values.hcl`
 - Any `.hcl` file containing Terragrunt-specific blocks (content heuristic)
+- Any `.hcl` file in a directory (or parent directories) containing Terragrunt files
 
 ## Building
 
@@ -61,7 +66,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-101 tests covering lexer, parser, inspections, completion, navigation, and formatting.
+127 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
