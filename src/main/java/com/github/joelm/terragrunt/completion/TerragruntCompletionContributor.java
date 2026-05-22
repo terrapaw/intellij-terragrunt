@@ -131,6 +131,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
         result.addElement(LookupElementBuilder.create("dependency").withTypeText("dependency reference").bold());
         result.addElement(LookupElementBuilder.create("feature").withTypeText("feature reference").bold());
         result.addElement(LookupElementBuilder.create("include").withTypeText("include reference").bold());
+        result.addElement(LookupElementBuilder.create("values").withTypeText("stack values reference").bold());
 
         // Functions
         for (var func : TerragruntSchema.getFunctions()) {
@@ -255,6 +256,10 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 result.addElement(LookupElementBuilder.create("inputs").withTypeText("exposed config"));
                 result.addElement(LookupElementBuilder.create("remote_state").withTypeText("exposed config"));
             }
+        } else if ("values".equals(rootVar)) {
+            // values. -> suggest keys from any terragrunt.values.hcl or top-level attributes in same file
+            // For now, look for a values block pattern or top-level attributes that look like values
+            // This is a placeholder until cross-file resolution is implemented
         }
     }
 }
