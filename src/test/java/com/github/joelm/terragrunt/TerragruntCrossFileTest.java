@@ -308,40 +308,27 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
                 }
                 """);
 
-        // Use addFileToProject for the main file too, so all files are in same VFS
+        // All files via addFileToProject so they share the same VFS
         PsiFile mainFile = myFixture.addFileToProject("terragrunt.hcl", """
                 locals {
                   common = read_terragrunt_config("common.hcl")
                 }
                 
                 inputs = {
-                  x = local.common.locals.org_name
+                  x = local.common.
                 }
                 """);
         myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
 
-        // Directly test the resolver
-        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(mainFile, TerragruntBlock.class);
-        TerragruntBlock localsBlock = null;
-        for (var b : blocks) {
-            if ("locals".equals(b.getIdentifier().getText())) { localsBlock = b; break; }
-        }
-        assertNotNull("Should find locals block", localsBlock);
+        // Position caret after "local.common."
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("local.common.") + "local.common.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
-        TerragruntBody body = localsBlock.getBody();
-        assertNotNull("Locals block should have body", body);
-
-        var attrs = PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class);
-        assertFalse("Should have attributes in locals", attrs.isEmpty());
-        assertEquals("common", attrs.get(0).getIdentifier().getText());
-
-        TerragruntFunctionCall funcCall = PsiTreeUtil.findChildOfType(attrs.get(0), TerragruntFunctionCall.class);
-        assertNotNull("Should find read_terragrunt_config function call", funcCall);
-        assertEquals("read_terragrunt_config", funcCall.getIdentifier().getText());
-
-        PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, mainFile);
-        assertNotNull("Should resolve common.hcl", resolved);
-        assertEquals("common.hcl", resolved.getName());
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for local.common.", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'locals' after local.common. Got: " + names, names.contains("locals"));
     }
 
     public void testCompletionLocalAliasLocalsDotSuggestsAttributes() {
@@ -353,7 +340,6 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
                 }
                 """);
 
-        // Put the completion in inputs block (separate from locals definition)
         PsiFile mainFile = myFixture.addFileToProject("terragrunt.hcl", """
                 locals {
                   common = read_terragrunt_config("common.hcl")
@@ -365,18 +351,15 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
                 """);
         myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
 
-        // Position caret after "locals."
+        // Position caret after "local.common.locals."
         String text = myFixture.getEditor().getDocument().getText();
-        int offset = text.indexOf("locals.") + "locals.".length();
+        int offset = text.indexOf("local.common.locals.") + "local.common.locals.".length();
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var completions = myFixture.completeBasic();
-        if (completions != null && completions.length > 0) {
-            var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
-            assertTrue("Should suggest 'org_name'. Got: " + names, names.contains("org_name"));
-            assertTrue("Should suggest 'team'. Got: " + names, names.contains("team"));
-        }
-        // If completions is null or empty, the text-based resolver couldn't find the file
-        // This is acceptable in test environment - works in real IDE
+        assertNotNull("Should have completions for local.common.locals.", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'org_name' from common.hcl. Got: " + names, names.contains("org_name"));
+        assertTrue("Should suggest 'team' from common.hcl. Got: " + names, names.contains("team"));
     }
 }
