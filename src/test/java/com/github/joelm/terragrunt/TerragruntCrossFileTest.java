@@ -1,9 +1,13 @@
 package com.github.joelm.terragrunt;
 
+import com.github.joelm.terragrunt.reference.TerragruntFileResolver;
 import com.github.joelm.terragrunt.reference.TerragruntGotoDeclarationHandler;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
+
+import java.util.Collection;
 
 public class TerragruntCrossFileTest extends BasePlatformTestCase {
 
@@ -85,5 +89,41 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
         assertNotNull("Should resolve region from included file", targets);
         assertTrue("Should find the region attribute", targets.length > 0);
+    }
+
+    public void testFindUsagesFromIncludedFileLocals() {
+        // Create root.hcl so the overrider detects env.hcl as Terragrunt
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+
+        // Create the included file with a locals attribute
+        PsiFile envFile = myFixture.addFileToProject("env.hcl", """
+                locals {
+                  environment = "dev"
+                }
+                """);
+
+        // Create a child file that references it via include.env.locals.environment
+        myFixture.addFileToProject("vpc/terragrunt.hcl", """
+                include "env" {
+                  path   = "../env.hcl"
+                  expose = true
+                }
+                
+                inputs = {
+                  env = include.env.locals.environment
+                }
+                """);
+
+        // Verify the include in the child file resolves to env.hcl
+        myFixture.configureFromExistingVirtualFile(envFile.getVirtualFile());
+
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("environment");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        assertNotNull("Should find element", element);
+
+        // This tests the full Ctrl+B flow
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should find cross-file usages of 'environment'", targets);
+        assertTrue("Should have at least one usage", targets.length > 0);
     }
 }

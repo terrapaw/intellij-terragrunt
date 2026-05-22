@@ -1,10 +1,12 @@
 package com.github.joelm.terragrunt.reference;
 
+import com.github.joelm.terragrunt.lang.TerragruntFileType;
 import com.github.joelm.terragrunt.lang.psi.*;
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationHandler;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiManager;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.Nullable;
 
@@ -115,17 +117,20 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         PsiFile file = sourceElement.getContainingFile();
 
         if ("locals".equals(blockType)) {
-            return findLocalUsages(file, name);
+            List<PsiElement> usages = new ArrayList<>();
+            // Find local.X usages in same file
+            findLocalUsagesInFile(file, name, usages);
+            // Find include.*.locals.X usages in project files
+            findCrossFileLocalUsages(file, name, usages);
+            return usages.isEmpty() ? null : usages.toArray(PsiElement.EMPTY_ARRAY);
         }
         return null;
     }
 
-    private PsiElement[] findLocalUsages(PsiFile file, String name) {
-        List<PsiElement> usages = new ArrayList<>();
+    private void findLocalUsagesInFile(PsiFile file, String name, List<PsiElement> usages) {
         Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
         for (TerragruntGetAttr getAttr : allGetAttrs) {
             if (!name.equals(getAttr.getIdentifier().getText())) continue;
-            // Check it's the first get_attr after "local"
             PsiElement parent = getAttr.getParent();
             if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
             TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
@@ -137,7 +142,62 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 usages.add(getAttr.getIdentifier());
             }
         }
-        return usages.isEmpty() ? null : usages.toArray(PsiElement.EMPTY_ARRAY);
+    }
+
+    private void findCrossFileLocalUsages(PsiFile sourceFile, String name, List<PsiElement> usages) {
+        com.intellij.openapi.project.Project project = sourceFile.getProject();
+        // Use content roots to find all project directories
+        com.intellij.openapi.roots.ProjectRootManager rootManager =
+                com.intellij.openapi.roots.ProjectRootManager.getInstance(project);
+        for (com.intellij.openapi.vfs.VirtualFile contentRoot : rootManager.getContentRoots()) {
+            findHclFilesRecursive(contentRoot, project, sourceFile, name, usages);
+        }
+    }
+
+    private void findHclFilesRecursive(com.intellij.openapi.vfs.VirtualFile dir,
+                                        com.intellij.openapi.project.Project project,
+                                        PsiFile sourceFile, String name, List<PsiElement> usages) {
+        for (com.intellij.openapi.vfs.VirtualFile child : dir.getChildren()) {
+            if (child.isDirectory()) {
+                findHclFilesRecursive(child, project, sourceFile, name, usages);
+            } else if (child.getName().endsWith(".hcl")) {
+                PsiFile psiFile = PsiManager.getInstance(project).findFile(child);
+                if (psiFile != null && !psiFile.equals(sourceFile)) {
+                    findIncludeLocalsUsagesInFile(psiFile, name, sourceFile, usages);
+                }
+            }
+        }
+    }
+
+    private void findIncludeLocalsUsagesInFile(PsiFile file, String name, PsiFile sourceFile, List<PsiElement> usages) {
+        // Look for include.X.locals.<name> where include X resolves to sourceFile
+        Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
+        for (TerragruntGetAttr getAttr : allGetAttrs) {
+            if (!name.equals(getAttr.getIdentifier().getText())) continue;
+            PsiElement parent = getAttr.getParent();
+            if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
+            TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+            if (primary == null) continue;
+            TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+            if (varExpr == null || !"include".equals(varExpr.getIdentifier().getText())) continue;
+
+            // Check chain: include.X.locals.<name> — getAttr should be at index 2
+            PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+            if (getAttrs == null || getAttrs.length < 3 || getAttrs[2] != getAttr) continue;
+            String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+            if (!"locals".equals(section)) continue;
+
+            // Verify the include resolves to our source file
+            String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+            TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
+            if (includeBlock == null) continue;
+            PsiFile resolved = TerragruntFileResolver.resolveInclude(includeBlock);
+            if (resolved != null && resolved.getVirtualFile() != null &&
+                    sourceFile.getVirtualFile() != null &&
+                    resolved.getVirtualFile().getPath().equals(sourceFile.getVirtualFile().getPath())) {
+                usages.add(getAttr.getIdentifier());
+            }
+        }
     }
 
     private PsiElement[] resolveLocal(PsiFile file, String name) {
