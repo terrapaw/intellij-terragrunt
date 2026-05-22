@@ -370,12 +370,14 @@ public class TerragruntCompletionContributor extends CompletionContributor {
         String rootVar = parts[0];
 
         if ("local".equals(rootVar) && parts.length == 2) {
+            // local.X. -> suggest "locals", "inputs" if X is a read_terragrunt_config alias
             PsiFile resolved = resolveLocalAliasForCompletion(file, parts[1]);
             if (resolved != null) {
                 result.addElement(LookupElementBuilder.create("locals").withTypeText("config section").bold());
                 result.addElement(LookupElementBuilder.create("inputs").withTypeText("config section").bold());
             }
         } else if ("local".equals(rootVar) && parts.length == 3 && "locals".equals(parts[2])) {
+            // local.X.locals. -> suggest attributes from resolved file's locals
             PsiFile resolved = resolveLocalAliasForCompletion(file, parts[1]);
             if (resolved != null) {
                 for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(resolved, TerragruntBlock.class)) {
@@ -389,6 +391,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 }
             }
         } else if ("dependency".equals(rootVar) && parts.length == 1) {
+            // dependency. -> suggest dependency names
             for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
                 if (!"dependency".equals(block.getIdentifier().getText())) continue;
                 for (TerragruntLabel label : block.getLabelList()) {
@@ -396,6 +399,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 }
             }
         } else if ("dependency".equals(rootVar) && parts.length == 2) {
+            // dependency.X. -> suggest "outputs"
             result.addElement(LookupElementBuilder.create("outputs").withTypeText("dependency outputs").bold());
         }
     }
