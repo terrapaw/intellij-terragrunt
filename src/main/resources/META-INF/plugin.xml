@@ -11,8 +11,10 @@
                   implementationClass="com.github.joelm.terragrunt.lang.TerragruntFileType"
                   fieldName="INSTANCE"
                   language="Terragrunt"
-                  fileNames="terragrunt.hcl;root.hcl;terragrunt.stack.hcl"
+                  fileNames="terragrunt.hcl;root.hcl;terragrunt.stack.hcl;terragrunt.values.hcl"
                   extensions=""/>
+        <fileTypeDetector implementation="com.github.joelm.terragrunt.lang.TerragruntFileTypeDetector"/>
+        <fileTypeOverrider implementation="com.github.joelm.terragrunt.lang.TerragruntFileTypeOverrider"/>
         <lang.parserDefinition language="Terragrunt"
                                implementationClass="com.github.joelm.terragrunt.lang.TerragruntParserDefinition"/>
         <lang.syntaxHighlighterFactory language="Terragrunt"
