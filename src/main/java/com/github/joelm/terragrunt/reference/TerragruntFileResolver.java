@@ -144,4 +144,38 @@ public class TerragruntFileResolver {
         String content = quotedText.replaceAll("^\"+|\"+$", "");
         return content.isEmpty() ? null : content;
     }
+
+    /**
+     * Resolves read_terragrunt_config(find_in_parent_folders("X")) or read_terragrunt_config("path")
+     */
+    @Nullable
+    public static PsiFile resolveReadTerragruntConfig(TerragruntFunctionCall funcCall, PsiFile sourceFile) {
+        TerragruntArgList argList = funcCall.getArgList();
+        if (argList == null) return null;
+
+        // Check for nested find_in_parent_folders("X") as first argument
+        TerragruntFunctionCall nestedFunc = PsiTreeUtil.findChildOfType(argList, TerragruntFunctionCall.class);
+        if (nestedFunc != null && "find_in_parent_folders".equals(nestedFunc.getIdentifier().getText())) {
+            TerragruntArgList nestedArgs = nestedFunc.getArgList();
+            if (nestedArgs != null) {
+                TerragruntStringLit stringLit = PsiTreeUtil.findChildOfType(nestedArgs, TerragruntStringLit.class);
+                if (stringLit != null) {
+                    String fileName = extractStringContent(stringLit.getText());
+                    if (fileName != null) return findInParentFolders(sourceFile, fileName);
+                }
+            }
+            return findInParentFolders(sourceFile, "root.hcl");
+        }
+
+        // Check for plain string path as first argument
+        TerragruntStringLit stringLit = PsiTreeUtil.findChildOfType(argList, TerragruntStringLit.class);
+        if (stringLit != null) {
+            String path = extractStringContent(stringLit.getText());
+            if (path != null && !path.contains("${")) {
+                return resolveRelativePath(sourceFile, path);
+            }
+        }
+
+        return null;
+    }
 }
