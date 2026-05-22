@@ -89,6 +89,71 @@ public class TerragruntStackTest extends BasePlatformTestCase {
         assertNoParseErrors(file);
     }
 
+    public void testValuesReferenceParses() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                inputs = {
+                  vpc_name = values.vpc_name
+                  cidr     = values.cidr
+                }
+                """);
+        assertNoParseErrors(file);
+    }
+
+    public void testValuesInExpressionCompletion() {
+        myFixture.configureByText("terragrunt.hcl", """
+                inputs = {
+                  x = <caret>
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'values' prefix", names.contains("values"));
+    }
+
+    public void testUnitBlockCompletion() {
+        myFixture.configureByText("terragrunt.stack.hcl", """
+                unit "vpc" {
+                  <caret>
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'source'", names.contains("source"));
+        assertTrue("Should suggest 'path'", names.contains("path"));
+        assertTrue("Should suggest 'values'", names.contains("values"));
+        assertTrue("Should suggest 'no_dot_terragrunt_stack'", names.contains("no_dot_terragrunt_stack"));
+    }
+
+    public void testStackBlockCompletion() {
+        myFixture.configureByText("terragrunt.stack.hcl", """
+                stack "monitoring" {
+                  <caret>
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'source'", names.contains("source"));
+        assertTrue("Should suggest 'path'", names.contains("path"));
+        assertTrue("Should suggest 'values'", names.contains("values"));
+    }
+
+    public void testNoUnresolvedWarningForValues() {
+        myFixture.enableInspections(new com.github.joelm.terragrunt.inspection.TerragruntUnresolvedVariableInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                inputs = {
+                  name = values.vpc_name
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unresolved"))
+                .count();
+        assertEquals("Should NOT warn about values.X (cross-file)", 0, warnings);
+    }
+
     private void assertNoParseErrors(PsiFile file) {
         Collection<PsiErrorElement> errors = PsiTreeUtil.findChildrenOfType(file, PsiErrorElement.class);
         if (!errors.isEmpty()) {
