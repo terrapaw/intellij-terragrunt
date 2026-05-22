@@ -1,5 +1,6 @@
 package com.github.joelm.terragrunt;
 
+import com.github.joelm.terragrunt.lang.psi.*;
 import com.github.joelm.terragrunt.reference.TerragruntFileResolver;
 import com.github.joelm.terragrunt.reference.TerragruntGotoDeclarationHandler;
 import com.intellij.psi.PsiElement;
@@ -235,5 +236,130 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
         assertNotNull("Should navigate from include.root.locals.account_id to root.hcl", targets);
         assertTrue("Should have at least one target", targets.length > 0);
+    }
+
+    public void testNavigateViaReadTerragruntConfig() {
+        // Create marker so .hcl files are detected as Terragrunt
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+
+        // Create the config file to be read
+        myFixture.addFileToProject("common.hcl", """
+                locals {
+                  project_name = "my-project"
+                  region       = "us-west-2"
+                }
+                """);
+
+        // Create a file that uses read_terragrunt_config
+        PsiFile childFile = myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common.hcl")
+                  name   = local.common.locals.project_name
+                }
+                """);
+
+        // Ctrl+B on "project_name" in local.common.locals.project_name
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("locals.project_name") + "locals.".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate from local.common.locals.project_name to common.hcl", targets);
+        assertTrue("Should have at least one target", targets.length > 0);
+    }
+
+    public void testNavigateViaReadTerragruntConfigWithFindInParentFolders() {
+        // Create marker
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+
+        // Create the config file
+        myFixture.addFileToProject("common.hcl", """
+                locals {
+                  account_id = "999888777"
+                }
+                """);
+
+        // Create a child file using read_terragrunt_config(find_in_parent_folders("common.hcl"))
+        PsiFile childFile = myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  shared = read_terragrunt_config(find_in_parent_folders("common.hcl"))
+                  acct   = local.shared.locals.account_id
+                }
+                """);
+
+        // Ctrl+B on "account_id"
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("locals.account_id") + "locals.".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate via read_terragrunt_config + find_in_parent_folders", targets);
+        assertTrue("Should have at least one target", targets.length > 0);
+    }
+
+    public void testCompletionLocalAliasDotSuggestsLocals() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        myFixture.addFileToProject("common.hcl", """
+                locals {
+                  org_name = "acme"
+                  team     = "platform"
+                }
+                """);
+
+        // All files via addFileToProject so they share the same VFS
+        PsiFile mainFile = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("common.hcl")
+                }
+                
+                inputs = {
+                  x = local.common.
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+
+        // Position caret after "local.common."
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("local.common.") + "local.common.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for local.common.", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'locals' after local.common. Got: " + names, names.contains("locals"));
+    }
+
+    public void testCompletionLocalAliasLocalsDotSuggestsAttributes() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        myFixture.addFileToProject("common.hcl", """
+                locals {
+                  org_name = "acme"
+                  team     = "platform"
+                }
+                """);
+
+        PsiFile mainFile = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("common.hcl")
+                }
+                
+                inputs = {
+                  x = local.common.locals.
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+
+        // Position caret after "local.common.locals."
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("local.common.locals.") + "local.common.locals.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for local.common.locals.", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'org_name' from common.hcl. Got: " + names, names.contains("org_name"));
+        assertTrue("Should suggest 'team' from common.hcl. Got: " + names, names.contains("team"));
     }
 }

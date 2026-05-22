@@ -19,6 +19,13 @@ dependency "app" {
   }
 }
 
+# Example of read_terragrunt_config() pattern
+locals {
+  common = read_terragrunt_config(find_in_parent_folders("common.hcl"))
+  org    = local.common.locals.org_name
+  team   = local.common.locals.team
+}
+
 feature "multi_az" {
   default = false
 }
@@ -50,7 +57,14 @@ inputs = {
   instance_class = feature.multi_az.value ? "db.r6g.large" : "db.t3.medium"
   multi_az       = feature.multi_az.value
 
-  vpc_id                = dependency.vpc.outputs.vpc_id
-  subnet_ids            = dependency.vpc.outputs.private_subnets
+  vpc_id                 = dependency.vpc.outputs.vpc_id
+  subnet_ids             = dependency.vpc.outputs.private_subnets
   vpc_security_group_ids = [dependency.app.outputs.security_group_id]
+
+  # Using read_terragrunt_config values
+  tags = {
+    Team        = local.team
+    Org         = local.org
+    CostCenter  = local.common.locals.cost_center
+  }
 }
