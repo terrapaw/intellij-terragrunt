@@ -1,5 +1,6 @@
 include "root" {
-  path = find_in_parent_folders("root.hcl")
+  path   = find_in_parent_folders("root.hcl")
+  expose = true
 }
 
 dependency "vpc" {
@@ -13,8 +14,9 @@ dependency "vpc" {
 }
 
 locals {
-  app_name = "my-app"
-  app_port = 8080
+  app_name    = "my-app"
+  app_port    = 8080
+  root_config = include.root.locals
 }
 
 terraform {
@@ -27,4 +29,7 @@ inputs = {
   subnet_ids      = dependency.vpc.outputs.private_subnets
   container_port  = local.app_port
   environment     = "dev"
+  region          = local.root_config.aws_region
+  account_id      = local.root_config.account_id
+  project         = local.root_config.project_name
 }

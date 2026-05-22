@@ -1,6 +1,7 @@
 package com.github.joelm.terragrunt.completion;
 
 import com.github.joelm.terragrunt.lang.psi.*;
+import com.github.joelm.terragrunt.reference.TerragruntFileResolver;
 import com.github.joelm.terragrunt.schema.TerragruntSchema;
 import com.intellij.codeInsight.completion.*;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
@@ -255,6 +256,26 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 result.addElement(LookupElementBuilder.create("locals").withTypeText("exposed config"));
                 result.addElement(LookupElementBuilder.create("inputs").withTypeText("exposed config"));
                 result.addElement(LookupElementBuilder.create("remote_state").withTypeText("exposed config"));
+            } else if (depth == 2 && getAttrs != null && getAttrs.length >= 2) {
+                // include.X.locals. -> suggest locals from included file
+                String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+
+                TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
+                if (includeBlock != null) {
+                    PsiFile targetFile = TerragruntFileResolver.resolveInclude(includeBlock);
+                    if (targetFile != null && "locals".equals(section)) {
+                        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(targetFile, TerragruntBlock.class)) {
+                            if (!"locals".equals(block.getIdentifier().getText())) continue;
+                            TerragruntBody body = block.getBody();
+                            if (body == null) continue;
+                            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                                result.addElement(LookupElementBuilder.create(attr.getIdentifier().getText())
+                                        .withTypeText("included local").bold());
+                            }
+                        }
+                    }
+                }
             }
         } else if ("values".equals(rootVar)) {
             // values. -> suggest keys from any terragrunt.values.hcl or top-level attributes in same file

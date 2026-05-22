@@ -23,4 +23,18 @@ public class TerragruntFileTypeTest extends BasePlatformTestCase {
         assertEquals("terragrunt.stack.hcl should be Terragrunt file type",
                 TerragruntFileType.INSTANCE, file.getFileType());
     }
+
+    public void testHclFileInTerragruntProjectDetected() {
+        // Create a root.hcl sibling so the directory is recognized as a Terragrunt project
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        PsiFile envFile = myFixture.addFileToProject("env.hcl", "locals { environment = \"dev\" }");
+        assertEquals("env.hcl next to root.hcl should be Terragrunt file type",
+                TerragruntFileType.INSTANCE, envFile.getFileType());
+    }
+
+    public void testHclFileWithTerragruntContentDetected() {
+        PsiFile file = myFixture.configureByText("custom.hcl", "include \"root\" { path = \"x\" }");
+        assertEquals("HCL file with include block should be Terragrunt",
+                TerragruntFileType.INSTANCE, file.getFileType());
+    }
 }
