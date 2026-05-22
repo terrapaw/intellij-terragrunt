@@ -362,4 +362,70 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue("Should suggest 'org_name' from common.hcl. Got: " + names, names.contains("org_name"));
         assertTrue("Should suggest 'team' from common.hcl. Got: " + names, names.contains("team"));
     }
+
+    public void testCompletionIncludeLocalsAliasSuggestsAttributesDirectly() {
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  aws_region = "us-east-1"
+                  account_id = "123456"
+                }
+                """);
+
+        PsiFile mainFile = myFixture.addFileToProject("terragrunt.hcl", """
+                include "root" {
+                  path   = "root.hcl"
+                  expose = true
+                }
+                
+                locals {
+                  root_config = include.root.locals
+                }
+                
+                inputs = {
+                  x = local.root_config.
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("local.root_config.") + "local.root_config.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for local.root_config.", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'aws_region' directly. Got: " + names, names.contains("aws_region"));
+        assertTrue("Should suggest 'account_id' directly. Got: " + names, names.contains("account_id"));
+    }
+
+    public void testCompletionInputsFromReadTerragruntConfig() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        myFixture.addFileToProject("common.hcl", """
+                inputs = {
+                  vpc_id = "vpc-123"
+                  region = "us-east-1"
+                }
+                """);
+
+        PsiFile mainFile = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("common.hcl")
+                }
+                
+                inputs = {
+                  x = local.common.inputs.
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("local.common.inputs.") + "local.common.inputs.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for local.common.inputs.", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'vpc_id'. Got: " + names, names.contains("vpc_id"));
+        assertTrue("Should suggest 'region'. Got: " + names, names.contains("region"));
+    }
 }

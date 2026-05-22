@@ -67,4 +67,8 @@ inputs = {
     Org         = local.org
     CostCenter  = local.common.locals.cost_center
   }
+
+  # Using inputs from read_terragrunt_config
+  notification_email  = local.common.inputs.notification_email
+  alert_slack_channel = local.common.inputs.alert_slack_channel
 }
