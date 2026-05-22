@@ -101,6 +101,51 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             if (targetFile != null) return new PsiElement[]{targetFile};
         }
 
+        // Handle local.alias.Y at depth 1 — resolve alias to included file's locals
+        if ("local".equals(rootVar) && cursorIndex == 1 && getAttrs.length >= 2) {
+            String aliasName = chain[0];
+            String attrName = chain[1];
+            // Find the alias assignment: locals { alias = include.X.locals }
+            PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
+            if (resolvedFile != null) {
+                TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(resolvedFile, attrName);
+                if (resolved != null) return new PsiElement[]{resolved};
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves a local variable that is assigned include.X.locals to the included file.
+     */
+    @Nullable
+    private PsiFile resolveLocalAlias(PsiFile file, String aliasName) {
+        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+            if (!"locals".equals(block.getIdentifier().getText())) continue;
+            TerragruntBody body = block.getBody();
+            if (body == null) continue;
+            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                if (!aliasName.equals(attr.getIdentifier().getText())) continue;
+                // Check if value is include.X.locals
+                TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
+                if (postfix == null) continue;
+                TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+                if (primary == null) continue;
+                TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+                if (varExpr == null || !"include".equals(varExpr.getIdentifier().getText())) continue;
+
+                PsiElement[] aliasGetAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+                if (aliasGetAttrs == null || aliasGetAttrs.length < 2) continue;
+                String section = ((TerragruntGetAttr) aliasGetAttrs[1]).getIdentifier().getText();
+                if (!"locals".equals(section)) continue;
+
+                String includeName = ((TerragruntGetAttr) aliasGetAttrs[0]).getIdentifier().getText();
+                TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
+                if (includeBlock == null) continue;
+                return TerragruntFileResolver.resolveInclude(includeBlock);
+            }
+        }
         return null;
     }
 
@@ -170,7 +215,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
     }
 
     private void findIncludeLocalsUsagesInFile(PsiFile file, String name, PsiFile sourceFile, List<PsiElement> usages) {
-        // Look for include.X.locals.<name> where include X resolves to sourceFile
+        // Pattern 1: include.X.locals.<name> directly
         Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
         for (TerragruntGetAttr getAttr : allGetAttrs) {
             if (!name.equals(getAttr.getIdentifier().getText())) continue;
@@ -179,25 +224,74 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
             if (primary == null) continue;
             TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
-            if (varExpr == null || !"include".equals(varExpr.getIdentifier().getText())) continue;
+            if (varExpr == null) continue;
 
-            // Check chain: include.X.locals.<name> — getAttr should be at index 2
-            PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
-            if (getAttrs == null || getAttrs.length < 3 || getAttrs[2] != getAttr) continue;
-            String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
-            if (!"locals".equals(section)) continue;
+            String rootVar = varExpr.getIdentifier().getText();
 
-            // Verify the include resolves to our source file
-            String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
-            TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
-            if (includeBlock == null) continue;
-            PsiFile resolved = TerragruntFileResolver.resolveInclude(includeBlock);
-            if (resolved != null && resolved.getVirtualFile() != null &&
-                    sourceFile.getVirtualFile() != null &&
-                    resolved.getVirtualFile().getPath().equals(sourceFile.getVirtualFile().getPath())) {
-                usages.add(getAttr.getIdentifier());
+            if ("include".equals(rootVar)) {
+                // Check chain: include.X.locals.<name> — getAttr should be at index 2
+                PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+                if (getAttrs == null || getAttrs.length < 3 || getAttrs[2] != getAttr) continue;
+                String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+                if (!"locals".equals(section)) continue;
+
+                String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
+                if (includeBlock == null) continue;
+                PsiFile resolved = TerragruntFileResolver.resolveInclude(includeBlock);
+                if (resolved != null && resolved.getVirtualFile() != null &&
+                        sourceFile.getVirtualFile() != null &&
+                        resolved.getVirtualFile().getPath().equals(sourceFile.getVirtualFile().getPath())) {
+                    usages.add(getAttr.getIdentifier());
+                }
+            } else if ("local".equals(rootVar)) {
+                // Pattern 2: local.alias.<name> where alias = include.X.locals
+                PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+                if (getAttrs == null || getAttrs.length < 2 || getAttrs[1] != getAttr) continue;
+                String aliasName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+
+                // Check if this alias is assigned include.X.locals
+                if (isAliasForIncludeLocals(file, aliasName, sourceFile)) {
+                    usages.add(getAttr.getIdentifier());
+                }
             }
         }
+    }
+
+    private boolean isAliasForIncludeLocals(PsiFile file, String aliasName, PsiFile sourceFile) {
+        // Find: locals { aliasName = include.X.locals }
+        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+            if (!"locals".equals(block.getIdentifier().getText())) continue;
+            TerragruntBody body = block.getBody();
+            if (body == null) continue;
+            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                if (!aliasName.equals(attr.getIdentifier().getText())) continue;
+                // Check if the value is include.X.locals
+                TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
+                if (postfix == null) continue;
+                TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+                if (primary == null) continue;
+                TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+                if (varExpr == null || !"include".equals(varExpr.getIdentifier().getText())) continue;
+
+                PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+                if (getAttrs == null || getAttrs.length < 2) continue;
+                String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+                if (!"locals".equals(section)) continue;
+
+                // Verify the include resolves to our source file
+                String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
+                if (includeBlock == null) continue;
+                PsiFile resolved = TerragruntFileResolver.resolveInclude(includeBlock);
+                if (resolved != null && resolved.getVirtualFile() != null &&
+                        sourceFile.getVirtualFile() != null &&
+                        resolved.getVirtualFile().getPath().equals(sourceFile.getVirtualFile().getPath())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private PsiElement[] resolveLocal(PsiFile file, String name) {
