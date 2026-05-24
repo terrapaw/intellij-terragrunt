@@ -40,6 +40,19 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             }
         }
 
+        // Case 4: On a label of a feature/dependency block — find usages
+        if (parent instanceof com.github.terrapaw.terragrunt.lang.psi.TerragruntLabel) {
+            TerragruntBlock block = PsiTreeUtil.getParentOfType(parent, TerragruntBlock.class);
+            if (block != null) {
+                String blockType = block.getIdentifier().getText();
+                String labelName = parent.getText().replace("\"", "");
+                PsiFile file = sourceElement.getContainingFile();
+                if ("feature".equals(blockType) || "dependency".equals(blockType)) {
+                    return findBlockReferenceUsages(file, blockType, labelName);
+                }
+            }
+        }
+
         return null;
     }
 
@@ -120,6 +133,16 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             String outputName = chain[2];
             if ("outputs".equals(section)) {
                 PsiElement target = findMockOutputKey(file, depName, outputName);
+                if (target != null) return new PsiElement[]{target};
+            }
+        }
+
+        // Handle feature.X.value at depth 1 — navigate to the default attribute
+        if ("feature".equals(rootVar) && cursorIndex == 1 && getAttrs.length >= 2) {
+            String featureName = chain[0];
+            String attr = chain[1];
+            if ("value".equals(attr)) {
+                PsiElement target = findFeatureDefault(file, featureName);
                 if (target != null) return new PsiElement[]{target};
             }
         }
@@ -396,6 +419,44 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         return resolved != null && resolved.getVirtualFile() != null &&
                 sourceFile.getVirtualFile() != null &&
                 resolved.getVirtualFile().getPath().equals(sourceFile.getVirtualFile().getPath());
+    }
+
+    @Nullable
+    private PsiElement[] findBlockReferenceUsages(PsiFile file, String blockType, String labelName) {
+        List<PsiElement> usages = new ArrayList<>();
+        Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
+        for (TerragruntGetAttr getAttr : allGetAttrs) {
+            if (!labelName.equals(getAttr.getIdentifier().getText())) continue;
+            PsiElement parent = getAttr.getParent();
+            if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
+            TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+            if (primary == null) continue;
+            TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+            if (varExpr == null || !blockType.equals(varExpr.getIdentifier().getText())) continue;
+            PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+            if (getAttrs != null && getAttrs.length > 0 && getAttrs[0] == getAttr) {
+                usages.add(getAttr.getIdentifier());
+            }
+        }
+        return usages.isEmpty() ? null : usages.toArray(PsiElement.EMPTY_ARRAY);
+    }
+
+    @Nullable
+    private PsiElement findFeatureDefault(PsiFile file, String featureName) {
+        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+            if (!"feature".equals(block.getIdentifier().getText())) continue;
+            for (TerragruntLabel label : block.getLabelList()) {
+                if (!featureName.equals(label.getText().replace("\"", ""))) continue;
+            }
+            TerragruntBody body = block.getBody();
+            if (body == null) continue;
+            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                if ("default".equals(attr.getIdentifier().getText())) {
+                    return attr.getIdentifier();
+                }
+            }
+        }
+        return null;
     }
 
     @Nullable

@@ -209,6 +209,38 @@ public class TerragruntEdgeCaseTest extends BasePlatformTestCase {
 
     // --- Multiple blocks of same type ---
 
+    public void testFeatureValueNavigation() {
+        myFixture.configureByText("terragrunt.hcl", """
+                feature "multi_az" {
+                  default = false
+                }
+                inputs = {
+                  az = feature.multi_az.<caret>value
+                }
+                """);
+        PsiElement element = myFixture.getFile().findElementAt(myFixture.getCaretOffset());
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, myFixture.getCaretOffset(), myFixture.getEditor());
+        assertNotNull("Should navigate feature.multi_az.value to default", targets);
+        assertTrue("Should have at least one target", targets.length > 0);
+        assertEquals("Should land on 'default'", "default", targets[0].getText());
+    }
+
+    public void testFeatureFindUsagesFromLabel() {
+        myFixture.configureByText("terragrunt.hcl", """
+                feature "multi_<caret>az" {
+                  default = false
+                }
+                inputs = {
+                  az = feature.multi_az.value
+                  is_multi = feature.multi_az.value
+                }
+                """);
+        PsiElement element = myFixture.getFile().findElementAt(myFixture.getCaretOffset());
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, myFixture.getCaretOffset(), myFixture.getEditor());
+        assertNotNull("Should find usages of feature.multi_az", targets);
+        assertEquals("Should find 2 usages", 2, targets.length);
+    }
+
     public void testDependencyOutputsNavigation() {
         myFixture.configureByText("terragrunt.hcl", """
                 dependency "vpc" {
