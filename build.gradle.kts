@@ -8,7 +8,7 @@ plugins {
     id("org.jetbrains.intellij.platform.grammarkit") version "2.12.0"
 }
 
-group = "com.github.joelm"
+group = "com.github.terrapaw"
 version = "0.1.0"
 
 repositories {
@@ -28,7 +28,7 @@ dependencies {
 
 intellijPlatform {
     pluginConfiguration {
-        id = "com.github.joelm.terragrunt"
+        id = "com.github.terrapaw.terragrunt"
         name = "Terragrunt HCL"
         version = project.version.toString()
         description = "IntelliSense and linting for Terragrunt HCL configuration files"

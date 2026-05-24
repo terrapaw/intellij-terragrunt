@@ -1,7 +1,7 @@
 <idea-plugin>
-    <id>com.github.joelm.terragrunt</id>
+    <id>com.github.terrapaw.terragrunt</id>
     <name>Terragrunt HCL</name>
-    <vendor>joelm</vendor>
+    <vendor>terrapaw</vendor>
     <description><![CDATA[IntelliSense and linting for Terragrunt HCL configuration files.]]></description>
 
     <depends>com.intellij.modules.platform</depends>
