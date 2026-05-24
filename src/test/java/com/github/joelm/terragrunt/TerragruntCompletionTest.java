@@ -71,6 +71,18 @@ public class TerragruntCompletionTest extends BasePlatformTestCase {
         assertTrue("Should suggest 'local' prefix", names.contains("local"));
     }
 
+    public void testExpressionSuggestsForExpressions() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  x = <caret>
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        List<String> names = List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest '[for' tuple expression", names.contains("[for"));
+        assertTrue("Should suggest '{for' object expression", names.contains("{for"));
+    }
+
     public void testExpressionDoesNotSuggestBlocks() {
         myFixture.configureByText("terragrunt.hcl", """
                 locals {

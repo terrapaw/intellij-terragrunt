@@ -149,6 +149,24 @@ public class TerragruntCompletionContributor extends CompletionContributor {
         result.addElement(LookupElementBuilder.create("include").withTypeText("include reference").bold());
         result.addElement(LookupElementBuilder.create("values").withTypeText("stack values reference").bold());
 
+        // For expressions
+        result.addElement(LookupElementBuilder.create("[for")
+                .withTailText(" v in list : v]")
+                .withTypeText("for tuple")
+                .withInsertHandler((ctx, item) -> {
+                    String insert = "[for v in  : v]";
+                    ctx.getDocument().replaceString(ctx.getStartOffset(), ctx.getTailOffset(), insert);
+                    ctx.getEditor().getCaretModel().moveToOffset(ctx.getStartOffset() + 10);
+                }));
+        result.addElement(LookupElementBuilder.create("{for")
+                .withTailText(" k, v in map : k => v}")
+                .withTypeText("for object")
+                .withInsertHandler((ctx, item) -> {
+                    String insert = "{for k, v in  : k => v}";
+                    ctx.getDocument().replaceString(ctx.getStartOffset(), ctx.getTailOffset(), insert);
+                    ctx.getEditor().getCaretModel().moveToOffset(ctx.getStartOffset() + 13);
+                }));
+
         // Functions
         for (var func : TerragruntSchema.getFunctions()) {
             result.addElement(LookupElementBuilder.create(func.name())
