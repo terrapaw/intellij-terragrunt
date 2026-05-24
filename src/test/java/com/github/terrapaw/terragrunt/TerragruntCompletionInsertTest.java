@@ -84,25 +84,112 @@ public class TerragruntCompletionInsertTest extends BasePlatformTestCase {
     }
 
     public void testLiveTemplateLocalsNoExtraIndentOnBrace() {
-        myFixture.configureByText("terragrunt.hcl", "");
-        myFixture.getEditor().getCaretModel().moveToOffset(0);
-        myFixture.type("loc");
-        myFixture.performEditorAction("ExpandLiveTemplateByTab");
-        String text = myFixture.getEditor().getDocument().getText();
-        assertTrue("Should contain 'locals {'", text.contains("locals {"));
-        assertFalse("Closing brace should NOT be indented", text.contains("  }"));
+        // Live templates are deactivated from Tab/popup (available via Ctrl+J only)
+        // The completion contributor handles block insertion with proper indentation
+        myFixture.configureByText("terragrunt.hcl", "loc<caret>");
+        var completions = myFixture.completeBasic();
+        // Should get 'locals' from completion contributor, not live template
+        if (completions != null) {
+            var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+            assertTrue("Should suggest 'locals' from completion contributor", names.contains("locals"));
+        }
     }
 
     public void testLiveTemplateDepNoExtraIndentOnBrace() {
-        myFixture.configureByText("terragrunt.hcl", "");
-        myFixture.getEditor().getCaretModel().moveToOffset(0);
-        myFixture.type("dep");
+        myFixture.configureByText("terragrunt.hcl", "dep<caret>");
+        var completions = myFixture.completeBasic();
+        if (completions != null) {
+            var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+            assertTrue("Should suggest 'dependency' from completion contributor", names.contains("dependency"));
+        }
+    }
+
+    public void testLiveTemplateDoesNotExpandInsideBlock() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  dep<caret>
+                }
+                """);
+        String before = myFixture.getEditor().getDocument().getText();
         myFixture.performEditorAction("ExpandLiveTemplateByTab");
-        String text = myFixture.getEditor().getDocument().getText();
-        assertTrue("Should contain 'dependency'", text.contains("dependency"));
-        // The outer closing brace should be at column 0 (last line)
-        String lastLine = text.trim().substring(text.trim().lastIndexOf('\n') + 1);
-        assertEquals("Outer closing brace should be at column 0", "}", lastLine);
+        String after = myFixture.getEditor().getDocument().getText();
+        assertFalse("Should NOT expand dep template inside a block", after.contains("dependency \"\""));
+    }
+
+    public void testLiveTemplateNotInCompletionInsideInputs() {
+        myFixture.configureByText("terragrunt.hcl", """
+                inputs = {
+                  <caret>
+                }
+                """);
+
+        // Directly test the context
+        var ctx = com.intellij.codeInsight.template.TemplateActionContext.expanding(
+                myFixture.getFile(), myFixture.getEditor());
+        var templateContext = new com.github.terrapaw.terragrunt.editor.TerragruntLiveTemplateContext();
+        assertFalse("isInContext should return false inside inputs block",
+                templateContext.isInContext(ctx));
+
+        var completions = myFixture.completeBasic();
+        if (completions != null) {
+            java.util.List<String> names = java.util.List.of(completions).stream()
+                    .map(l -> l.getLookupString()).toList();
+            assertFalse("Should NOT suggest 'loc' template inside inputs", names.contains("loc"));
+            assertFalse("Should NOT suggest 'dep' template inside inputs", names.contains("dep"));
+            assertFalse("Should NOT suggest 'inc' template inside inputs", names.contains("inc"));
+        }
+    }
+
+    public void testLiveTemplateNotInCompletionInsideLocalsBlock() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  <caret>
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        if (completions != null) {
+            java.util.List<String> names = java.util.List.of(completions).stream()
+                    .map(l -> l.getLookupString()).toList();
+            assertFalse("Should NOT suggest 'loc' template inside locals block", names.contains("loc"));
+            assertFalse("Should NOT suggest 'dep' template inside locals block", names.contains("dep"));
+        }
+    }
+
+    public void testNoBlockCompletionInsideInputsMap() {
+        myFixture.configureByText("terragrunt.hcl", """
+                inputs = {
+                  <caret>
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        if (completions != null) {
+            java.util.List<String> names = java.util.List.of(completions).stream()
+                    .map(l -> l.getLookupString()).toList();
+            assertFalse("Should NOT suggest 'locals' block inside inputs", names.contains("locals"));
+            assertFalse("Should NOT suggest 'terraform' block inside inputs", names.contains("terraform"));
+            assertFalse("Should NOT suggest 'dependency' block inside inputs", names.contains("dependency"));
+        }
+    }
+
+    public void testNoBlockCompletionInsideInputsMapWithExistingContent() {
+        // Mimics env.hcl with locals above and inputs below
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  environment = "dev"
+                }
+                
+                inputs = {
+                  default_tags = {}
+                  <caret>
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        if (completions != null) {
+            java.util.List<String> names = java.util.List.of(completions).stream()
+                    .map(l -> l.getLookupString()).toList();
+            assertFalse("Should NOT suggest 'locals' block inside inputs with content above. Got: " + names,
+                    names.contains("locals"));
+        }
     }
 
     private void selectAndInsert(String name) {

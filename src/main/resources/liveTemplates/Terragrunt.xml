@@ -3,38 +3,38 @@
         <variable name="NAME" expression="" defaultValue="&quot;name&quot;" alwaysStopAt="true"/>
         <variable name="PATH" expression="" defaultValue="&quot;../module&quot;" alwaysStopAt="true"/>
         <context>
-            <option name="OTHER" value="true"/>
+            <option name="TERRAGRUNT" value="true"/>
         </context>
     </template>
     <template name="inc" value="include &quot;$NAME$&quot; {&#10;  path = find_in_parent_folders(&quot;$FILE$&quot;)&#10;}" description="Include block" toReformat="false" toShortenFQNames="false">
         <variable name="NAME" expression="" defaultValue="&quot;root&quot;" alwaysStopAt="true"/>
         <variable name="FILE" expression="" defaultValue="&quot;root.hcl&quot;" alwaysStopAt="true"/>
         <context>
-            <option name="OTHER" value="true"/>
+            <option name="TERRAGRUNT" value="true"/>
         </context>
     </template>
     <template name="gen" value="generate &quot;$NAME$&quot; {&#10;  path      = &quot;$PATH$&quot;&#10;  if_exists = &quot;overwrite_terragrunt&quot;&#10;  contents  = &lt;&lt;EOF&#10;$END$&#10;EOF&#10;}" description="Generate block" toReformat="false" toShortenFQNames="false">
         <variable name="NAME" expression="" defaultValue="&quot;provider&quot;" alwaysStopAt="true"/>
         <variable name="PATH" expression="" defaultValue="&quot;provider.tf&quot;" alwaysStopAt="true"/>
         <context>
-            <option name="OTHER" value="true"/>
+            <option name="TERRAGRUNT" value="true"/>
         </context>
     </template>
     <template name="feat" value="feature &quot;$NAME$&quot; {&#10;  default = $DEFAULT$&#10;}" description="Feature flag block" toReformat="false" toShortenFQNames="false">
         <variable name="NAME" expression="" defaultValue="&quot;flag&quot;" alwaysStopAt="true"/>
         <variable name="DEFAULT" expression="" defaultValue="&quot;false&quot;" alwaysStopAt="true"/>
         <context>
-            <option name="OTHER" value="true"/>
+            <option name="TERRAGRUNT" value="true"/>
         </context>
     </template>
     <template name="loc" value="locals {&#10;  $END$&#10;}" description="Locals block" toReformat="false" toShortenFQNames="false">
         <context>
-            <option name="OTHER" value="true"/>
+            <option name="TERRAGRUNT" value="true"/>
         </context>
     </template>
     <template name="inp" value="inputs = {&#10;  $END$&#10;}" description="Inputs map" toReformat="false" toShortenFQNames="false">
         <context>
-            <option name="OTHER" value="true"/>
+            <option name="TERRAGRUNT" value="true"/>
         </context>
     </template>
 </templateSet>

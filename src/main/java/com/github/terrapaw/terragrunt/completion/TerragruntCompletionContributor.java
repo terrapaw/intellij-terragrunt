@@ -50,15 +50,35 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     }
 
     private boolean isInBody(PsiElement position) {
-        // Walk up to find if we're directly in a body (not inside an expression value)
-        // During completion, structure is: leaf -> dummy/error -> possibly attribute -> body
         if (PsiTreeUtil.getParentOfType(position, TerragruntGetAttr.class) != null) return false;
         if (PsiTreeUtil.getParentOfType(position, TerragruntObjectExpr.class) != null) return false;
         if (PsiTreeUtil.getParentOfType(position, TerragruntTupleExpr.class) != null) return false;
-        // Check if there's an attribute ancestor with an expression (meaning we're in the value part)
         TerragruntAttribute attr = PsiTreeUtil.getParentOfType(position, TerragruntAttribute.class);
         if (attr != null && attr.getExpression() != null && attr.getExpression().getTextRange().contains(position.getTextOffset())) {
             return false;
+        }
+        // Text-based fallback: check if we're inside a map value (not a block body)
+        // by looking at what precedes the { that contains us
+        String text = position.getContainingFile().getText();
+        int offset = position.getTextOffset();
+        int depth = 0;
+        int lastOpenBraceAtDepth0 = -1;
+        for (int i = 0; i < offset && i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '{') {
+                if (depth == 0) lastOpenBraceAtDepth0 = i;
+                depth++;
+            } else if (c == '}') {
+                depth--;
+            }
+        }
+        // If depth > 1, definitely inside a nested structure
+        if (depth > 1) return false;
+        // If depth == 1, check if the { was preceded by = (map) or identifier (block)
+        if (depth == 1 && lastOpenBraceAtDepth0 > 0) {
+            int i = lastOpenBraceAtDepth0 - 1;
+            while (i >= 0 && Character.isWhitespace(text.charAt(i))) i--;
+            if (i >= 0 && text.charAt(i) == '=') return false; // it's a map value, not a block
         }
         return PsiTreeUtil.getParentOfType(position, TerragruntBody.class) != null;
     }
