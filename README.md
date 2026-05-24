@@ -100,4 +100,4 @@ Standalone plugin with its own Grammar-Kit based HCL parser — no dependency on
 
 ## License
 
-MIT
+Apache 2.0
