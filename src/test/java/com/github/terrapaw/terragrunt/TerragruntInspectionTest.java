@@ -155,4 +155,46 @@ public class TerragruntInspectionTest extends BasePlatformTestCase {
         assertEquals("Should have no unknown block warnings", 0, unknownWarnings);
         assertEquals("Should have no missing attribute warnings", 0, missingWarnings);
     }
+
+    public void testUnresolvedPathWarnsOnMissingFile() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnresolvedPathInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                include "root" {
+                  path = "../nonexistent-file.hcl"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Cannot resolve"))
+                .count();
+        assertEquals("Should warn about nonexistent path", 1, warnings);
+    }
+
+    public void testUnresolvedPathSkipsFunctionCalls() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnresolvedPathInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("root.hcl")
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Cannot resolve"))
+                .count();
+        assertEquals("Should not warn when path uses function call", 0, warnings);
+    }
+
+    public void testUnresolvedPathSkipsInterpolation() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnresolvedPathInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "${get_terragrunt_dir()}/../vpc"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Cannot resolve"))
+                .count();
+        assertEquals("Should not warn for interpolated path", 0, warnings);
+    }
 }
