@@ -68,4 +68,22 @@ public class TerragruntFormatterTest extends BasePlatformTestCase {
         assertTrue("Should preserve list spacing", result.contains("[\"a\", \"b\", \"c\"]"));
         assertTrue("Should preserve expression spacing", result.contains("== \"test\" ? \"yes\" : \"no\""));
     }
+
+    public void testTopLevelBlocksNotIndented() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  name = "test"
+                }
+                
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                """);
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        assertTrue("locals should start at column 0", result.contains("\nlocals {") || result.startsWith("locals {"));
+        assertTrue("dependency should start at column 0", result.contains("\ndependency \"vpc\" {"));
+        assertFalse("Top-level blocks should NOT be indented", result.contains("  locals {"));
+        assertFalse("Top-level blocks should NOT be indented", result.contains("  dependency"));
+    }
 }

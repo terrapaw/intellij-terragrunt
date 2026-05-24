@@ -74,8 +74,14 @@ public class TerragruntFormattingBlock extends AbstractBlock {
     @Override
     public ChildAttributes getChildAttributes(int newChildIndex) {
         IElementType type = myNode.getElementType();
-        if (type == TerragruntTypes.BLOCK || type == TerragruntTypes.BODY
-                || type == TerragruntTypes.OBJECT_EXPR || type == TerragruntTypes.TUPLE_EXPR) {
+        if (type == TerragruntTypes.BODY) {
+            // Only indent if this body is inside a block (not top-level)
+            if (myNode.getTreeParent() != null && myNode.getTreeParent().getElementType() == TerragruntTypes.BLOCK) {
+                return new ChildAttributes(Indent.getNormalIndent(), null);
+            }
+            return new ChildAttributes(Indent.getNoneIndent(), null);
+        }
+        if (type == TerragruntTypes.BLOCK || type == TerragruntTypes.OBJECT_EXPR || type == TerragruntTypes.TUPLE_EXPR) {
             return new ChildAttributes(Indent.getNormalIndent(), null);
         }
         return new ChildAttributes(Indent.getNoneIndent(), null);
