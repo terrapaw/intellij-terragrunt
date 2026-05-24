@@ -224,6 +224,36 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue("Should have at least one target", targets.length > 0);
     }
 
+    public void testNavigateDirectIncludeInputs() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        myFixture.addFileToProject("env.hcl", """
+                inputs = {
+                  default_tags = { Team = "platform" }
+                  region       = "us-east-1"
+                }
+                """);
+
+        PsiFile childFile = myFixture.addFileToProject("vpc/terragrunt.hcl", """
+                include "env" {
+                  path   = "../env.hcl"
+                  expose = true
+                }
+                
+                inputs = {
+                  tags = include.env.inputs.default_tags
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("inputs.default_tags") + "inputs.".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate from include.env.inputs.default_tags", targets);
+        assertTrue("Should have at least one target", targets.length > 0);
+    }
+
     public void testNavigateDirectIncludeLocals() {
         // Create the included file
         myFixture.addFileToProject("root.hcl", """

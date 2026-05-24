@@ -381,7 +381,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 result.addElement(LookupElementBuilder.create("inputs").withTypeText("exposed config"));
                 result.addElement(LookupElementBuilder.create("remote_state").withTypeText("exposed config"));
             } else if (depth == 2 && getAttrs != null && getAttrs.length >= 2) {
-                // include.X.locals. -> suggest locals from included file
+                // include.X.locals. or include.X.inputs. -> suggest from included file
                 String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
                 String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
 
@@ -396,6 +396,19 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
                                 result.addElement(LookupElementBuilder.create(attr.getIdentifier().getText())
                                         .withTypeText("included local").bold());
+                            }
+                        }
+                    } else if (targetFile != null && "inputs".equals(section)) {
+                        for (TerragruntAttribute attr : PsiTreeUtil.findChildrenOfType(targetFile, TerragruntAttribute.class)) {
+                            if (!"inputs".equals(attr.getIdentifier().getText())) continue;
+                            TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                            if (obj == null) continue;
+                            for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                                PsiElement key = elem.getFirstChild();
+                                if (key != null) {
+                                    result.addElement(LookupElementBuilder.create(key.getText())
+                                            .withTypeText("included input").bold());
+                                }
                             }
                         }
                     }

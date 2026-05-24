@@ -76,6 +76,9 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             if ("locals".equals(section)) {
                 TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(targetFile, attrName);
                 if (resolved != null) return new PsiElement[]{resolved};
+            } else if ("inputs".equals(section)) {
+                TerragruntAttribute resolved = TerragruntFileResolver.findInputAttribute(targetFile, attrName);
+                if (resolved != null) return new PsiElement[]{resolved};
             }
         }
 
