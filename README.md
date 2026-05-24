@@ -31,7 +31,9 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - `local.env_vars.environment` → resolves alias (`env_vars = include.env.locals`), jumps to included file
   - `local.common.locals.region` → resolves `read_terragrunt_config()`, jumps to loaded file
   - `dependency.vpc.outputs.vpc_id` → jumps to `vpc_id` in mock_outputs
+  - `feature.flag.value` → jumps to `default` attribute in feature block
   - From definition → find all usages (Ctrl+B on `app_name` in `locals`)
+  - From label → find all usages (Ctrl+B on `"vpc"` in `dependency "vpc"`)
   - Cross-file find usages — finds both direct and aliased references across project
 - **Refactoring**
   - Rename local variables (Shift+F6) — updates definition and all `local.X` usages
@@ -74,7 +76,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-177 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+183 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
