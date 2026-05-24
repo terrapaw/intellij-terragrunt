@@ -83,6 +83,28 @@ public class TerragruntCompletionInsertTest extends BasePlatformTestCase {
         }
     }
 
+    public void testLiveTemplateLocalsNoExtraIndentOnBrace() {
+        myFixture.configureByText("terragrunt.hcl", "");
+        myFixture.getEditor().getCaretModel().moveToOffset(0);
+        myFixture.type("loc");
+        myFixture.performEditorAction("ExpandLiveTemplateByTab");
+        String text = myFixture.getEditor().getDocument().getText();
+        assertTrue("Should contain 'locals {'", text.contains("locals {"));
+        assertFalse("Closing brace should NOT be indented", text.contains("  }"));
+    }
+
+    public void testLiveTemplateDepNoExtraIndentOnBrace() {
+        myFixture.configureByText("terragrunt.hcl", "");
+        myFixture.getEditor().getCaretModel().moveToOffset(0);
+        myFixture.type("dep");
+        myFixture.performEditorAction("ExpandLiveTemplateByTab");
+        String text = myFixture.getEditor().getDocument().getText();
+        assertTrue("Should contain 'dependency'", text.contains("dependency"));
+        // The outer closing brace should be at column 0 (last line)
+        String lastLine = text.trim().substring(text.trim().lastIndexOf('\n') + 1);
+        assertEquals("Outer closing brace should be at column 0", "}", lastLine);
+    }
+
     private void selectAndInsert(String name) {
         var lookup = myFixture.getLookup();
         if (lookup == null) return;
