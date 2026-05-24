@@ -252,6 +252,7 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
         assertNotNull("Should navigate from include.env.inputs.default_tags", targets);
         assertTrue("Should have at least one target", targets.length > 0);
+        assertEquals("Should jump to the exact key 'default_tags'", "default_tags", targets[0].getText());
     }
 
     public void testNavigateDirectIncludeLocals() {
