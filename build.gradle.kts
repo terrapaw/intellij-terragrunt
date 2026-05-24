@@ -8,7 +8,7 @@ plugins {
     id("org.jetbrains.intellij.platform.grammarkit") version "2.12.0"
 }
 
-group = "com.github.joelm"
+group = "com.github.terrapaw"
 version = "0.1.0"
 
 repositories {
@@ -28,12 +28,12 @@ dependencies {
 
 intellijPlatform {
     pluginConfiguration {
-        id = "com.github.joelm.terragrunt"
+        id = "com.github.terrapaw.terragrunt"
         name = "Terragrunt HCL"
         version = project.version.toString()
         description = "IntelliSense and linting for Terragrunt HCL configuration files"
         vendor {
-            name = "joelm"
+            name = "terrapaw"
         }
         ideaVersion {
             sinceBuild = "251"
@@ -56,16 +56,16 @@ tasks {
     }
 
     generateLexer {
-        sourceFile.set(file("src/main/java/com/github/joelm/terragrunt/lang/TerragruntLexer.flex"))
-        targetOutputDir.set(file("src/main/gen/com/github/joelm/terragrunt/lang"))
+        sourceFile.set(file("src/main/java/com/github/terrapaw/terragrunt/lang/TerragruntLexer.flex"))
+        targetOutputDir.set(file("src/main/gen/com/github/terrapaw/terragrunt/lang"))
         purgeOldFiles.set(true)
     }
 
     generateParser {
-        sourceFile.set(file("src/main/java/com/github/joelm/terragrunt/lang/Terragrunt.bnf"))
+        sourceFile.set(file("src/main/java/com/github/terrapaw/terragrunt/lang/Terragrunt.bnf"))
         targetRootOutputDir.set(file("src/main/gen"))
-        pathToParser.set("com/github/joelm/terragrunt/lang/parser/TerragruntParser.java")
-        pathToPsiRoot.set("com/github/joelm/terragrunt/lang/psi")
+        pathToParser.set("com/github/terrapaw/terragrunt/lang/parser/TerragruntParser.java")
+        pathToPsiRoot.set("com/github/terrapaw/terragrunt/lang/psi")
         purgeOldFiles.set(true)
     }
 

@@ -1,81 +1,81 @@
 <idea-plugin>
-    <id>com.github.joelm.terragrunt</id>
+    <id>com.github.terrapaw.terragrunt</id>
     <name>Terragrunt HCL</name>
-    <vendor>joelm</vendor>
+    <vendor>terrapaw</vendor>
     <description><![CDATA[IntelliSense and linting for Terragrunt HCL configuration files.]]></description>
 
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <fileType name="Terragrunt HCL"
-                  implementationClass="com.github.joelm.terragrunt.lang.TerragruntFileType"
+                  implementationClass="com.github.terrapaw.terragrunt.lang.TerragruntFileType"
                   fieldName="INSTANCE"
                   language="Terragrunt"
                   fileNames="terragrunt.hcl;root.hcl;terragrunt.stack.hcl;terragrunt.values.hcl"
                   extensions=""/>
-        <fileTypeDetector implementation="com.github.joelm.terragrunt.lang.TerragruntFileTypeDetector"/>
-        <fileTypeOverrider implementation="com.github.joelm.terragrunt.lang.TerragruntFileTypeOverrider"/>
+        <fileTypeDetector implementation="com.github.terrapaw.terragrunt.lang.TerragruntFileTypeDetector"/>
+        <fileTypeOverrider implementation="com.github.terrapaw.terragrunt.lang.TerragruntFileTypeOverrider"/>
         <lang.parserDefinition language="Terragrunt"
-                               implementationClass="com.github.joelm.terragrunt.lang.TerragruntParserDefinition"/>
+                               implementationClass="com.github.terrapaw.terragrunt.lang.TerragruntParserDefinition"/>
         <lang.syntaxHighlighterFactory language="Terragrunt"
-                                       implementationClass="com.github.joelm.terragrunt.highlight.TerragruntSyntaxHighlighterFactory"/>
-        <colorSettingsPage implementationClass="com.github.joelm.terragrunt.highlight.TerragruntColorSettingsPage"/>
+                                       implementationClass="com.github.terrapaw.terragrunt.highlight.TerragruntSyntaxHighlighterFactory"/>
+        <colorSettingsPage implementationClass="com.github.terrapaw.terragrunt.highlight.TerragruntColorSettingsPage"/>
         <lang.documentationProvider language="Terragrunt"
-                                    implementationClass="com.github.joelm.terragrunt.editor.TerragruntDocumentationProvider"/>
+                                    implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntDocumentationProvider"/>
         <lang.braceMatcher language="Terragrunt"
-                           implementationClass="com.github.joelm.terragrunt.editor.TerragruntBraceMatcher"/>
+                           implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntBraceMatcher"/>
         <lang.commenter language="Terragrunt"
-                        implementationClass="com.github.joelm.terragrunt.editor.TerragruntCommenter"/>
+                        implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntCommenter"/>
         <lang.foldingBuilder language="Terragrunt"
-                             implementationClass="com.github.joelm.terragrunt.editor.TerragruntFoldingBuilder"/>
+                             implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntFoldingBuilder"/>
         <lang.formatter language="Terragrunt"
-                        implementationClass="com.github.joelm.terragrunt.editor.TerragruntFormattingModelBuilder"/>
-        <langCodeStyleSettingsProvider implementation="com.github.joelm.terragrunt.editor.TerragruntCodeStyleSettingsProvider"/>
+                        implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntFormattingModelBuilder"/>
+        <langCodeStyleSettingsProvider implementation="com.github.terrapaw.terragrunt.editor.TerragruntCodeStyleSettingsProvider"/>
         <completion.contributor language="Terragrunt"
-                                implementationClass="com.github.joelm.terragrunt.completion.TerragruntCompletionContributor"/>
+                                implementationClass="com.github.terrapaw.terragrunt.completion.TerragruntCompletionContributor"/>
         <localInspection language="Terragrunt"
                          shortName="TerragruntUnknownBlock"
                          displayName="Unknown Terragrunt block"
                          groupName="Terragrunt"
                          enabledByDefault="true"
                          level="WARNING"
-                         implementationClass="com.github.joelm.terragrunt.inspection.TerragruntUnknownBlockInspection"/>
+                         implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntUnknownBlockInspection"/>
         <localInspection language="Terragrunt"
                          shortName="TerragruntMissingAttribute"
                          displayName="Missing required attribute"
                          groupName="Terragrunt"
                          enabledByDefault="true"
                          level="WARNING"
-                         implementationClass="com.github.joelm.terragrunt.inspection.TerragruntMissingAttributeInspection"/>
+                         implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntMissingAttributeInspection"/>
         <localInspection language="Terragrunt"
                          shortName="TerragruntDeprecatedAttribute"
                          displayName="Deprecated attribute"
                          groupName="Terragrunt"
                          enabledByDefault="true"
                          level="WEAK WARNING"
-                         implementationClass="com.github.joelm.terragrunt.inspection.TerragruntDeprecatedAttributeInspection"/>
+                         implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntDeprecatedAttributeInspection"/>
         <localInspection language="Terragrunt"
                          shortName="TerragruntUnresolvedPath"
                          displayName="Unresolved file path"
                          groupName="Terragrunt"
                          enabledByDefault="true"
                          level="WARNING"
-                         implementationClass="com.github.joelm.terragrunt.inspection.TerragruntUnresolvedPathInspection"/>
+                         implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntUnresolvedPathInspection"/>
         <localInspection language="Terragrunt"
                          shortName="TerragruntUnresolvedVariable"
                          displayName="Unresolved variable reference"
                          groupName="Terragrunt"
                          enabledByDefault="true"
                          level="WARNING"
-                         implementationClass="com.github.joelm.terragrunt.inspection.TerragruntUnresolvedVariableInspection"/>
+                         implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntUnresolvedVariableInspection"/>
         <psi.referenceContributor language="Terragrunt"
-                                  implementation="com.github.joelm.terragrunt.reference.TerragruntReferenceContributor"/>
-        <gotoDeclarationHandler implementationClass="com.github.joelm.terragrunt.reference.TerragruntGotoDeclarationHandler"/>
+                                  implementation="com.github.terrapaw.terragrunt.reference.TerragruntReferenceContributor"/>
+        <gotoDeclarationHandler implementationClass="com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler"/>
         <lang.refactoringSupport language="Terragrunt"
-                                 implementationClass="com.github.joelm.terragrunt.refactor.TerragruntRefactoringSupportProvider"/>
+                                 implementationClass="com.github.terrapaw.terragrunt.refactor.TerragruntRefactoringSupportProvider"/>
         <lang.namesValidator language="Terragrunt"
-                             implementationClass="com.github.joelm.terragrunt.refactor.TerragruntNamesValidator"/>
-        <renameHandler implementationClass="com.github.joelm.terragrunt.refactor.TerragruntRenameHandler"/>
+                             implementationClass="com.github.terrapaw.terragrunt.refactor.TerragruntNamesValidator"/>
+        <renameHandler implementationClass="com.github.terrapaw.terragrunt.refactor.TerragruntRenameHandler"/>
         <defaultLiveTemplates file="/liveTemplates/Terragrunt.xml"/>
     </extensions>
 </idea-plugin>
