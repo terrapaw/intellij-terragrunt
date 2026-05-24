@@ -1,5 +1,7 @@
 # intellij-terragrunt
 
+[![CI](https://github.com/terrapaw/intellij-terragrunt/actions/workflows/ci.yml/badge.svg)](https://github.com/terrapaw/intellij-terragrunt/actions/workflows/ci.yml)
+
 Terragrunt HCL language support for IntelliJ-based IDEs.
 
 ## Features
@@ -93,6 +95,16 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
    git push --tags
    ```
 4. GitHub Actions builds, tests, and creates a Release with the plugin zip attached
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Make your changes and add tests
+4. Run tests: `./gradlew test`
+5. Submit a pull request
+
+All PRs require CI to pass before merging.
 
 ## Architecture
 
