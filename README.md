@@ -70,13 +70,13 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-148 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+150 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
 1. Build the plugin: `./gradlew buildPlugin`
 2. In IntelliJ: Settings → Plugins → ⚙️ → Install Plugin from Disk
-3. Select `build/distributions/terragrunt-hcl-plugin-0.1.0.zip`
+3. Select `build/distributions/terragrunt-hcl-plugin-x.x.x.zip`
 
 ## Requirements
 
