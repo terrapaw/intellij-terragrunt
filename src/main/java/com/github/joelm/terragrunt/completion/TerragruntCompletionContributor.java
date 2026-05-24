@@ -36,11 +36,13 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                             }
                         } else if (isInExpression(position)) {
                             addExpressionCompletions(result);
+                            addForVariableCompletions(position, result);
                         } else {
                             // Fallback: inside an attribute value with broken PSI
                             TerragruntAttribute attr = PsiTreeUtil.getParentOfType(position, TerragruntAttribute.class);
                             if (attr != null) {
                                 addExpressionCompletions(result);
+                                addForVariableCompletions(position, result);
                             }
                         }
                     }
@@ -149,6 +151,24 @@ public class TerragruntCompletionContributor extends CompletionContributor {
         result.addElement(LookupElementBuilder.create("include").withTypeText("include reference").bold());
         result.addElement(LookupElementBuilder.create("values").withTypeText("stack values reference").bold());
 
+        // For expressions
+        result.addElement(LookupElementBuilder.create("[for")
+                .withTailText(" v in list : v]")
+                .withTypeText("for tuple")
+                .withInsertHandler((ctx, item) -> {
+                    String insert = "[for v in  : v]";
+                    ctx.getDocument().replaceString(ctx.getStartOffset(), ctx.getTailOffset(), insert);
+                    ctx.getEditor().getCaretModel().moveToOffset(ctx.getStartOffset() + 10);
+                }));
+        result.addElement(LookupElementBuilder.create("{for")
+                .withTailText(" k, v in map : k => v}")
+                .withTypeText("for object")
+                .withInsertHandler((ctx, item) -> {
+                    String insert = "{for k, v in  : k => v}";
+                    ctx.getDocument().replaceString(ctx.getStartOffset(), ctx.getTailOffset(), insert);
+                    ctx.getEditor().getCaretModel().moveToOffset(ctx.getStartOffset() + 13);
+                }));
+
         // Functions
         for (var func : TerragruntSchema.getFunctions()) {
             result.addElement(LookupElementBuilder.create(func.name())
@@ -159,6 +179,28 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                         ctx.getDocument().replaceString(ctx.getStartOffset(), ctx.getTailOffset(), insert);
                         ctx.getEditor().getCaretModel().moveToOffset(ctx.getStartOffset() + insert.length() - 1);
                     }));
+        }
+    }
+
+    private void addForVariableCompletions(@NotNull PsiElement position, @NotNull CompletionResultSet result) {
+        // Check if we're inside a for expression (for_tuple_expr or for_object_expr)
+        TerragruntForTupleExpr forTuple = PsiTreeUtil.getParentOfType(position, TerragruntForTupleExpr.class);
+        TerragruntForObjectExpr forObject = PsiTreeUtil.getParentOfType(position, TerragruntForObjectExpr.class);
+        TerragruntForIntro intro = null;
+        if (forTuple != null) intro = PsiTreeUtil.getChildOfType(forTuple, TerragruntForIntro.class);
+        if (forObject != null) intro = PsiTreeUtil.getChildOfType(forObject, TerragruntForIntro.class);
+        if (intro == null) return;
+
+        // Extract variable names from for_intro: FOR IDENTIFIER (COMMA IDENTIFIER)? IN ...
+        com.intellij.lang.ASTNode node = intro.getNode().getFirstChildNode();
+        while (node != null) {
+            if (node.getElementType() == TerragruntTypes.IDENTIFIER) {
+                String varName = node.getText();
+                result.addElement(LookupElementBuilder.create(varName)
+                        .withTypeText("for variable")
+                        .bold());
+            }
+            node = node.getTreeNext();
         }
     }
 

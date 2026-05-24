@@ -71,6 +71,41 @@ public class TerragruntCompletionTest extends BasePlatformTestCase {
         assertTrue("Should suggest 'local' prefix", names.contains("local"));
     }
 
+    public void testExpressionSuggestsForExpressions() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  x = <caret>
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        List<String> names = List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest '[for' tuple expression", names.contains("[for"));
+        assertTrue("Should suggest '{for' object expression", names.contains("{for"));
+    }
+
+    public void testForVariableCompletion() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  names = [for item in local.list : <caret>]
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        List<String> names = List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'item' for variable", names.contains("item"));
+    }
+
+    public void testForKeyValueVariableCompletion() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  result = {for key, value in local.map : key => <caret>}
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        List<String> names = List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'key' for variable", names.contains("key"));
+        assertTrue("Should suggest 'value' for variable", names.contains("value"));
+    }
+
     public void testExpressionDoesNotSuggestBlocks() {
         myFixture.configureByText("terragrunt.hcl", """
                 locals {
