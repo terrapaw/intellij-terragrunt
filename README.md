@@ -70,7 +70,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-150 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+167 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
