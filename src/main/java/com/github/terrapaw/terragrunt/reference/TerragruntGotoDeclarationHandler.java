@@ -86,7 +86,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(targetFile, attrName);
                 if (resolved != null) return new PsiElement[]{resolved};
             } else if ("inputs".equals(section)) {
-                TerragruntAttribute resolved = TerragruntFileResolver.findInputAttribute(targetFile, attrName);
+                PsiElement resolved = TerragruntFileResolver.findInputKey(targetFile, attrName);
                 if (resolved != null) return new PsiElement[]{resolved};
             }
         }
@@ -139,7 +139,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             } else if ("inputs".equals(section)) {
                 PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
                 if (resolvedFile != null) {
-                    TerragruntAttribute resolved = TerragruntFileResolver.findInputAttribute(resolvedFile, attrName);
+                    PsiElement resolved = TerragruntFileResolver.findInputKey(resolvedFile, attrName);
                     if (resolved != null) return new PsiElement[]{resolved};
                 }
             }
