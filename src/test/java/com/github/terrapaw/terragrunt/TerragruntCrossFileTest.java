@@ -62,6 +62,24 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue("Should have at least one target", targets.length > 0);
     }
 
+    public void testReferenceContributorResolvesRelativePath() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        PsiFile childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("../root.hcl") + 1;
+        var ref = myFixture.getFile().findReferenceAt(offset);
+        if (ref != null) {
+            var resolved = ref.resolve();
+            assertNotNull("Should resolve ../root.hcl reference", resolved);
+        }
+    }
+
     public void testIncludeLocalsCompletionFromIncludedFile() {
         // Create the included file
         myFixture.addFileToProject("root.hcl", """
