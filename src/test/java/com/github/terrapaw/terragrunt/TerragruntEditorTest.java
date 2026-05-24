@@ -36,4 +36,18 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
                     foldingBuilder.isCollapsedByDefault(block.getNode()));
         }
     }
+
+    public void testFoldingPlaceholderShowsBlockName() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                include "root" {
+                  path = "root.hcl"
+                }
+                """);
+        var foldingBuilder = new TerragruntFoldingBuilder();
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        TerragruntBlock block = blocks.iterator().next();
+        String placeholder = foldingBuilder.getPlaceholderText(block.getNode());
+        assertTrue("Placeholder should contain block name", placeholder.contains("include"));
+        assertTrue("Placeholder should contain label", placeholder.contains("root"));
+    }
 }

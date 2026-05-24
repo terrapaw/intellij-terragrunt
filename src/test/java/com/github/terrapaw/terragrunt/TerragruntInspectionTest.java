@@ -197,4 +197,50 @@ public class TerragruntInspectionTest extends BasePlatformTestCase {
                 .count();
         assertEquals("Should not warn for interpolated path", 0, warnings);
     }
+
+    public void testUnknownAttributeDetected() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnknownAttributeInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                  nonexistent_attr = "bad"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unknown attribute 'nonexistent_attr'"))
+                .count();
+        assertEquals("Should detect unknown attribute", 1, warnings);
+    }
+
+    public void testUnknownAttributeNotTriggeredForValidAttrs() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnknownAttributeInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                  skip_outputs = true
+                  mock_outputs = {}
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unknown attribute"))
+                .count();
+        assertEquals("Should not warn for valid attributes", 0, warnings);
+    }
+
+    public void testUnknownAttributeNotTriggeredInLocals() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnknownAttributeInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  anything = "valid"
+                  custom_name = "also valid"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unknown attribute"))
+                .count();
+        assertEquals("locals block should allow any attribute", 0, warnings);
+    }
 }

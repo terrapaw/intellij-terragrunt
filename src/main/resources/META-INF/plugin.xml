@@ -68,6 +68,13 @@
                          enabledByDefault="true"
                          level="WARNING"
                          implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntUnresolvedVariableInspection"/>
+        <localInspection language="Terragrunt"
+                         shortName="TerragruntUnknownAttribute"
+                         displayName="Unknown attribute in block"
+                         groupName="Terragrunt"
+                         enabledByDefault="true"
+                         level="WEAK WARNING"
+                         implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntUnknownAttributeInspection"/>
         <psi.referenceContributor language="Terragrunt"
                                   implementation="com.github.terrapaw.terragrunt.reference.TerragruntReferenceContributor"/>
         <gotoDeclarationHandler implementationClass="com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler"/>
@@ -77,5 +84,6 @@
                              implementationClass="com.github.terrapaw.terragrunt.refactor.TerragruntNamesValidator"/>
         <renameHandler implementationClass="com.github.terrapaw.terragrunt.refactor.TerragruntRenameHandler"/>
         <defaultLiveTemplates file="/liveTemplates/Terragrunt.xml"/>
+        <liveTemplateContext id="TERRAGRUNT" contextId="TERRAGRUNT" implementation="com.github.terrapaw.terragrunt.editor.TerragruntLiveTemplateContext"/>
     </extensions>
 </idea-plugin>

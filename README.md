@@ -1,5 +1,7 @@
 # intellij-terragrunt
 
+[![CI](https://github.com/terrapaw/intellij-terragrunt/actions/workflows/ci.yml/badge.svg)](https://github.com/terrapaw/intellij-terragrunt/actions/workflows/ci.yml)
+
 Terragrunt HCL language support for IntelliJ-based IDEs.
 
 ## Features
@@ -11,6 +13,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Dot-completion: `dependency.` → names, `dependency.vpc.` → `outputs`, `dependency.vpc.outputs.` → mock_outputs keys, `local.` → variables, `feature.X.` → `value`
   - Cross-file: `include.root.locals.` → suggests attributes from included file
   - Alias-aware: `local.root_config.` → suggests attributes when `root_config = include.root.locals`
+  - Alias-aware: `local.env_inputs.` → suggests input keys when `env_inputs = include.env.inputs`
   - `read_terragrunt_config`: `local.common.locals.` and `local.common.inputs.` → suggests from loaded file
   - For expressions: `[for` / `{for` templates, and loop variable completion inside for body
 - **Inspections/Linting**
@@ -27,7 +30,10 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - `include.root.locals.region` → jump to `region` in the included file
   - `local.env_vars.environment` → resolves alias (`env_vars = include.env.locals`), jumps to included file
   - `local.common.locals.region` → resolves `read_terragrunt_config()`, jumps to loaded file
+  - `dependency.vpc.outputs.vpc_id` → jumps to `vpc_id` in mock_outputs
+  - `feature.flag.value` → jumps to `default` attribute in feature block
   - From definition → find all usages (Ctrl+B on `app_name` in `locals`)
+  - From label → find all usages (Ctrl+B on `"vpc"` in `dependency "vpc"`)
   - Cross-file find usages — finds both direct and aliased references across project
 - **Refactoring**
   - Rename local variables (Shift+F6) — updates definition and all `local.X` usages
@@ -70,13 +76,13 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-148 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+183 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
 1. Build the plugin: `./gradlew buildPlugin`
 2. In IntelliJ: Settings → Plugins → ⚙️ → Install Plugin from Disk
-3. Select `build/distributions/terragrunt-hcl-plugin-0.1.0.zip`
+3. Select `build/distributions/terragrunt-hcl-plugin-x.x.x.zip`
 
 ## Requirements
 
@@ -93,6 +99,16 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
    git push --tags
    ```
 4. GitHub Actions builds, tests, and creates a Release with the plugin zip attached
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Make your changes and add tests
+4. Run tests: `./gradlew test`
+5. Submit a pull request
+
+All PRs require CI to pass before merging.
 
 ## Architecture
 

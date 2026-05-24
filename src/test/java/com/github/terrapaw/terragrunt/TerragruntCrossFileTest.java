@@ -224,6 +224,37 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue("Should have at least one target", targets.length > 0);
     }
 
+    public void testNavigateDirectIncludeInputs() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        myFixture.addFileToProject("env.hcl", """
+                inputs = {
+                  default_tags = { Team = "platform" }
+                  region       = "us-east-1"
+                }
+                """);
+
+        PsiFile childFile = myFixture.addFileToProject("vpc/terragrunt.hcl", """
+                include "env" {
+                  path   = "../env.hcl"
+                  expose = true
+                }
+                
+                inputs = {
+                  tags = include.env.inputs.default_tags
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("inputs.default_tags") + "inputs.".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate from include.env.inputs.default_tags", targets);
+        assertTrue("Should have at least one target", targets.length > 0);
+        assertEquals("Should jump to the exact key 'default_tags'", "default_tags", targets[0].getText());
+    }
+
     public void testNavigateDirectIncludeLocals() {
         // Create the included file
         myFixture.addFileToProject("root.hcl", """
@@ -284,6 +315,61 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
 
         PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
         assertNotNull("Should navigate from local.common.locals.project_name to common.hcl", targets);
+        assertTrue("Should have at least one target", targets.length > 0);
+    }
+
+    public void testFindUsagesFromInputsKey() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        PsiFile commonFile = myFixture.addFileToProject("common.hcl", """
+                inputs = {
+                  notification_email = "team@example.com"
+                }
+                """);
+
+        myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common.hcl")
+                }
+                inputs = {
+                  email = local.common.inputs.notification_email
+                }
+                """);
+
+        // Ctrl+B on "notification_email" in common.hcl's inputs
+        myFixture.configureFromExistingVirtualFile(commonFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("notification_email");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should find usages of notification_email from inputs", targets);
+        assertTrue("Should have at least one usage", targets.length > 0);
+    }
+
+    public void testNavigateLocalAliasInputs() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        myFixture.addFileToProject("common.hcl", """
+                inputs = {
+                  notification_email = "team@example.com"
+                  alert_channel      = "#alerts"
+                }
+                """);
+
+        PsiFile childFile = myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common.hcl")
+                }
+                inputs = {
+                  email = local.common.inputs.notification_email
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("inputs.notification_email") + "inputs.".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate from local.common.inputs.notification_email", targets);
         assertTrue("Should have at least one target", targets.length > 0);
     }
 
@@ -379,6 +465,40 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
         assertTrue("Should suggest 'org_name' from common.hcl. Got: " + names, names.contains("org_name"));
         assertTrue("Should suggest 'team' from common.hcl. Got: " + names, names.contains("team"));
+    }
+
+    public void testCompletionIncludeInputsAliasSuggestsKeysDirectly() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        myFixture.addFileToProject("env.hcl", """
+                inputs = {
+                  default_tags = {}
+                  log_level    = "info"
+                }
+                """);
+
+        PsiFile mainFile = myFixture.addFileToProject("terragrunt.hcl", """
+                include "env" {
+                  path   = "env.hcl"
+                  expose = true
+                }
+                locals {
+                  env_inputs = include.env.inputs
+                }
+                inputs = {
+                  x = local.env_inputs.
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("local.env_inputs.") + "local.env_inputs.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for local.env_inputs.", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'default_tags'. Got: " + names, names.contains("default_tags"));
+        assertTrue("Should suggest 'log_level'. Got: " + names, names.contains("log_level"));
     }
 
     public void testCompletionIncludeLocalsAliasSuggestsAttributesDirectly() {

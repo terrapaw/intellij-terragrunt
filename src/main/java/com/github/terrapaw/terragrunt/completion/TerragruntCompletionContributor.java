@@ -50,15 +50,35 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     }
 
     private boolean isInBody(PsiElement position) {
-        // Walk up to find if we're directly in a body (not inside an expression value)
-        // During completion, structure is: leaf -> dummy/error -> possibly attribute -> body
         if (PsiTreeUtil.getParentOfType(position, TerragruntGetAttr.class) != null) return false;
         if (PsiTreeUtil.getParentOfType(position, TerragruntObjectExpr.class) != null) return false;
         if (PsiTreeUtil.getParentOfType(position, TerragruntTupleExpr.class) != null) return false;
-        // Check if there's an attribute ancestor with an expression (meaning we're in the value part)
         TerragruntAttribute attr = PsiTreeUtil.getParentOfType(position, TerragruntAttribute.class);
         if (attr != null && attr.getExpression() != null && attr.getExpression().getTextRange().contains(position.getTextOffset())) {
             return false;
+        }
+        // Text-based fallback: check if we're inside a map value (not a block body)
+        // by looking at what precedes the { that contains us
+        String text = position.getContainingFile().getText();
+        int offset = position.getTextOffset();
+        int depth = 0;
+        int lastOpenBraceAtDepth0 = -1;
+        for (int i = 0; i < offset && i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '{') {
+                if (depth == 0) lastOpenBraceAtDepth0 = i;
+                depth++;
+            } else if (c == '}') {
+                depth--;
+            }
+        }
+        // If depth > 1, definitely inside a nested structure
+        if (depth > 1) return false;
+        // If depth == 1, check if the { was preceded by = (map) or identifier (block)
+        if (depth == 1 && lastOpenBraceAtDepth0 > 0) {
+            int i = lastOpenBraceAtDepth0 - 1;
+            while (i >= 0 && Character.isWhitespace(text.charAt(i))) i--;
+            if (i >= 0 && text.charAt(i) == '=') return false; // it's a map value, not a block
         }
         return PsiTreeUtil.getParentOfType(position, TerragruntBody.class) != null;
     }
@@ -307,8 +327,22 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                                         .withTypeText("from " + resolvedFile.getName()).bold());
                             }
                         }
+                    } else if (isIncludeInputsAlias(file, aliasName)) {
+                        // Already points to inputs — suggest input keys directly
+                        for (TerragruntAttribute attr : PsiTreeUtil.findChildrenOfType(resolvedFile, TerragruntAttribute.class)) {
+                            if (!"inputs".equals(attr.getIdentifier().getText())) continue;
+                            TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                            if (obj == null) continue;
+                            for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                                PsiElement key = elem.getFirstChild();
+                                if (key != null) {
+                                    result.addElement(LookupElementBuilder.create(key.getText())
+                                            .withTypeText("from " + resolvedFile.getName()).bold());
+                                }
+                            }
+                        }
                     } else {
-                        // read_terragrunt_config — need to go through .locals first
+                        // read_terragrunt_config — need to go through .locals/.inputs first
                         result.addElement(LookupElementBuilder.create("locals").withTypeText("config section").bold());
                         result.addElement(LookupElementBuilder.create("inputs").withTypeText("config section").bold());
                     }
@@ -381,7 +415,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 result.addElement(LookupElementBuilder.create("inputs").withTypeText("exposed config"));
                 result.addElement(LookupElementBuilder.create("remote_state").withTypeText("exposed config"));
             } else if (depth == 2 && getAttrs != null && getAttrs.length >= 2) {
-                // include.X.locals. -> suggest locals from included file
+                // include.X.locals. or include.X.inputs. -> suggest from included file
                 String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
                 String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
 
@@ -398,6 +432,19 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                                         .withTypeText("included local").bold());
                             }
                         }
+                    } else if (targetFile != null && "inputs".equals(section)) {
+                        for (TerragruntAttribute attr : PsiTreeUtil.findChildrenOfType(targetFile, TerragruntAttribute.class)) {
+                            if (!"inputs".equals(attr.getIdentifier().getText())) continue;
+                            TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                            if (obj == null) continue;
+                            for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                                PsiElement key = elem.getFirstChild();
+                                if (key != null) {
+                                    result.addElement(LookupElementBuilder.create(key.getText())
+                                            .withTypeText("included input").bold());
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -409,6 +456,14 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     }
 
     private boolean isIncludeLocalsAlias(PsiFile file, String aliasName) {
+        return isIncludeAlias(file, aliasName, "locals");
+    }
+
+    private boolean isIncludeInputsAlias(PsiFile file, String aliasName) {
+        return isIncludeAlias(file, aliasName, "inputs");
+    }
+
+    private boolean isIncludeAlias(PsiFile file, String aliasName, String section) {
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
             if (!"locals".equals(block.getIdentifier().getText())) continue;
             TerragruntBody body = block.getBody();
@@ -420,7 +475,13 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
                 if (primary == null) continue;
                 TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
-                if (varExpr != null && "include".equals(varExpr.getIdentifier().getText())) return true;
+                if (varExpr != null && "include".equals(varExpr.getIdentifier().getText())) {
+                    PsiElement[] gas = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+                    if (gas != null && gas.length >= 2) {
+                        String s = ((TerragruntGetAttr) gas[1]).getIdentifier().getText();
+                        if (section.equals(s)) return true;
+                    }
+                }
             }
         }
         return false;
@@ -449,7 +510,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                             PsiElement[] gas = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
                             if (gas != null && gas.length >= 2) {
                                 String section = ((TerragruntGetAttr) gas[1]).getIdentifier().getText();
-                                if ("locals".equals(section)) {
+                                if ("locals".equals(section) || "inputs".equals(section)) {
                                     String includeName = ((TerragruntGetAttr) gas[0]).getIdentifier().getText();
                                     TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
                                     if (includeBlock != null) {
@@ -495,6 +556,20 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                         for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
                             result.addElement(LookupElementBuilder.create(attr.getIdentifier().getText())
                                     .withTypeText("from " + resolved.getName()).bold());
+                        }
+                    }
+                } else if (isIncludeInputsAlias(file, parts[1])) {
+                    // include.X.inputs alias -> suggest input keys directly
+                    for (TerragruntAttribute attr : PsiTreeUtil.findChildrenOfType(resolved, TerragruntAttribute.class)) {
+                        if (!"inputs".equals(attr.getIdentifier().getText())) continue;
+                        TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                        if (obj == null) continue;
+                        for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                            PsiElement key = elem.getFirstChild();
+                            if (key != null) {
+                                result.addElement(LookupElementBuilder.create(key.getText())
+                                        .withTypeText("from " + resolved.getName()).bold());
+                            }
                         }
                     }
                 } else {

@@ -137,6 +137,25 @@ public class TerragruntFileResolver {
         return null;
     }
 
+    /**
+     * Finds a key in the inputs map of the given file. Returns the key element for precise navigation.
+     */
+    @Nullable
+    public static PsiElement findInputKey(PsiFile file, String name) {
+        for (TerragruntAttribute attr : PsiTreeUtil.findChildrenOfType(file, TerragruntAttribute.class)) {
+            if (!"inputs".equals(attr.getIdentifier().getText())) continue;
+            TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+            if (obj == null) continue;
+            for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                PsiElement key = elem.getFirstChild();
+                if (key != null && name.equals(key.getText())) {
+                    return key;
+                }
+            }
+        }
+        return null;
+    }
+
     @Nullable
     private static String extractStringContent(String quotedText) {
         if (quotedText == null || quotedText.length() < 2) return null;

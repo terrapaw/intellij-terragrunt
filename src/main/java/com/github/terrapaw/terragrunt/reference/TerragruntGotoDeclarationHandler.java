@@ -31,6 +31,28 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             return handleDefinitionToUsages(attr, sourceElement);
         }
 
+        // Case 3: On an IDENTIFIER that is a key inside an inputs map
+        // (e.g. Ctrl+B on "notification_email" in inputs = { notification_email = "x" })
+        if (parent instanceof TerragruntObjectElem) {
+            // Check if this is the key (first child) of the object elem
+            if (sourceElement == parent.getFirstChild()) {
+                return handleInputsKeyUsages(sourceElement);
+            }
+        }
+
+        // Case 4: On a label of a feature/dependency block — find usages
+        if (parent instanceof com.github.terrapaw.terragrunt.lang.psi.TerragruntLabel) {
+            TerragruntBlock block = PsiTreeUtil.getParentOfType(parent, TerragruntBlock.class);
+            if (block != null) {
+                String blockType = block.getIdentifier().getText();
+                String labelName = parent.getText().replace("\"", "");
+                PsiFile file = sourceElement.getContainingFile();
+                if ("feature".equals(blockType) || "dependency".equals(blockType)) {
+                    return findBlockReferenceUsages(file, blockType, labelName);
+                }
+            }
+        }
+
         return null;
     }
 
@@ -76,6 +98,9 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             if ("locals".equals(section)) {
                 TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(targetFile, attrName);
                 if (resolved != null) return new PsiElement[]{resolved};
+            } else if ("inputs".equals(section)) {
+                PsiElement resolved = TerragruntFileResolver.findInputKey(targetFile, attrName);
+                if (resolved != null) return new PsiElement[]{resolved};
             }
         }
 
@@ -101,6 +126,27 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             if (targetFile != null) return new PsiElement[]{targetFile};
         }
 
+        // Handle dependency.X.outputs.Y at depth 2 — navigate to mock_outputs key
+        if ("dependency".equals(rootVar) && cursorIndex == 2 && getAttrs.length >= 3) {
+            String depName = chain[0];
+            String section = chain[1];
+            String outputName = chain[2];
+            if ("outputs".equals(section)) {
+                PsiElement target = findMockOutputKey(file, depName, outputName);
+                if (target != null) return new PsiElement[]{target};
+            }
+        }
+
+        // Handle feature.X.value at depth 1 — navigate to the default attribute
+        if ("feature".equals(rootVar) && cursorIndex == 1 && getAttrs.length >= 2) {
+            String featureName = chain[0];
+            String attr = chain[1];
+            if ("value".equals(attr)) {
+                PsiElement target = findFeatureDefault(file, featureName);
+                if (target != null) return new PsiElement[]{target};
+            }
+        }
+
         // Handle local.alias.Y at depth 1 — resolve alias to included file's locals
         if ("local".equals(rootVar) && cursorIndex == 1 && getAttrs.length >= 2) {
             String aliasName = chain[0];
@@ -122,6 +168,12 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
                 if (resolvedFile != null) {
                     TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(resolvedFile, attrName);
+                    if (resolved != null) return new PsiElement[]{resolved};
+                }
+            } else if ("inputs".equals(section)) {
+                PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
+                if (resolvedFile != null) {
+                    PsiElement resolved = TerragruntFileResolver.findInputKey(resolvedFile, attrName);
                     if (resolved != null) return new PsiElement[]{resolved};
                 }
             }
@@ -206,6 +258,24 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         return null;
     }
 
+    private PsiElement[] handleInputsKeyUsages(PsiElement sourceElement) {
+        String name = sourceElement.getText();
+        PsiFile file = sourceElement.getContainingFile();
+
+        // Verify this key is inside an "inputs" attribute
+        TerragruntAttribute inputsAttr = PsiTreeUtil.getParentOfType(sourceElement, TerragruntAttribute.class);
+        if (inputsAttr == null || !"inputs".equals(inputsAttr.getIdentifier().getText())) return null;
+
+        // Search project files for include.*.inputs.<name> and local.*.inputs.<name>
+        List<PsiElement> usages = new ArrayList<>();
+        com.intellij.openapi.roots.ProjectRootManager rootManager =
+                com.intellij.openapi.roots.ProjectRootManager.getInstance(file.getProject());
+        for (com.intellij.openapi.vfs.VirtualFile contentRoot : rootManager.getContentRoots()) {
+            findHclFilesRecursive(contentRoot, file.getProject(), file, name, usages);
+        }
+        return usages.isEmpty() ? null : usages.toArray(PsiElement.EMPTY_ARRAY);
+    }
+
     private void findLocalUsagesInFile(PsiFile file, String name, List<PsiElement> usages) {
         Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
         for (TerragruntGetAttr getAttr : allGetAttrs) {
@@ -267,7 +337,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
                 if (getAttrs == null || getAttrs.length < 3 || getAttrs[2] != getAttr) continue;
                 String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
-                if (!"locals".equals(section)) continue;
+                if (!"locals".equals(section) && !"inputs".equals(section)) continue;
 
                 String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
                 TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
@@ -290,11 +360,11 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                     }
                 }
 
-                // Pattern 2b: local.alias.locals.<name> (depth 2) where alias = read_terragrunt_config(...)
+                // Pattern 2b: local.alias.locals.<name> or local.alias.inputs.<name> (depth 2)
                 if (getAttrs.length >= 3 && getAttrs[2] == getAttr) {
                     String aliasName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
                     String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
-                    if ("locals".equals(section) && isAliasForIncludeLocals(file, aliasName, sourceFile)) {
+                    if (("locals".equals(section) || "inputs".equals(section)) && isAliasForIncludeLocals(file, aliasName, sourceFile)) {
                         usages.add(getAttr.getIdentifier());
                     }
                 }
@@ -349,6 +419,68 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         return resolved != null && resolved.getVirtualFile() != null &&
                 sourceFile.getVirtualFile() != null &&
                 resolved.getVirtualFile().getPath().equals(sourceFile.getVirtualFile().getPath());
+    }
+
+    @Nullable
+    private PsiElement[] findBlockReferenceUsages(PsiFile file, String blockType, String labelName) {
+        List<PsiElement> usages = new ArrayList<>();
+        Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
+        for (TerragruntGetAttr getAttr : allGetAttrs) {
+            if (!labelName.equals(getAttr.getIdentifier().getText())) continue;
+            PsiElement parent = getAttr.getParent();
+            if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
+            TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+            if (primary == null) continue;
+            TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+            if (varExpr == null || !blockType.equals(varExpr.getIdentifier().getText())) continue;
+            PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+            if (getAttrs != null && getAttrs.length > 0 && getAttrs[0] == getAttr) {
+                usages.add(getAttr.getIdentifier());
+            }
+        }
+        return usages.isEmpty() ? null : usages.toArray(PsiElement.EMPTY_ARRAY);
+    }
+
+    @Nullable
+    private PsiElement findFeatureDefault(PsiFile file, String featureName) {
+        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+            if (!"feature".equals(block.getIdentifier().getText())) continue;
+            for (TerragruntLabel label : block.getLabelList()) {
+                if (!featureName.equals(label.getText().replace("\"", ""))) continue;
+            }
+            TerragruntBody body = block.getBody();
+            if (body == null) continue;
+            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                if ("default".equals(attr.getIdentifier().getText())) {
+                    return attr.getIdentifier();
+                }
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private PsiElement findMockOutputKey(PsiFile file, String depName, String outputName) {
+        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+            if (!"dependency".equals(block.getIdentifier().getText())) continue;
+            for (TerragruntLabel label : block.getLabelList()) {
+                if (!depName.equals(label.getText().replace("\"", ""))) continue;
+            }
+            TerragruntBody body = block.getBody();
+            if (body == null) continue;
+            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                if (!"mock_outputs".equals(attr.getIdentifier().getText())) continue;
+                TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                if (obj == null) continue;
+                for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                    PsiElement key = elem.getFirstChild();
+                    if (key != null && outputName.equals(key.getText())) {
+                        return key;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private PsiElement[] resolveLocal(PsiFile file, String name) {
