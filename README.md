@@ -83,6 +83,17 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 - IntelliJ IDEA 2025.1+
 - Java 21
 
+## Releasing
+
+1. Update `version` in `build.gradle.kts`
+2. Commit and push to main
+3. Tag and push:
+   ```bash
+   git tag v0.2.0
+   git push --tags
+   ```
+4. GitHub Actions builds, tests, and creates a Release with the plugin zip attached
+
 ## Architecture
 
 Standalone plugin with its own Grammar-Kit based HCL parser — no dependency on the JetBrains Terraform/HCL plugin. This ensures stability across IDE updates.
