@@ -13,6 +13,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Dot-completion: `dependency.` → names, `dependency.vpc.` → `outputs`, `dependency.vpc.outputs.` → mock_outputs keys, `local.` → variables, `feature.X.` → `value`
   - Cross-file: `include.root.locals.` → suggests attributes from included file
   - Alias-aware: `local.root_config.` → suggests attributes when `root_config = include.root.locals`
+  - Alias-aware: `local.env_inputs.` → suggests input keys when `env_inputs = include.env.inputs`
   - `read_terragrunt_config`: `local.common.locals.` and `local.common.inputs.` → suggests from loaded file
   - For expressions: `[for` / `{for` templates, and loop variable completion inside for body
 - **Inspections/Linting**
@@ -29,6 +30,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - `include.root.locals.region` → jump to `region` in the included file
   - `local.env_vars.environment` → resolves alias (`env_vars = include.env.locals`), jumps to included file
   - `local.common.locals.region` → resolves `read_terragrunt_config()`, jumps to loaded file
+  - `dependency.vpc.outputs.vpc_id` → jumps to `vpc_id` in mock_outputs
   - From definition → find all usages (Ctrl+B on `app_name` in `locals`)
   - Cross-file find usages — finds both direct and aliased references across project
 - **Refactoring**
@@ -72,7 +74,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-167 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+176 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 

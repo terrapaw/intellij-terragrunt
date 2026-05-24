@@ -209,6 +209,26 @@ public class TerragruntEdgeCaseTest extends BasePlatformTestCase {
 
     // --- Multiple blocks of same type ---
 
+    public void testDependencyOutputsNavigation() {
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                  mock_outputs = {
+                    vpc_id          = "vpc-123"
+                    private_subnets = ["subnet-1"]
+                  }
+                }
+                inputs = {
+                  id = dependency.vpc.outputs.vpc_<caret>id
+                }
+                """);
+        PsiElement element = myFixture.getFile().findElementAt(myFixture.getCaretOffset());
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, myFixture.getCaretOffset(), myFixture.getEditor());
+        assertNotNull("Should navigate dependency.vpc.outputs.vpc_id to mock_outputs", targets);
+        assertTrue("Should have at least one target", targets.length > 0);
+        assertEquals("Should land on the exact key", "vpc_id", targets[0].getText());
+    }
+
     public void testMultipleDependenciesCompletion() {
         myFixture.configureByText("terragrunt.hcl", """
                 dependency "vpc" {

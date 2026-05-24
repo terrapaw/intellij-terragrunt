@@ -113,6 +113,17 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             if (targetFile != null) return new PsiElement[]{targetFile};
         }
 
+        // Handle dependency.X.outputs.Y at depth 2 — navigate to mock_outputs key
+        if ("dependency".equals(rootVar) && cursorIndex == 2 && getAttrs.length >= 3) {
+            String depName = chain[0];
+            String section = chain[1];
+            String outputName = chain[2];
+            if ("outputs".equals(section)) {
+                PsiElement target = findMockOutputKey(file, depName, outputName);
+                if (target != null) return new PsiElement[]{target};
+            }
+        }
+
         // Handle local.alias.Y at depth 1 — resolve alias to included file's locals
         if ("local".equals(rootVar) && cursorIndex == 1 && getAttrs.length >= 2) {
             String aliasName = chain[0];
@@ -385,6 +396,30 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         return resolved != null && resolved.getVirtualFile() != null &&
                 sourceFile.getVirtualFile() != null &&
                 resolved.getVirtualFile().getPath().equals(sourceFile.getVirtualFile().getPath());
+    }
+
+    @Nullable
+    private PsiElement findMockOutputKey(PsiFile file, String depName, String outputName) {
+        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+            if (!"dependency".equals(block.getIdentifier().getText())) continue;
+            for (TerragruntLabel label : block.getLabelList()) {
+                if (!depName.equals(label.getText().replace("\"", ""))) continue;
+            }
+            TerragruntBody body = block.getBody();
+            if (body == null) continue;
+            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                if (!"mock_outputs".equals(attr.getIdentifier().getText())) continue;
+                TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                if (obj == null) continue;
+                for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                    PsiElement key = elem.getFirstChild();
+                    if (key != null && outputName.equals(key.getText())) {
+                        return key;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private PsiElement[] resolveLocal(PsiFile file, String name) {

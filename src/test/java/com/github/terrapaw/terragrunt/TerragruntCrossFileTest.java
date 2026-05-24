@@ -467,6 +467,40 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue("Should suggest 'team' from common.hcl. Got: " + names, names.contains("team"));
     }
 
+    public void testCompletionIncludeInputsAliasSuggestsKeysDirectly() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        myFixture.addFileToProject("env.hcl", """
+                inputs = {
+                  default_tags = {}
+                  log_level    = "info"
+                }
+                """);
+
+        PsiFile mainFile = myFixture.addFileToProject("terragrunt.hcl", """
+                include "env" {
+                  path   = "env.hcl"
+                  expose = true
+                }
+                locals {
+                  env_inputs = include.env.inputs
+                }
+                inputs = {
+                  x = local.env_inputs.
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("local.env_inputs.") + "local.env_inputs.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for local.env_inputs.", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'default_tags'. Got: " + names, names.contains("default_tags"));
+        assertTrue("Should suggest 'log_level'. Got: " + names, names.contains("log_level"));
+    }
+
     public void testCompletionIncludeLocalsAliasSuggestsAttributesDirectly() {
         myFixture.addFileToProject("root.hcl", """
                 locals {
