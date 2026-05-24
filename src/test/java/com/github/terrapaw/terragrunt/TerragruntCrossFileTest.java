@@ -317,6 +317,33 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue("Should have at least one target", targets.length > 0);
     }
 
+    public void testFindUsagesFromInputsKey() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        PsiFile commonFile = myFixture.addFileToProject("common.hcl", """
+                inputs = {
+                  notification_email = "team@example.com"
+                }
+                """);
+
+        myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common.hcl")
+                }
+                inputs = {
+                  email = local.common.inputs.notification_email
+                }
+                """);
+
+        // Ctrl+B on "notification_email" in common.hcl's inputs
+        myFixture.configureFromExistingVirtualFile(commonFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("notification_email");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should find usages of notification_email from inputs", targets);
+        assertTrue("Should have at least one usage", targets.length > 0);
+    }
+
     public void testNavigateLocalAliasInputs() {
         myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
         myFixture.addFileToProject("common.hcl", """

@@ -10,7 +10,9 @@ include "env" {
 }
 
 locals {
-  env_vars = include.env.locals
+  env_vars  = include.env.locals
+  env_tags  = include.env.inputs.default_tags
+  log_level = include.env.inputs.log_level
 }
 
 terraform {

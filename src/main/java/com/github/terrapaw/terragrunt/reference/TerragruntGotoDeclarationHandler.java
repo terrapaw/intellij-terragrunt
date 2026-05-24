@@ -31,6 +31,15 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             return handleDefinitionToUsages(attr, sourceElement);
         }
 
+        // Case 3: On an IDENTIFIER that is a key inside an inputs map
+        // (e.g. Ctrl+B on "notification_email" in inputs = { notification_email = "x" })
+        if (parent instanceof TerragruntObjectElem) {
+            // Check if this is the key (first child) of the object elem
+            if (sourceElement == parent.getFirstChild()) {
+                return handleInputsKeyUsages(sourceElement);
+            }
+        }
+
         return null;
     }
 
@@ -215,6 +224,24 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         return null;
     }
 
+    private PsiElement[] handleInputsKeyUsages(PsiElement sourceElement) {
+        String name = sourceElement.getText();
+        PsiFile file = sourceElement.getContainingFile();
+
+        // Verify this key is inside an "inputs" attribute
+        TerragruntAttribute inputsAttr = PsiTreeUtil.getParentOfType(sourceElement, TerragruntAttribute.class);
+        if (inputsAttr == null || !"inputs".equals(inputsAttr.getIdentifier().getText())) return null;
+
+        // Search project files for include.*.inputs.<name> and local.*.inputs.<name>
+        List<PsiElement> usages = new ArrayList<>();
+        com.intellij.openapi.roots.ProjectRootManager rootManager =
+                com.intellij.openapi.roots.ProjectRootManager.getInstance(file.getProject());
+        for (com.intellij.openapi.vfs.VirtualFile contentRoot : rootManager.getContentRoots()) {
+            findHclFilesRecursive(contentRoot, file.getProject(), file, name, usages);
+        }
+        return usages.isEmpty() ? null : usages.toArray(PsiElement.EMPTY_ARRAY);
+    }
+
     private void findLocalUsagesInFile(PsiFile file, String name, List<PsiElement> usages) {
         Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
         for (TerragruntGetAttr getAttr : allGetAttrs) {
@@ -276,7 +303,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
                 if (getAttrs == null || getAttrs.length < 3 || getAttrs[2] != getAttr) continue;
                 String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
-                if (!"locals".equals(section)) continue;
+                if (!"locals".equals(section) && !"inputs".equals(section)) continue;
 
                 String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
                 TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
