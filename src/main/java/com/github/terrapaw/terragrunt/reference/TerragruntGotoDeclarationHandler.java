@@ -127,6 +127,12 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                     TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(resolvedFile, attrName);
                     if (resolved != null) return new PsiElement[]{resolved};
                 }
+            } else if ("inputs".equals(section)) {
+                PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
+                if (resolvedFile != null) {
+                    TerragruntAttribute resolved = TerragruntFileResolver.findInputAttribute(resolvedFile, attrName);
+                    if (resolved != null) return new PsiElement[]{resolved};
+                }
             }
         }
 
@@ -293,11 +299,11 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                     }
                 }
 
-                // Pattern 2b: local.alias.locals.<name> (depth 2) where alias = read_terragrunt_config(...)
+                // Pattern 2b: local.alias.locals.<name> or local.alias.inputs.<name> (depth 2)
                 if (getAttrs.length >= 3 && getAttrs[2] == getAttr) {
                     String aliasName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
                     String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
-                    if ("locals".equals(section) && isAliasForIncludeLocals(file, aliasName, sourceFile)) {
+                    if (("locals".equals(section) || "inputs".equals(section)) && isAliasForIncludeLocals(file, aliasName, sourceFile)) {
                         usages.add(getAttr.getIdentifier());
                     }
                 }

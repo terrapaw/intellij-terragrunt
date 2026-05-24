@@ -317,6 +317,34 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue("Should have at least one target", targets.length > 0);
     }
 
+    public void testNavigateLocalAliasInputs() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        myFixture.addFileToProject("common.hcl", """
+                inputs = {
+                  notification_email = "team@example.com"
+                  alert_channel      = "#alerts"
+                }
+                """);
+
+        PsiFile childFile = myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common.hcl")
+                }
+                inputs = {
+                  email = local.common.inputs.notification_email
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("inputs.notification_email") + "inputs.".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate from local.common.inputs.notification_email", targets);
+        assertTrue("Should have at least one target", targets.length > 0);
+    }
+
     public void testNavigateViaReadTerragruntConfigWithFindInParentFolders() {
         // Create marker
         myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
