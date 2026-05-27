@@ -26,6 +26,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Unresolved variable references (`local.X`, `dependency.X`, `feature.X`)
 - **Navigation (Ctrl+Click / Ctrl+B)**
   - `include` paths and `dependency` config_paths → jump to referenced files
+  - Function-aware: resolves `get_parent_terragrunt_dir()`, `get_terragrunt_dir()`, `get_root_terragrunt_dir()` in paths
   - `local.app_name` → jump to definition in `locals` block
   - `dependency.vpc` → jump to `dependency "vpc"` block
   - `feature.flag` → jump to `feature "flag"` block
@@ -78,7 +79,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-185 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+187 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 

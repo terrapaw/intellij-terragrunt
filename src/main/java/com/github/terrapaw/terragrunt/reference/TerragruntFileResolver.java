@@ -55,8 +55,15 @@ public class TerragruntFileResolver {
         TerragruntStringLit stringLit = PsiTreeUtil.findChildOfType(attr, TerragruntStringLit.class);
         if (stringLit != null) {
             String path = extractStringContent(stringLit.getText());
-            if (path != null && !path.contains("${")) {
-                return resolveRelativePath(sourceFile, path);
+            if (path != null) {
+                if (!path.contains("${")) {
+                    return resolveRelativePath(sourceFile, path);
+                }
+                // Try to evaluate interpolations containing known functions
+                String evaluated = evaluateInterpolatedPath(path, sourceFile);
+                if (evaluated != null) {
+                    return resolveRelativePath(sourceFile, evaluated);
+                }
             }
         }
 
@@ -86,6 +93,22 @@ public class TerragruntFileResolver {
         if (vFile == null) return null;
         VirtualFile dir = vFile.getParent();
         if (dir == null) return null;
+
+        // Handle absolute paths (from function evaluation)
+        if (path.startsWith("/")) {
+            // Navigate from the filesystem root that contains our source file
+            VirtualFile root = vFile;
+            while (root.getParent() != null) root = root.getParent();
+            VirtualFile target = root;
+            for (String part : path.substring(1).split("/")) {
+                if (target == null) return null;
+                target = target.findChild(part);
+            }
+            if (target != null && !target.isDirectory()) {
+                return PsiManager.getInstance(sourceFile.getProject()).findFile(target);
+            }
+            return null;
+        }
 
         // Navigate the relative path using VirtualFile API
         String[] parts = path.split("/");
@@ -156,6 +179,74 @@ public class TerragruntFileResolver {
         return null;
     }
 
+    /**
+     * Evaluates a path string containing ${...} interpolations with known Terragrunt functions.
+     * Returns the resolved path string, or null if any interpolation can't be evaluated.
+     */
+    @Nullable
+    private static String evaluateInterpolatedPath(String path, PsiFile sourceFile) {
+        VirtualFile vFile = sourceFile.getVirtualFile();
+        if (vFile == null) return null;
+        VirtualFile sourceDir = vFile.getParent();
+        if (sourceDir == null) return null;
+
+        StringBuilder result = new StringBuilder();
+        int i = 0;
+        while (i < path.length()) {
+            if (i < path.length() - 1 && path.charAt(i) == '$' && path.charAt(i + 1) == '{') {
+                int end = path.indexOf('}', i + 2);
+                if (end == -1) return null;
+                String expr = path.substring(i + 2, end).trim();
+                String evaluated = evaluateFunction(expr, sourceDir);
+                if (evaluated == null) return null;
+                result.append(evaluated);
+                i = end + 1;
+            } else {
+                result.append(path.charAt(i));
+                i++;
+            }
+        }
+        return result.toString();
+    }
+
+    /**
+     * Evaluates a single Terragrunt function expression to a path string.
+     */
+    @Nullable
+    private static String evaluateFunction(String expr, VirtualFile sourceDir) {
+        // get_terragrunt_dir() — directory of the current file
+        if (expr.equals("get_terragrunt_dir()")) {
+            return sourceDir.getPath();
+        }
+        // get_parent_terragrunt_dir() — walk up to find parent dir with terragrunt.hcl
+        if (expr.equals("get_parent_terragrunt_dir()")) {
+            VirtualFile dir = sourceDir.getParent();
+            while (dir != null) {
+                if (dir.findChild("terragrunt.hcl") != null || dir.findChild("root.hcl") != null) {
+                    return dir.getPath();
+                }
+                dir = dir.getParent();
+            }
+            return null;
+        }
+        // get_root_terragrunt_dir() — walk up to find the topmost dir with root.hcl or terragrunt.hcl
+        if (expr.equals("get_root_terragrunt_dir()")) {
+            VirtualFile dir = sourceDir.getParent();
+            VirtualFile topmost = null;
+            while (dir != null) {
+                if (dir.findChild("root.hcl") != null) return dir.getPath();
+                if (dir.findChild("terragrunt.hcl") != null) topmost = dir;
+                dir = dir.getParent();
+            }
+            return topmost != null ? topmost.getPath() : null;
+        }
+        // get_original_terragrunt_dir() — same as get_terragrunt_dir() for IDE purposes
+        if (expr.equals("get_original_terragrunt_dir()")) {
+            return sourceDir.getPath();
+        }
+        return null;
+    }
+
     @Nullable
     private static String extractStringContent(String quotedText) {
         if (quotedText == null || quotedText.length() < 2) return null;
@@ -190,8 +281,14 @@ public class TerragruntFileResolver {
         TerragruntStringLit stringLit = PsiTreeUtil.findChildOfType(argList, TerragruntStringLit.class);
         if (stringLit != null) {
             String path = extractStringContent(stringLit.getText());
-            if (path != null && !path.contains("${")) {
-                return resolveRelativePath(sourceFile, path);
+            if (path != null) {
+                if (!path.contains("${")) {
+                    return resolveRelativePath(sourceFile, path);
+                }
+                String evaluated = evaluateInterpolatedPath(path, sourceFile);
+                if (evaluated != null) {
+                    return resolveRelativePath(sourceFile, evaluated);
+                }
             }
         }
 

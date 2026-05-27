@@ -566,4 +566,68 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue("Should suggest 'vpc_id'. Got: " + names, names.contains("vpc_id"));
         assertTrue("Should suggest 'region'. Got: " + names, names.contains("region"));
     }
+
+    public void testGetParentTerragruntDirResolution() {
+        // Create terragrunt.hcl in project root (makes it a "terragrunt dir")
+        myFixture.addFileToProject("terragrunt.hcl", "");
+        myFixture.addFileToProject("common.hcl", """
+                locals {
+                  project_name = "my-app"
+                }
+                """);
+
+        // Child file uses get_parent_terragrunt_dir() to reference common.hcl
+        PsiFile childFile = myFixture.addFileToProject("modules/vpc/terragrunt.hcl", """
+                include "common" {
+                  path = "${get_parent_terragrunt_dir()}/common.hcl"
+                  expose = true
+                }
+
+                inputs = {
+                  name = include.common.locals.project_name
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+
+        // First verify the include resolves
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(myFixture.getFile(), TerragruntBlock.class);
+        TerragruntBlock includeBlock = null;
+        for (TerragruntBlock block : blocks) {
+            if ("include".equals(block.getIdentifier().getText())) {
+                includeBlock = block;
+                break;
+            }
+        }
+        assertNotNull("Should find include block", includeBlock);
+        PsiFile resolved = TerragruntFileResolver.resolveInclude(includeBlock);
+        assertNotNull("resolveInclude should resolve the path with get_parent_terragrunt_dir(). " +
+                "sourceFile=" + childFile.getVirtualFile().getPath(), resolved);
+    }
+
+    public void testGetTerragruntDirResolution() {
+        // File references sibling using get_terragrunt_dir()
+        myFixture.addFileToProject("config/common.hcl", """
+                locals {
+                  env = "prod"
+                }
+                """);
+
+        PsiFile file = myFixture.addFileToProject("config/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("${get_terragrunt_dir()}/common.hcl")
+                }
+
+                inputs = {
+                  env = local.common.locals.env
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("locals.env") + "locals.".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve through get_terragrunt_dir()", targets);
+        assertTrue("Should find target", targets.length > 0);
+    }
 }
