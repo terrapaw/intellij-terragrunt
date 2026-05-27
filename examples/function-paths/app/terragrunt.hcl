@@ -24,7 +24,8 @@ locals {
   repo_config = read_terragrunt_config("${get_repo_root()}/shared.hcl")
 
   # get_path_to_repo_root() returns relative path to git root (e.g. "../..")
-  repo_relative = read_terragrunt_config("${get_path_to_repo_root()}/shared.hcl")
+  # Used with full path from repo root — here it resolves to shared.hcl
+  repo_relative = read_terragrunt_config("${get_path_to_repo_root()}/examples/function-paths/shared.hcl")
 
   # get_path_from_repo_root() returns path from git root to current dir (e.g. "app")
   my_path = get_path_from_repo_root()
@@ -53,7 +54,7 @@ inputs = {
   # Try: Ctrl+B on shared_env → jumps to shared.hcl via repo root
   env = local.repo_config.locals.shared_env
 
-  # Navigation through get_path_to_repo_root() (relative path)
-  # Try: Ctrl+B on shared_vpc_cidr → jumps to shared.hcl via relative path
+  # Navigation through get_path_to_repo_root()
+  # Try: Ctrl+B on shared_vpc_cidr → jumps to shared.hcl via relative path to repo root
   vpc = local.repo_relative.locals.shared_vpc_cidr
 }
