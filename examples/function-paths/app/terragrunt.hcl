@@ -20,12 +20,17 @@ locals {
   # get_root_terragrunt_dir() finds the topmost dir with root.hcl
   root_config = read_terragrunt_config("${get_root_terragrunt_dir()}/root.hcl")
 
-  # get_repo_root() finds the .git directory
+  # get_repo_root() finds the .git directory (absolute path)
   repo_config = read_terragrunt_config("${get_repo_root()}/shared.hcl")
 
   # get_path_to_repo_root() returns relative path to git root (e.g. "../..")
-  # get_path_from_repo_root() returns path from git root (e.g. "app")
+  repo_relative = read_terragrunt_config("${get_path_to_repo_root()}/shared.hcl")
+
+  # get_path_from_repo_root() returns path from git root to current dir (e.g. "app")
+  my_path = get_path_from_repo_root()
+
   # basename(get_terragrunt_dir()) returns just the directory name (e.g. "app")
+  dir_name = basename(get_terragrunt_dir())
 
   # Try: local.shared.locals. → autocomplete shows shared_vpc_cidr, shared_env
   cidr = local.shared.locals.shared_vpc_cidr
