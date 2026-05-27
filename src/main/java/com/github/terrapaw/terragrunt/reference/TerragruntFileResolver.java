@@ -244,6 +244,76 @@ public class TerragruntFileResolver {
         if (expr.equals("get_original_terragrunt_dir()")) {
             return sourceDir.getPath();
         }
+        // get_repo_root() — walk up to find .git directory
+        if (expr.equals("get_repo_root()")) {
+            VirtualFile dir = sourceDir;
+            while (dir != null) {
+                if (dir.findChild(".git") != null) return dir.getPath();
+                dir = dir.getParent();
+            }
+            return null;
+        }
+        // find_in_parent_folders("X") — walk up to find file, return full path
+        if (expr.startsWith("find_in_parent_folders(")) {
+            String arg = extractFunctionArg(expr);
+            if (arg == null) arg = "terragrunt.hcl";
+            VirtualFile dir = sourceDir.getParent();
+            while (dir != null) {
+                VirtualFile target = dir.findChild(arg);
+                if (target != null && !target.isDirectory()) return target.getPath();
+                dir = dir.getParent();
+            }
+            return null;
+        }
+        // dirname(X) — evaluate inner expression, return parent directory
+        if (expr.startsWith("dirname(") && expr.endsWith(")")) {
+            String inner = expr.substring("dirname(".length(), expr.length() - 1);
+            String innerResult = evaluateFunction(inner, sourceDir);
+            if (innerResult == null) return null;
+            int lastSlash = innerResult.lastIndexOf('/');
+            return lastSlash > 0 ? innerResult.substring(0, lastSlash) : innerResult;
+        }
+        // basename(X) — evaluate inner expression, return last path component
+        if (expr.startsWith("basename(") && expr.endsWith(")")) {
+            String inner = expr.substring("basename(".length(), expr.length() - 1);
+            String innerResult = evaluateFunction(inner, sourceDir);
+            if (innerResult == null) return null;
+            int lastSlash = innerResult.lastIndexOf('/');
+            return lastSlash >= 0 ? innerResult.substring(lastSlash + 1) : innerResult;
+        }
+        // get_path_to_repo_root() — relative path from current dir to git root
+        if (expr.equals("get_path_to_repo_root()")) {
+            VirtualFile dir = sourceDir;
+            StringBuilder rel = new StringBuilder();
+            while (dir != null) {
+                if (dir.findChild(".git") != null) return rel.length() == 0 ? "." : rel.toString();
+                rel.append(rel.length() == 0 ? ".." : "/..");
+                dir = dir.getParent();
+            }
+            return null;
+        }
+        // get_path_from_repo_root() — path from git root to current dir
+        if (expr.equals("get_path_from_repo_root()")) {
+            VirtualFile dir = sourceDir;
+            java.util.List<String> parts = new java.util.ArrayList<>();
+            while (dir != null) {
+                if (dir.findChild(".git") != null) {
+                    java.util.Collections.reverse(parts);
+                    return String.join("/", parts);
+                }
+                parts.add(dir.getName());
+                dir = dir.getParent();
+            }
+            return null;
+        }
+        return null;
+    }
+
+    @Nullable
+    private static String extractFunctionArg(String expr) {
+        int start = expr.indexOf('"');
+        int end = expr.lastIndexOf('"');
+        if (start >= 0 && end > start) return expr.substring(start + 1, end);
         return null;
     }
 

@@ -568,8 +568,8 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
     }
 
     public void testGetParentTerragruntDirResolution() {
-        // Create terragrunt.hcl in project root (makes it a "terragrunt dir")
-        myFixture.addFileToProject("terragrunt.hcl", "");
+        // Create root.hcl in project root (makes it a "terragrunt dir")
+        myFixture.addFileToProject("root.hcl", "locals {}");
         myFixture.addFileToProject("common.hcl", """
                 locals {
                   project_name = "my-app"
@@ -606,28 +606,201 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
 
     public void testGetTerragruntDirResolution() {
         // File references sibling using get_terragrunt_dir()
-        myFixture.addFileToProject("config/common.hcl", """
+        myFixture.addFileToProject("isolated/settings.hcl", """
                 locals {
-                  env = "prod"
+                  deploy_env = "prod"
                 }
                 """);
 
-        PsiFile file = myFixture.addFileToProject("config/terragrunt.hcl", """
+        PsiFile file = myFixture.addFileToProject("isolated/terragrunt.hcl", """
                 locals {
-                  common = read_terragrunt_config("${get_terragrunt_dir()}/common.hcl")
+                  settings = read_terragrunt_config("${get_terragrunt_dir()}/settings.hcl")
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+
+        // Directly test that read_terragrunt_config resolves the function path
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(myFixture.getFile(), TerragruntBlock.class);
+        TerragruntBlock localsBlock = null;
+        for (TerragruntBlock b : blocks) {
+            if ("locals".equals(b.getIdentifier().getText())) { localsBlock = b; break; }
+        }
+        assertNotNull("Should find locals block", localsBlock);
+        TerragruntAttribute settingsAttr = PsiTreeUtil.getChildrenOfTypeAsList(localsBlock.getBody(), TerragruntAttribute.class).getFirst();
+        TerragruntFunctionCall funcCall = PsiTreeUtil.findChildOfType(settingsAttr, TerragruntFunctionCall.class);
+        assertNotNull("Should find read_terragrunt_config call", funcCall);
+        assertEquals("read_terragrunt_config", funcCall.getIdentifier().getText());
+        PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
+        assertNotNull("Should resolve read_terragrunt_config with get_terragrunt_dir()", resolved);
+        assertTrue("Should resolve to settings.hcl", resolved.getName().equals("settings.hcl"));
+    }
+
+    public void testGetRootTerragruntDirResolution() {
+        // root.hcl at project root
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  account_id = "123456"
+                }
+                """);
+
+        PsiFile file = myFixture.addFileToProject("envs/dev/terragrunt.hcl", """
+                locals {
+                  root = read_terragrunt_config("${get_root_terragrunt_dir()}/root.hcl")
                 }
 
                 inputs = {
-                  env = local.common.locals.env
+                  account = local.root.locals.account_id
                 }
                 """);
         myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
 
         String text = myFixture.getEditor().getDocument().getText();
-        int offset = text.indexOf("locals.env") + "locals.".length();
+        int offset = text.indexOf("locals.account_id") + "locals.".length();
         PsiElement element = myFixture.getFile().findElementAt(offset);
         PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
-        assertNotNull("Should resolve through get_terragrunt_dir()", targets);
+        assertNotNull("Should resolve through get_root_terragrunt_dir()", targets);
         assertTrue("Should find target", targets.length > 0);
+    }
+
+    public void testGetParentTerragruntDirInReadConfig() {
+        // Parent dir has terragrunt.hcl and common.hcl
+        myFixture.addFileToProject("terragrunt.hcl", "");
+        myFixture.addFileToProject("common.hcl", """
+                locals {
+                  team = "platform"
+                }
+                """);
+
+        PsiFile file = myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("${get_parent_terragrunt_dir()}/common.hcl")
+                }
+
+                inputs = {
+                  team = local.common.locals.team
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("locals.team") + "locals.".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve get_parent_terragrunt_dir() in read_terragrunt_config", targets);
+        assertTrue("Should find target", targets.length > 0);
+    }
+
+    public void testGetRepoRootResolution() {
+        // Create .git to mark repo root
+        myFixture.addFileToProject(".git/config", "");
+        myFixture.addFileToProject("infra/shared.hcl", """
+                locals {
+                  org = "terrapaw"
+                }
+                """);
+
+        PsiFile file = myFixture.addFileToProject("infra/modules/vpc/terragrunt.hcl", """
+                locals {
+                  shared = read_terragrunt_config("${get_repo_root()}/infra/shared.hcl")
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(myFixture.getFile(), TerragruntBlock.class);
+        TerragruntBlock localsBlock = null;
+        for (TerragruntBlock b : blocks) {
+            if ("locals".equals(b.getIdentifier().getText())) { localsBlock = b; break; }
+        }
+        assertNotNull("Should find locals block", localsBlock);
+        TerragruntAttribute attr = PsiTreeUtil.getChildrenOfTypeAsList(localsBlock.getBody(), TerragruntAttribute.class).getFirst();
+        TerragruntFunctionCall funcCall = PsiTreeUtil.findChildOfType(attr, TerragruntFunctionCall.class);
+        assertNotNull("Should find read_terragrunt_config call", funcCall);
+        PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
+        assertNotNull("Should resolve read_terragrunt_config with get_repo_root()", resolved);
+        assertEquals("shared.hcl", resolved.getName());
+    }
+
+    public void testDirnameFindInParentFoldersResolution() {
+        // dirname(find_in_parent_folders("root.hcl")) returns the directory containing root.hcl
+        myFixture.addFileToProject("root.hcl", "locals {}");
+        myFixture.addFileToProject("common/base.hcl", """
+                locals {
+                  base_name = "infra"
+                }
+                """);
+
+        PsiFile file = myFixture.addFileToProject("envs/dev/terragrunt.hcl", """
+                include "root" {
+                  path = "${dirname(find_in_parent_folders(\"root.hcl\"))}/common/base.hcl"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(myFixture.getFile(), TerragruntBlock.class);
+        TerragruntBlock includeBlock = null;
+        for (TerragruntBlock b : blocks) {
+            if ("include".equals(b.getIdentifier().getText())) { includeBlock = b; break; }
+        }
+        assertNotNull("Should find include block", includeBlock);
+        PsiFile resolved = TerragruntFileResolver.resolveInclude(includeBlock);
+        assertNotNull("Should resolve dirname(find_in_parent_folders()) path", resolved);
+        assertEquals("base.hcl", resolved.getName());
+    }
+
+    public void testGetPathToRepoRootResolution() {
+        myFixture.addFileToProject(".git/config", "");
+        myFixture.addFileToProject("modules/vpc/main.hcl", """
+                locals {
+                  vpc_name = "main-vpc"
+                }
+                """);
+
+        PsiFile file = myFixture.addFileToProject("modules/vpc/terragrunt.hcl", """
+                locals {
+                  config = read_terragrunt_config("${get_path_to_repo_root()}/modules/vpc/main.hcl")
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(myFixture.getFile(), TerragruntBlock.class);
+        TerragruntBlock localsBlock = null;
+        for (TerragruntBlock b : blocks) {
+            if ("locals".equals(b.getIdentifier().getText())) { localsBlock = b; break; }
+        }
+        assertNotNull(localsBlock);
+        TerragruntAttribute attr = PsiTreeUtil.getChildrenOfTypeAsList(localsBlock.getBody(), TerragruntAttribute.class).getFirst();
+        TerragruntFunctionCall funcCall = PsiTreeUtil.findChildOfType(attr, TerragruntFunctionCall.class);
+        PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
+        assertNotNull("Should resolve get_path_to_repo_root() path", resolved);
+        assertEquals("main.hcl", resolved.getName());
+    }
+
+    public void testBasenameInPath() {
+        myFixture.addFileToProject(".git/config", "");
+        myFixture.addFileToProject("modules/vpc/vpc.hcl", """
+                locals {
+                  x = "test"
+                }
+                """);
+
+        // basename(get_terragrunt_dir()) returns "vpc" for a file in modules/vpc/
+        PsiFile file = myFixture.addFileToProject("modules/vpc/terragrunt.hcl", """
+                locals {
+                  config = read_terragrunt_config("${get_repo_root()}/modules/${basename(get_terragrunt_dir())}/vpc.hcl")
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(myFixture.getFile(), TerragruntBlock.class);
+        TerragruntBlock localsBlock = null;
+        for (TerragruntBlock b : blocks) {
+            if ("locals".equals(b.getIdentifier().getText())) { localsBlock = b; break; }
+        }
+        assertNotNull(localsBlock);
+        TerragruntAttribute attr = PsiTreeUtil.getChildrenOfTypeAsList(localsBlock.getBody(), TerragruntAttribute.class).getFirst();
+        TerragruntFunctionCall funcCall = PsiTreeUtil.findChildOfType(attr, TerragruntFunctionCall.class);
+        PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
+        assertNotNull("Should resolve basename(get_terragrunt_dir()) in path", resolved);
+        assertEquals("vpc.hcl", resolved.getName());
     }
 }
