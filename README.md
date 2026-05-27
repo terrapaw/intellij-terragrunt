@@ -18,6 +18,8 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - For expressions: `[for` / `{for` templates, and loop variable completion inside for body
 - **Inspections/Linting**
   - Unknown block types
+  - Unknown attributes in blocks
+  - Duplicate block names (e.g. two `dependency "vpc"` in the same file)
   - Missing required attributes (with quick-fix to insert them)
   - Deprecated attributes
   - Unresolved file paths in `include` and `dependency` blocks
@@ -76,7 +78,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-183 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+185 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
