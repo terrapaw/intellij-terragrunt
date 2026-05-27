@@ -312,9 +312,10 @@ public class TerragruntFileResolver {
     @Nullable
     private static String extractFunctionArg(String expr) {
         int start = expr.indexOf('"');
-        int end = expr.lastIndexOf('"');
-        if (start >= 0 && end > start) return expr.substring(start + 1, end);
-        return null;
+        if (start < 0) return null;
+        int end = expr.indexOf('"', start + 1);
+        if (end < 0) return null;
+        return expr.substring(start + 1, end);
     }
 
     @Nullable

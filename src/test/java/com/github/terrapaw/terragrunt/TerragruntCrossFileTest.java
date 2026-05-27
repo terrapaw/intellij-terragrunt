@@ -747,6 +747,28 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertEquals("base.hcl", resolved.getName());
     }
 
+    public void testFindInParentFoldersWithFallbackArg() {
+        // find_in_parent_folders("root.hcl", "fallback.hcl") should resolve using first arg only
+        myFixture.addFileToProject("root.hcl", "locals {}");
+
+        PsiFile file = myFixture.addFileToProject("app/terragrunt.hcl", """
+                include "root" {
+                  path = "${find_in_parent_folders(\"root.hcl\", \"fallback.hcl\")}"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(myFixture.getFile(), TerragruntBlock.class);
+        TerragruntBlock includeBlock = null;
+        for (TerragruntBlock b : blocks) {
+            if ("include".equals(b.getIdentifier().getText())) { includeBlock = b; break; }
+        }
+        assertNotNull(includeBlock);
+        PsiFile resolved = TerragruntFileResolver.resolveInclude(includeBlock);
+        assertNotNull("Should resolve find_in_parent_folders with fallback arg", resolved);
+        assertEquals("root.hcl", resolved.getName());
+    }
+
     public void testGetPathToRepoRootResolution() {
         myFixture.addFileToProject(".git/config", "");
         myFixture.addFileToProject("modules/vpc/main.hcl", """
@@ -773,6 +795,36 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
         assertNotNull("Should resolve get_path_to_repo_root() path", resolved);
         assertEquals("main.hcl", resolved.getName());
+    }
+
+
+    public void testGetPathFromRepoRootResolution() {
+        myFixture.addFileToProject(".git/config", "");
+        myFixture.addFileToProject("envs/dev/env.hcl", """
+                locals {
+                  env_name = "dev"
+                }
+                """);
+
+        // get_path_from_repo_root() for a file in envs/dev/ returns "envs/dev"
+        PsiFile file = myFixture.addFileToProject("envs/dev/terragrunt.hcl", """
+                locals {
+                  config = read_terragrunt_config("${get_repo_root()}/${get_path_from_repo_root()}/env.hcl")
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(myFixture.getFile(), TerragruntBlock.class);
+        TerragruntBlock localsBlock = null;
+        for (TerragruntBlock b : blocks) {
+            if ("locals".equals(b.getIdentifier().getText())) { localsBlock = b; break; }
+        }
+        assertNotNull(localsBlock);
+        TerragruntAttribute attr = PsiTreeUtil.getChildrenOfTypeAsList(localsBlock.getBody(), TerragruntAttribute.class).getFirst();
+        TerragruntFunctionCall funcCall = PsiTreeUtil.findChildOfType(attr, TerragruntFunctionCall.class);
+        PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
+        assertNotNull("Should resolve get_path_from_repo_root() path", resolved);
+        assertEquals("env.hcl", resolved.getName());
     }
 
     public void testBasenameInPath() {
