@@ -75,6 +75,13 @@
                          enabledByDefault="true"
                          level="WEAK WARNING"
                          implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntUnknownAttributeInspection"/>
+        <localInspection language="Terragrunt"
+                         shortName="TerragruntDuplicateBlock"
+                         displayName="Duplicate block name"
+                         groupName="Terragrunt"
+                         enabledByDefault="true"
+                         level="WARNING"
+                         implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntDuplicateBlockInspection"/>
         <psi.referenceContributor language="Terragrunt"
                                   implementation="com.github.terrapaw.terragrunt.reference.TerragruntReferenceContributor"/>
         <gotoDeclarationHandler implementationClass="com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler"/>

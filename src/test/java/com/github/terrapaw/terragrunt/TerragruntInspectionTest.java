@@ -1,6 +1,7 @@
 package com.github.terrapaw.terragrunt;
 
 import com.github.terrapaw.terragrunt.inspection.TerragruntDeprecatedAttributeInspection;
+import com.github.terrapaw.terragrunt.inspection.TerragruntDuplicateBlockInspection;
 import com.github.terrapaw.terragrunt.inspection.TerragruntMissingAttributeInspection;
 import com.github.terrapaw.terragrunt.inspection.TerragruntUnknownBlockInspection;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
@@ -242,5 +243,41 @@ public class TerragruntInspectionTest extends BasePlatformTestCase {
                 .filter(h -> h.getDescription() != null && h.getDescription().contains("Unknown attribute"))
                 .count();
         assertEquals("locals block should allow any attribute", 0, warnings);
+    }
+
+    public void testDuplicateBlockDetected() {
+        myFixture.enableInspections(new TerragruntDuplicateBlockInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+              dependency "vpc" {
+                config_path = "../vpc"
+              }
+
+              dependency "vpc" {
+                config_path = "../other-vpc"
+              }
+              """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Duplicate"))
+                .count();
+        assertEquals("Should detect duplicate dependency block", 1, warnings);
+    }
+
+    public void testNoDuplicateWarningForDifferentLabels() {
+        myFixture.enableInspections(new TerragruntDuplicateBlockInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+              dependency "vpc" {
+                config_path = "../vpc"
+              }
+
+              dependency "rds" {
+                config_path = "../rds"
+              }
+              """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Duplicate"))
+                .count();
+        assertEquals("Different labels should not trigger duplicate warning", 0, warnings);
     }
 }
