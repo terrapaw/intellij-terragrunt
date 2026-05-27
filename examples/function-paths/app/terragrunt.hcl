@@ -21,17 +21,17 @@ locals {
   root_config = read_terragrunt_config("${get_root_terragrunt_dir()}/root.hcl")
 
   # get_repo_root() finds the .git directory (absolute path)
-  repo_config = read_terragrunt_config("${get_repo_root()}/shared.hcl")
+  repo_config = read_terragrunt_config("${get_repo_root()}/examples/function-paths/shared.hcl")
 
   # get_path_to_repo_root() returns relative path to git root (e.g. "../..")
   # Used with full path from repo root — here it resolves to shared.hcl
   repo_relative = read_terragrunt_config("${get_path_to_repo_root()}/examples/function-paths/shared.hcl")
 
-  # get_path_from_repo_root() returns path from git root to current dir (e.g. "app")
-  my_path = get_path_from_repo_root()
+  # get_path_from_repo_root() returns path from git root to current dir (e.g. "examples/function-paths/app")
+  repo_path_config = read_terragrunt_config("${get_repo_root()}/${get_path_from_repo_root()}/local.hcl")
 
   # basename(get_terragrunt_dir()) returns just the directory name (e.g. "app")
-  dir_name = basename(get_terragrunt_dir())
+  basename_config = read_terragrunt_config("${get_parent_terragrunt_dir()}/${basename(get_terragrunt_dir())}/local.hcl")
 
   # Try: local.shared.locals. → autocomplete shows shared_vpc_cidr, shared_env
   cidr = local.shared.locals.shared_vpc_cidr
@@ -55,6 +55,14 @@ inputs = {
   env = local.repo_config.locals.shared_env
 
   # Navigation through get_path_to_repo_root()
-  # Try: Ctrl+B on shared_vpc_cidr → jumps to shared.hcl via relative path to repo root
+  # Try: Ctrl+B on shared_vpc_cidr → jumps to shared.hcl via relative path
   vpc = local.repo_relative.locals.shared_vpc_cidr
+
+  # Navigation through get_path_from_repo_root()
+  # Try: Ctrl+B on app_port → jumps to local.hcl
+  port = local.repo_path_config.locals.app_port
+
+  # Navigation through basename()
+  # Try: Ctrl+B on app_name → jumps to local.hcl
+  base_name = local.basename_config.locals.app_name
 }
