@@ -37,5 +37,23 @@ locals {
 }
 
 inputs = {
-  env = local.shared.locals.shared_env
+  # Navigation through dirname(find_in_parent_folders())
+  # Try: Ctrl+B on shared_vpc_cidr → jumps to shared.hcl
+  cidr = local.shared.locals.shared_vpc_cidr
+
+  # Navigation through get_terragrunt_dir()
+  # Try: Ctrl+B on app_name → jumps to local.hcl in same directory
+  name = local.local_config.locals.app_name
+
+  # Navigation through get_root_terragrunt_dir()
+  # Try: Ctrl+B on root_region → jumps to root.hcl
+  region = local.root_config.locals.root_region
+
+  # Navigation through get_repo_root()
+  # Try: Ctrl+B on shared_env → jumps to shared.hcl via repo root
+  env = local.repo_config.locals.shared_env
+
+  # Navigation through get_path_to_repo_root() (relative path)
+  # Try: Ctrl+B on shared_vpc_cidr → jumps to shared.hcl via relative path
+  vpc = local.repo_relative.locals.shared_vpc_cidr
 }
