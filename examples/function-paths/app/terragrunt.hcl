@@ -12,7 +12,7 @@ include "root" {
 
 locals {
   # dirname(find_in_parent_folders("root.hcl")) returns the dir containing root.hcl
-  shared = read_terragrunt_config("${dirname(find_in_parent_folders(\"root.hcl\"))}/shared.hcl")
+  shared = read_terragrunt_config("${dirname(find_in_parent_folders("root.hcl"))}/shared.hcl")
 
   # get_terragrunt_dir() returns the directory of THIS file
   local_config = read_terragrunt_config("${get_terragrunt_dir()}/local.hcl")

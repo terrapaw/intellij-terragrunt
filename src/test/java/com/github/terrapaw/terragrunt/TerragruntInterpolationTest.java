@@ -219,4 +219,14 @@ public class TerragruntInterpolationTest extends BasePlatformTestCase {
         }
         return tokens;
     }
+
+    public void testNestedQuotesInInterpolation() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  shared = read_terragrunt_config("${dirname(find_in_parent_folders("root.hcl"))}/shared.hcl")
+                }
+                """);
+        var errors = com.intellij.psi.util.PsiTreeUtil.findChildrenOfType(myFixture.getFile(), com.intellij.psi.PsiErrorElement.class);
+        assertTrue("Should parse nested quotes in interpolation without errors. Errors: " + errors, errors.isEmpty());
+    }
 }
