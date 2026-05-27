@@ -46,4 +46,32 @@ inputs = {
 
   # Try: Ctrl+B on value → jumps to default attribute
   canary_enabled = feature.canary.value
+
+  # For-expressions — try typing inside for loop variable completion
+  subnet_names = [for idx, subnet in dependency.vpc.outputs.private_subnets : "${local.env}-subnet-${idx}"]
+  az_map       = {for az in ["us-east-1a", "us-east-1b"] : az => "${az}-zone"}
 }
+
+# Heredoc with interpolation — ${...} works inside heredocs too
+generate "provider" {
+  path      = "provider.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<EOF
+provider "aws" {
+  region = "${local.env}"
+
+  default_tags {
+    tags = {
+      App = "${local.app_name}"
+    }
+  }
+}
+EOF
+}
+
+# Try also:
+# - Ctrl+Q on a function name (e.g. merge) for documentation popup
+# - Ctrl+Alt+L to auto-format the file
+# - Type "dep" + Tab for live template expansion
+# - Ctrl+J to see all available live templates
+
