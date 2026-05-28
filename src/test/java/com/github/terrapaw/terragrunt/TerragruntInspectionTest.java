@@ -309,6 +309,20 @@ public class TerragruntInspectionTest extends BasePlatformTestCase {
         assertEquals("Should warn about missing label", 1, warnings);
     }
 
+    public void testEmptyLabelDetected() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntLabelCountInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "" {
+                  config_path = "../vpc"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("must not be empty"))
+                .count();
+        assertEquals("Should warn about empty label", 1, warnings);
+    }
+
     public void testCorrectLabelCountNoWarning() {
         myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntLabelCountInspection());
         myFixture.configureByText("terragrunt.hcl", """

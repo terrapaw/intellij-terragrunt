@@ -50,3 +50,8 @@ dependency "vpc" "extra_label" {
 dependency {
   config_path = "../vpc"
 }
+
+# Empty label
+include "" {
+  path = find_in_parent_folders("root.hcl")
+}
