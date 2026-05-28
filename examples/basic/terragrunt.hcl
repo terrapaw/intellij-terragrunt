@@ -6,6 +6,7 @@ locals {
   env      = "dev"
 }
 
+# Try: Ctrl+B on "vpc" label below → finds all dependency.vpc usages
 dependency "vpc" {
   config_path = "../vpc"
 
@@ -50,6 +51,9 @@ inputs = {
   # For-expressions — try typing inside for loop variable completion
   subnet_names = [for idx, subnet in dependency.vpc.outputs.private_subnets : "${local.env}-subnet-${idx}"]
   az_map       = {for az in ["us-east-1a", "us-east-1b"] : az => "${az}-zone"}
+
+  # Try: Ctrl+Q on merge for documentation popup
+  tags = merge({Name = local.app_name}, {Env = local.env})
 }
 
 # Heredoc with interpolation — ${...} works inside heredocs too
@@ -70,7 +74,7 @@ EOF
 }
 
 # Try also:
-# - Ctrl+Q on a function name (e.g. merge) for documentation popup
+# - Ctrl+Q on merge below for documentation popup
 # - Ctrl+Alt+L to auto-format the file
 # - Type "dep" + Tab for live template expansion
 # - Ctrl+J to see all available live templates
