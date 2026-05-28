@@ -20,7 +20,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Unknown block types
   - Unknown attributes in blocks
   - Duplicate block names (e.g. two `dependency "vpc"` in the same file)
-  - Unexpected label count (e.g. `locals "foo"` or `dependency "vpc" "extra"`)
+  - Unexpected label count (e.g. `locals "foo"`, `dependency "vpc" "extra"`, `dependency {}`, `dependency "" {}`)
   - Missing required attributes (with quick-fix to insert them)
   - Deprecated attributes
   - Unresolved file paths in `include` and `dependency` blocks
@@ -80,7 +80,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-209 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+211 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 

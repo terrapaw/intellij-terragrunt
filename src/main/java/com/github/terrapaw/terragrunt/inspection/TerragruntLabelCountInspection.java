@@ -29,6 +29,29 @@ public class TerragruntLabelCountInspection extends LocalInspectionTool {
 
                     var labels = block.getLabelList();
 
+                    // Check for missing label on blocks that require one
+                    if (blockDef.hasLabel() && labels.isEmpty()) {
+                        holder.registerProblem(
+                                block.getIdentifier(),
+                                "'" + type + "' block requires a label",
+                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING
+                        );
+                        continue;
+                    }
+
+                    // Check for empty label (e.g. dependency "" {})
+                    if (blockDef.hasLabel() && labels.size() == 1) {
+                        String labelText = labels.getFirst().getText().replace("\"", "").trim();
+                        if (labelText.isEmpty()) {
+                            holder.registerProblem(
+                                    labels.getFirst(),
+                                    "'" + type + "' block label must not be empty",
+                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING
+                            );
+                            continue;
+                        }
+                    }
+
                     // Check for multiple label nodes (unquoted identifier labels)
                     if (blockDef.hasLabel() && labels.size() > 1) {
                         holder.registerProblem(
