@@ -38,6 +38,16 @@ intellijPlatform {
         ideaVersion {
             sinceBuild = "251"
         }
+        changeNotes = providers.provider {
+            val ver = project.version.toString()
+            val changelog = file("CHANGELOG.md").readText()
+            val section = changelog
+                .substringAfter("## [$ver]", "")
+                .ifEmpty { changelog.substringAfter("## [Unreleased]", "") }
+                .substringBefore("## [")
+                .trim()
+            if (section.isBlank()) "See CHANGELOG.md" else section
+        }
     }
 }
 
