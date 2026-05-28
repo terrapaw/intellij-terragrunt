@@ -45,3 +45,8 @@ locals "should_not_have_label" {
 dependency "vpc" "extra_label" {
   config_path = "../vpc"
 }
+
+# Missing required label
+dependency {
+  config_path = "../vpc"
+}
