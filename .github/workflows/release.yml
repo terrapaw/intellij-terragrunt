@@ -31,13 +31,11 @@ jobs:
         id: changelog
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          # Extract the section for this version (between ## [X.Y.Z] and the next ## [)
           NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d')
-          # If no versioned section found, try [Unreleased]
           if [ -z "$NOTES" ]; then
-            NOTES=$(sed -n '/^## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '1d;$d')
+            echo "::error::No release notes found for version $VERSION in CHANGELOG.md. Rename [Unreleased] to [$VERSION] before tagging."
+            exit 1
           fi
-          # Write to file for the release action
           echo "$NOTES" > /tmp/release-notes.md
 
       - name: Create GitHub Release
