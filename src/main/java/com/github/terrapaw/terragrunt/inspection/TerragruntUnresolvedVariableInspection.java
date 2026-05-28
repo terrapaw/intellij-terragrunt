@@ -41,21 +41,21 @@ public class TerragruntUnresolvedVariableInspection extends LocalInspectionTool 
                         if (!localExists(file, name)) {
                             holder.registerProblem(getAttr.getIdentifier(),
                                     "Unresolved local variable '" + name + "'",
-                                    ProblemHighlightType.WARNING);
+                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
                         }
                     }
                     case "dependency" -> {
                         if (!dependencyExists(file, name)) {
                             holder.registerProblem(getAttr.getIdentifier(),
                                     "Unresolved dependency '" + name + "'",
-                                    ProblemHighlightType.WARNING);
+                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
                         }
                     }
                     case "feature" -> {
                         if (!featureExists(file, name)) {
                             holder.registerProblem(getAttr.getIdentifier(),
                                     "Unresolved feature '" + name + "'",
-                                    ProblemHighlightType.WARNING);
+                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
                         }
                     }
                 }

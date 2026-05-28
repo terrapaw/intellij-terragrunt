@@ -82,6 +82,13 @@
                          enabledByDefault="true"
                          level="WARNING"
                          implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntDuplicateBlockInspection"/>
+        <localInspection language="Terragrunt"
+                         shortName="TerragruntLabelCount"
+                         displayName="Unexpected label count"
+                         groupName="Terragrunt"
+                         enabledByDefault="true"
+                         level="WARNING"
+                         implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntLabelCountInspection"/>
         <psi.referenceContributor language="Terragrunt"
                                   implementation="com.github.terrapaw.terragrunt.reference.TerragruntReferenceContributor"/>
         <gotoDeclarationHandler implementationClass="com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler"/>

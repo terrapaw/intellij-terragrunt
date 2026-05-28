@@ -45,7 +45,7 @@ public class TerragruntUnknownAttributeInspection extends LocalInspectionTool {
                 if (!validAttrs.contains(attrName) && !validNestedBlocks.contains(attrName)) {
                     holder.registerProblem(attr.getIdentifier(),
                             "Unknown attribute '" + attrName + "' in '" + blockType + "' block",
-                            ProblemHighlightType.WEAK_WARNING);
+                            ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
                 }
             }
         };

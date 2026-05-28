@@ -1,3 +1,4 @@
+// Terragrunt HCL Lexer — see docs/architecture.md for design decisions
 package com.github.terrapaw.terragrunt.lang;
 
 import com.intellij.lexer.FlexLexer;

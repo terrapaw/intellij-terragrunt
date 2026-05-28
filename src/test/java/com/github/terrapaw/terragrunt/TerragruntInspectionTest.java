@@ -280,4 +280,36 @@ public class TerragruntInspectionTest extends BasePlatformTestCase {
                 .count();
         assertEquals("Different labels should not trigger duplicate warning", 0, warnings);
     }
+
+    public void testTooManyLabelsDetected() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntLabelCountInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" "extra" {
+                  config_path = "../vpc"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("expects 1 label"))
+                .count();
+        assertEquals("Should warn about extra label", 1, warnings);
+    }
+
+    public void testCorrectLabelCountNoWarning() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntLabelCountInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                
+                locals {
+                  x = 1
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("label"))
+                .count();
+        assertEquals("Correct label usage should not warn", 0, warnings);
+    }
 }

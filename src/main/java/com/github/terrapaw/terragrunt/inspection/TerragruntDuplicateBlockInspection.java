@@ -37,7 +37,7 @@ public class TerragruntDuplicateBlockInspection extends LocalInspectionTool {
                         holder.registerProblem(
                                 labels.getFirst(),
                                 "Duplicate " + type + " block '" + label + "'",
-                                ProblemHighlightType.WARNING
+                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING
                         );
                     } else {
                         seen.put(key, block);
