@@ -27,8 +27,28 @@ jobs:
       - name: Build and Test
         run: ./gradlew buildPlugin test
 
+      - name: Verify version matches tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          BUILD_VERSION=$(grep '^version' build.gradle.kts | sed 's/.*"\(.*\)"/\1/')
+          if [ "$TAG_VERSION" != "$BUILD_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match build.gradle.kts version ($BUILD_VERSION)"
+            exit 1
+          fi
+
+      - name: Extract release notes from CHANGELOG
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d')
+          if [ -z "$NOTES" ]; then
+            echo "::error::No release notes found for version $VERSION in CHANGELOG.md. Rename [Unreleased] to [$VERSION] before tagging."
+            exit 1
+          fi
+          echo "$NOTES" > /tmp/release-notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: build/distributions/*.zip
-          generate_release_notes: true
+          body_path: /tmp/release-notes.md
