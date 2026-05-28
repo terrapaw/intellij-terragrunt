@@ -24,7 +24,7 @@ public class TerragruntUnknownBlockInspection extends LocalInspectionTool {
                 if (!TerragruntSchema.isKnownBlock(name)) {
                     holder.registerProblem(block.getIdentifier(),
                             "Unknown Terragrunt block '" + name + "'",
-                            ProblemHighlightType.WARNING);
+                            ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
                 }
             }
         };

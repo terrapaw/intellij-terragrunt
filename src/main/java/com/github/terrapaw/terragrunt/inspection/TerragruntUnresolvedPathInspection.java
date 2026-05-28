@@ -60,14 +60,14 @@ public class TerragruntUnresolvedPathInspection extends LocalInspectionTool {
                     if (!target.isDirectory() && !tgFile.exists()) {
                         holder.registerProblem(stringLit,
                                 "Cannot resolve path '" + path + "'",
-                                ProblemHighlightType.WARNING);
+                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
                     }
                 } else {
                     // include path points to a file
                     if (!target.exists()) {
                         holder.registerProblem(stringLit,
                                 "Cannot resolve file '" + path + "'",
-                                ProblemHighlightType.WARNING);
+                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
                     }
                 }
             }

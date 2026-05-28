@@ -48,7 +48,7 @@ public class TerragruntMissingAttributeInspection extends LocalInspectionTool {
                             : "Missing " + missing.size() + " required attributes in '" + blockType + "' block";
 
                     holder.registerProblem(block.getIdentifier(), message,
-                            ProblemHighlightType.WARNING,
+                            ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
                             new InsertMissingAttributesFix(missing));
                 }
             }
