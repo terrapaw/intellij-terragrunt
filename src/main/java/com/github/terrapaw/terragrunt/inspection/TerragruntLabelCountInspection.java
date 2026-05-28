@@ -56,11 +56,24 @@ public class TerragruntLabelCountInspection extends LocalInspectionTool {
                             }
                             int labelCount = quoteCount / 2;
                             if (labelCount > 1) {
-                                holder.registerProblem(
-                                        label,
-                                        "'" + type + "' block expects 1 label, found " + labelCount,
-                                        ProblemHighlightType.GENERIC_ERROR_OR_WARNING
-                                );
+                                // Highlight only from the second quoted string onwards
+                                int firstClose = text.indexOf('"', text.indexOf('"') + 1) + 1;
+                                int secondOpen = text.indexOf('"', firstClose);
+                                if (secondOpen >= 0) {
+                                    var range = com.intellij.openapi.util.TextRange.create(secondOpen, text.length());
+                                    holder.registerProblem(
+                                            label,
+                                            "'" + type + "' block expects 1 label, found " + labelCount,
+                                            ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
+                                            range
+                                    );
+                                } else {
+                                    holder.registerProblem(
+                                            label,
+                                            "'" + type + "' block expects 1 label, found " + labelCount,
+                                            ProblemHighlightType.GENERIC_ERROR_OR_WARNING
+                                    );
+                                }
                             }
                         }
                     }
