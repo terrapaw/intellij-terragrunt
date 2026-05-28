@@ -74,7 +74,7 @@ EOF
 }
 
 # Try also:
-# - Ctrl+Q on merge below for documentation popup
+# - Ctrl+Q on a function name (e.g. merge) for documentation popup
 # - Ctrl+Alt+L to auto-format the file
 # - Type "dep" + Tab for live template expansion
 # - Ctrl+J to see all available live templates
