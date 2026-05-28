@@ -27,6 +27,15 @@ jobs:
       - name: Build and Test
         run: ./gradlew buildPlugin test
 
+      - name: Verify version matches tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          BUILD_VERSION=$(grep '^version' build.gradle.kts | sed 's/.*"\(.*\)"/\1/')
+          if [ "$TAG_VERSION" != "$BUILD_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match build.gradle.kts version ($BUILD_VERSION)"
+            exit 1
+          fi
+
       - name: Extract release notes from CHANGELOG
         id: changelog
         run: |
