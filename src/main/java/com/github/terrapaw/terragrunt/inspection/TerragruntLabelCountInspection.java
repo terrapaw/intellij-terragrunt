@@ -27,7 +27,19 @@ public class TerragruntLabelCountInspection extends LocalInspectionTool {
                     var blockDef = TerragruntSchema.getBlock(type);
                     if (blockDef == null) continue;
 
-                    for (TerragruntLabel label : block.getLabelList()) {
+                    var labels = block.getLabelList();
+
+                    // Check for multiple label nodes (unquoted identifier labels)
+                    if (blockDef.hasLabel() && labels.size() > 1) {
+                        holder.registerProblem(
+                                labels.get(1),
+                                "'" + type + "' block expects 1 label, found " + labels.size(),
+                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING
+                        );
+                        continue;
+                    }
+
+                    for (TerragruntLabel label : labels) {
                         String text = label.getText().trim();
 
                         if (!blockDef.hasLabel()) {
