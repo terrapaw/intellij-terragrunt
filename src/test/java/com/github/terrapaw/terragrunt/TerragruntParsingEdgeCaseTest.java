@@ -205,4 +205,167 @@ public class TerragruntParsingEdgeCaseTest extends BasePlatformTestCase {
             fail(sb.toString());
         }
     }
+
+    // --- Error Recovery Tests ---
+
+    public void testMissingClosingBraceRecovers() {
+        // Parser should recover and still parse the second block
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  x = 1
+
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                """);
+        // Should have parse errors but still find the dependency block
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        assertTrue("Should recover and find at least one block", blocks.size() >= 1);
+    }
+
+    public void testMissingEqualsRecovers() {
+        // Missing = in attribute should not break the whole file
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  x 1
+                  y = 2
+                }
+                """);
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        assertTrue("Should still find the locals block", blocks.size() >= 1);
+    }
+
+    public void testIncompleteExpressionRecovers() {
+        // Incomplete expression should not break subsequent blocks
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  x = local.
+                }
+                
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                """);
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        assertTrue("Should recover and find dependency block", blocks.size() >= 2);
+    }
+
+    public void testEmptyBodyRecovers() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                }
+                """);
+        assertNoParseErrors(file);
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        assertEquals(1, blocks.size());
+    }
+
+    public void testTrailingCommaInMapRecovers() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  x = {
+                    a = 1,
+                    b = 2,
+                  }
+                }
+                """);
+        assertNoParseErrors(file);
+    }
+
+    // --- Label Edge Case Tests ---
+
+    public void testMultipleLabelsInOneNode() {
+        // Our grammar merges "vpc" "extra" into one label node with STRING_LITERAL+
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" "extra" {
+                  config_path = "../vpc"
+                }
+                """);
+        assertNoParseErrors(file);
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        assertEquals(1, blocks.size());
+        TerragruntBlock block = blocks.iterator().next();
+        // Grammar merges into one label node
+        assertEquals(1, block.getLabelList().size());
+        // But the text contains both quoted strings
+        String labelText = block.getLabelList().getFirst().getText();
+        assertTrue("Label should contain both strings", labelText.contains("vpc") && labelText.contains("extra"));
+    }
+
+    public void testUnquotedIdentifierLabel() {
+        // HCL allows unquoted identifiers as labels
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                dependency vpc {
+                  config_path = "../vpc"
+                }
+                """);
+        assertNoParseErrors(file);
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        assertEquals(1, blocks.size());
+        TerragruntBlock block = blocks.iterator().next();
+        assertEquals(1, block.getLabelList().size());
+        assertEquals("vpc", block.getLabelList().getFirst().getText());
+    }
+
+
+    public void testMultipleUnquotedIdentifierLabels() {
+        // dependency vpc extra {} — two unquoted identifier labels
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                dependency vpc extra {
+                  config_path = "../vpc"
+                }
+                """);
+        assertNoParseErrors(file);
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        assertEquals(1, blocks.size());
+        TerragruntBlock block = blocks.iterator().next();
+        // Each IDENTIFIER is its own label node (unlike STRING_LITERAL+ which merges)
+        assertEquals("Should have 2 labels", 2, block.getLabelList().size());
+        assertEquals("vpc", block.getLabelList().get(0).getText());
+        assertEquals("extra", block.getLabelList().get(1).getText());
+    }
+
+    public void testMixedLabelIdentifierThenString() {
+        // dependency vpc "extra" {} — identifier then quoted string
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                dependency vpc "extra" {
+                  config_path = "../vpc"
+                }
+                """);
+        assertNoParseErrors(file);
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        assertEquals(1, blocks.size());
+        assertEquals("Should have 2 labels", 2, blocks.iterator().next().getLabelList().size());
+    }
+
+    public void testMixedLabelStringThenIdentifier() {
+        // dependency "vpc" extra {} — quoted string then identifier
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" extra {
+                  config_path = "../vpc"
+                }
+                """);
+        assertNoParseErrors(file);
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        assertEquals(1, blocks.size());
+        assertEquals("Should have 2 labels", 2, blocks.iterator().next().getLabelList().size());
+    }
+
+    public void testBlockWithNoLabelParsesCorrectly() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  x = 1
+                }
+                
+                terraform {
+                  source = "./modules/app"
+                }
+                """);
+        assertNoParseErrors(file);
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
+        assertEquals(2, blocks.size());
+        for (TerragruntBlock block : blocks) {
+            assertEquals(0, block.getLabelList().size());
+        }
+    }
 }
