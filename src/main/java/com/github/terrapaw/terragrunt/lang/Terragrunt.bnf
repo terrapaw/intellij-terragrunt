@@ -1,3 +1,4 @@
+// Terragrunt HCL Grammar — see docs/architecture.md for design decisions
 {
   parserClass="com.github.terrapaw.terragrunt.lang.parser.TerragruntParser"
   extends="com.intellij.extapi.psi.ASTWrapperPsiElement"
