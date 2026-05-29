@@ -8,7 +8,7 @@
   - `get_repo_root()`, `get_path_to_repo_root()`, `get_path_from_repo_root()`
   - `find_in_parent_folders()` inside interpolation (with fallback arg support)
   - `dirname()`, `basename()` (nested evaluation)
-- Stack context resolution: `read_terragrunt_config(find_in_parent_folders(...))` resolves from includer directories when direct resolution fails
+- Stack context resolution: `read_terragrunt_config(find_in_parent_folders(...))` resolves from includer directories (non-entry-point files won't guess — shows "no declaration" until includers exist)
 - Arbitrary-depth chain navigation and completion (e.g. `include.root.locals.env_config.locals.environment`)
 - Duplicate block name inspection
 - Label count inspection (missing labels, empty labels, extra labels)
@@ -20,7 +20,6 @@
 - All inspections now use `GENERIC_ERROR_OR_WARNING` (respects user severity settings)
 - Label count inspection highlights only the offending label, not the entire node
 - Restructured examples into focused subdirectories (basic, cross-file, function-paths, stack, inspections)
-- Non-entry-point files using `find_in_parent_folders` no longer guess resolution — shows "no declaration" until includers exist
 
 ### Fixed
 - Crash when directories are moved/deleted externally (e.g. `git mv`) while IDE is open
