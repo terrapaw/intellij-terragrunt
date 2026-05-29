@@ -26,6 +26,9 @@ public class TerragruntFileTypeOverrider implements FileTypeOverrider {
         String name = file.getName();
         if (!name.endsWith(".hcl")) return null;
 
+        // Never claim Terraform lock files
+        if (name.equals(".terraform.lock.hcl")) return null;
+
         // Always claim known Terragrunt filenames
         if (KNOWN_FILENAMES.contains(name)) {
             return TerragruntFileType.INSTANCE;

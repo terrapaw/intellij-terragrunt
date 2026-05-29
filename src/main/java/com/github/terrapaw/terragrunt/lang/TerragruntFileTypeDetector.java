@@ -34,6 +34,9 @@ public class TerragruntFileTypeDetector implements FileTypeRegistry.FileTypeDete
 
         if (!name.endsWith(".hcl")) return null;
 
+        // Never claim Terraform lock files
+        if (name.equals(".terraform.lock.hcl")) return null;
+
         // Content heuristic — contains Terragrunt-specific blocks
         if (firstCharsIfText != null && TERRAGRUNT_PATTERN.matcher(firstCharsIfText).find()) {
             return TerragruntFileType.INSTANCE;
