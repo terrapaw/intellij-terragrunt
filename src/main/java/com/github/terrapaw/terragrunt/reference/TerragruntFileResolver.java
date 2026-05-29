@@ -337,7 +337,18 @@ public class TerragruntFileResolver {
         PsiFile result = resolveReadTerragruntConfigFromIncluders(funcCall, sourceFile);
         if (result != null) return result;
 
-        // Fall back to direct resolution from the current file's directory
+        // For find_in_parent_folders, only fall back to direct resolution if this file
+        // is an entry point (terragrunt.hcl). Non-entry-point files depend on context.
+        TerragruntArgList argList = funcCall.getArgList();
+        if (argList != null) {
+            TerragruntFunctionCall nestedFunc = PsiTreeUtil.findChildOfType(argList, TerragruntFunctionCall.class);
+            if (nestedFunc != null && "find_in_parent_folders".equals(nestedFunc.getIdentifier().getText())) {
+                String fileName = sourceFile.getName();
+                if (!"terragrunt.hcl".equals(fileName)) {
+                    return null; // Context-dependent — don't guess
+                }
+            }
+        }
         return resolveReadTerragruntConfigDirect(funcCall, sourceFile);
     }
 
