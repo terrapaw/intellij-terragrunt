@@ -1,6 +1,7 @@
 package com.github.terrapaw.terragrunt.completion;
 
 import com.github.terrapaw.terragrunt.lang.psi.*;
+import com.github.terrapaw.terragrunt.reference.TerragruntChainResolver;
 import com.github.terrapaw.terragrunt.reference.TerragruntFileResolver;
 import com.github.terrapaw.terragrunt.schema.TerragruntSchema;
 import com.intellij.codeInsight.completion.*;
@@ -525,74 +526,16 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     }
 
     private boolean isIncludeLocalsAlias(PsiFile file, String aliasName) {
-        return isIncludeAlias(file, aliasName, "locals");
+        return TerragruntChainResolver.isIncludeAlias(file, aliasName, "locals");
     }
 
     private boolean isIncludeInputsAlias(PsiFile file, String aliasName) {
-        return isIncludeAlias(file, aliasName, "inputs");
-    }
-
-    private boolean isIncludeAlias(PsiFile file, String aliasName, String section) {
-        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"locals".equals(block.getIdentifier().getText())) continue;
-            TerragruntBody body = block.getBody();
-            if (body == null) continue;
-            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
-                if (!aliasName.equals(attr.getIdentifier().getText())) continue;
-                TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
-                if (postfix == null) continue;
-                TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
-                if (primary == null) continue;
-                TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
-                if (varExpr != null && "include".equals(varExpr.getIdentifier().getText())) {
-                    PsiElement[] gas = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
-                    if (gas != null && gas.length >= 2) {
-                        String s = ((TerragruntGetAttr) gas[1]).getIdentifier().getText();
-                        if (section.equals(s)) return true;
-                    }
-                }
-            }
-        }
-        return false;
+        return TerragruntChainResolver.isIncludeAlias(file, aliasName, "inputs");
     }
 
     @Nullable
     private PsiFile resolveLocalAliasForCompletion(PsiFile file, String aliasName) {
-        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"locals".equals(block.getIdentifier().getText())) continue;
-            TerragruntBody body = block.getBody();
-            if (body == null) continue;
-            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
-                if (!aliasName.equals(attr.getIdentifier().getText())) continue;
-                // Check for read_terragrunt_config(...)
-                TerragruntFunctionCall funcCall = PsiTreeUtil.findChildOfType(attr, TerragruntFunctionCall.class);
-                if (funcCall != null && "read_terragrunt_config".equals(funcCall.getIdentifier().getText())) {
-                    return TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
-                }
-                // Check for include.X.locals
-                TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
-                if (postfix != null) {
-                    TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
-                    if (primary != null) {
-                        TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
-                        if (varExpr != null && "include".equals(varExpr.getIdentifier().getText())) {
-                            PsiElement[] gas = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
-                            if (gas != null && gas.length >= 2) {
-                                String section = ((TerragruntGetAttr) gas[1]).getIdentifier().getText();
-                                if ("locals".equals(section) || "inputs".equals(section)) {
-                                    String includeName = ((TerragruntGetAttr) gas[0]).getIdentifier().getText();
-                                    TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
-                                    if (includeBlock != null) {
-                                        return TerragruntFileResolver.resolveInclude(includeBlock);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return null;
+        return TerragruntChainResolver.resolveLocalAlias(file, aliasName);
     }
 
     private void addDotCompletionsFromText(@NotNull PsiElement position, @NotNull CompletionResultSet result) {
@@ -680,23 +623,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
      */
     @Nullable
     private PsiFile resolveDeepChainForCompletion(PsiFile currentFile, PsiElement[] getAttrs, int startIndex, int depth, PsiFile originFile) {
-        PsiFile file = currentFile;
-        int i = startIndex;
-
-        while (i < depth && file != null) {
-            String name = ((TerragruntGetAttr) getAttrs[i]).getIdentifier().getText();
-            // If next attr is "locals" or "inputs", this is an alias to resolve
-            if (i + 1 < getAttrs.length) {
-                String next = ((TerragruntGetAttr) getAttrs[i + 1]).getIdentifier().getText();
-                if ("locals".equals(next) || "inputs".equals(next)) {
-                    file = resolveLocalAliasForCompletion(file, name);
-                    i += 2;
-                    continue;
-                }
-            }
-            i++;
-        }
-        return file;
+        return TerragruntChainResolver.resolveChain(currentFile, getAttrs, startIndex, depth, originFile);
     }
 
     private void addCompletionsFromFile(PsiFile file, String section, com.intellij.codeInsight.completion.CompletionResultSet result) {

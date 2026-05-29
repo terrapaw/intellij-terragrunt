@@ -212,7 +212,6 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
 
             if (i == cursorIndex) {
                 // We're at the cursor — look up this name in the current file
-                // Check what the previous element was to determine lookup type
                 String prevSection = (i > 0) ? chain[i - 1] : "";
                 if ("locals".equals(prevSection)) {
                     TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(file, name);
@@ -226,7 +225,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
 
             // Check if next element is "locals" or "inputs" — if so, this name is an alias to resolve
             if (i + 1 < chain.length && ("locals".equals(chain[i + 1]) || "inputs".equals(chain[i + 1]))) {
-                PsiFile resolved = resolveLocalAlias(file, name);
+                PsiFile resolved = TerragruntChainResolver.resolveLocalAlias(file, name);
                 if (resolved == null) return null;
                 file = resolved;
                 i += 2; // skip alias name and "locals"/"inputs"
@@ -243,52 +242,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
      */
     @Nullable
     private PsiFile resolveLocalAlias(PsiFile file, String aliasName) {
-        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"locals".equals(block.getIdentifier().getText())) continue;
-            TerragruntBody body = block.getBody();
-            if (body == null) continue;
-            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
-                if (!aliasName.equals(attr.getIdentifier().getText())) continue;
-
-                // Pattern 1: include.X.locals
-                TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
-                if (postfix != null) {
-                    TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
-                    if (primary != null) {
-                        TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
-                        if (varExpr != null && "include".equals(varExpr.getIdentifier().getText())) {
-                            PsiElement[] aliasGetAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
-                            if (aliasGetAttrs != null && aliasGetAttrs.length >= 2) {
-                                String section = ((TerragruntGetAttr) aliasGetAttrs[1]).getIdentifier().getText();
-                                if ("locals".equals(section)) {
-                                    String includeName = ((TerragruntGetAttr) aliasGetAttrs[0]).getIdentifier().getText();
-                                    TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
-                                    if (includeBlock != null) {
-                                        PsiFile resolved = TerragruntFileResolver.resolveInclude(includeBlock);
-                                        if (resolved != null) return resolved;
-                                    }
-                                }
-                            }
-                        }
-
-                        // Pattern 2: read_terragrunt_config(find_in_parent_folders("X")) or read_terragrunt_config("path")
-                        TerragruntFunctionCall funcCall = PsiTreeUtil.findChildOfType(primary, TerragruntFunctionCall.class);
-                        if (funcCall != null && "read_terragrunt_config".equals(funcCall.getIdentifier().getText())) {
-                            PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
-                            if (resolved != null) return resolved;
-                        }
-                    }
-                }
-
-                // Pattern 2 fallback: read_terragrunt_config at expression level
-                TerragruntFunctionCall funcCall = PsiTreeUtil.findChildOfType(attr, TerragruntFunctionCall.class);
-                if (funcCall != null && "read_terragrunt_config".equals(funcCall.getIdentifier().getText())) {
-                    PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
-                    if (resolved != null) return resolved;
-                }
-            }
-        }
-        return null;
+        return TerragruntChainResolver.resolveLocalAlias(file, aliasName);
     }
 
     private PsiElement[] handleDefinitionToUsages(TerragruntAttribute attr, PsiElement sourceElement) {
