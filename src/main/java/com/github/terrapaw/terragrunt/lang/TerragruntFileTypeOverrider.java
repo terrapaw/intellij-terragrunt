@@ -42,7 +42,7 @@ public class TerragruntFileTypeOverrider implements FileTypeOverrider {
     private boolean isInTerragruntProject(VirtualFile file) {
         VirtualFile dir = file.getParent();
         // Check current directory and up to 3 parent levels
-        for (int i = 0; i < 4 && dir != null; i++) {
+        for (int i = 0; i < 4 && dir != null && dir.isValid(); i++) {
             for (String marker : TERRAGRUNT_MARKERS) {
                 if (dir.findChild(marker) != null) {
                     return true;
