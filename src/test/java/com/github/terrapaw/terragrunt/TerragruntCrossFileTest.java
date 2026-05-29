@@ -860,25 +860,28 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         // Marker so .hcl files are detected as Terragrunt
         myFixture.addFileToProject("root.hcl", "");
 
-        // env sits at project root — only findable by walking up from a subdirectory
+        // Two env.hcl files at different levels
         myFixture.addFileToProject("stack-ctx-env.hcl", """
+                locals {
+                  environment = "outer"
+                }
+                """);
+        myFixture.addFileToProject("stack-ctx-proj/stack-ctx-env.hcl", """
                 locals {
                   environment = "prod"
                 }
                 """);
 
-        // shared config uses read_terragrunt_config(find_in_parent_folders("stack-ctx-env.hcl"))
-        // From its own parent, find_in_parent_folders won't find it (same dir, search starts from parent)
-        // But from the includer's directory (stack-ctx-gen/api/), it walks up and finds it
-        PsiFile myconfig = myFixture.addFileToProject("stack-ctx-shared.hcl", """
+        // shared config inside proj/ uses find_in_parent_folders
+        PsiFile myconfig = myFixture.addFileToProject("stack-ctx-proj/stack-ctx-shared.hcl", """
                 locals {
                   env_config = read_terragrunt_config(find_in_parent_folders("stack-ctx-env.hcl"))
-                  example    = local.env_config.locals.environment
+                  deploy_env = local.env_config.locals.environment
                 }
                 """);
 
-        // A generated unit includes the shared config
-        myFixture.addFileToProject("stack-ctx-gen/api/terragrunt.hcl", """
+        // A generated unit inside proj/ includes the shared config
+        myFixture.addFileToProject("stack-ctx-proj/stack-ctx-gen/api/terragrunt.hcl", """
                 include "root" {
                   path = find_in_parent_folders("stack-ctx-shared.hcl")
                 }

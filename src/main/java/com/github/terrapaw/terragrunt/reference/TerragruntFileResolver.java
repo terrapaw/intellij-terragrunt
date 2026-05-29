@@ -333,11 +333,12 @@ public class TerragruntFileResolver {
      */
     @Nullable
     public static PsiFile resolveReadTerragruntConfig(TerragruntFunctionCall funcCall, PsiFile sourceFile) {
-        PsiFile result = resolveReadTerragruntConfigDirect(funcCall, sourceFile);
+        // Try resolving from includer directories first (stack context — runtime-accurate)
+        PsiFile result = resolveReadTerragruntConfigFromIncluders(funcCall, sourceFile);
         if (result != null) return result;
 
-        // Try resolving from includer directories (stack context)
-        return resolveReadTerragruntConfigFromIncluders(funcCall, sourceFile);
+        // Fall back to direct resolution from the current file's directory
+        return resolveReadTerragruntConfigDirect(funcCall, sourceFile);
     }
 
     @Nullable
