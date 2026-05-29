@@ -9,6 +9,7 @@ import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Resolves file paths in include/dependency blocks to actual PsiFiles.
@@ -327,10 +328,20 @@ public class TerragruntFileResolver {
     }
 
     /**
-     * Resolves read_terragrunt_config(find_in_parent_folders("X")) or read_terragrunt_config("path")
+     * Resolves read_terragrunt_config(find_in_parent_folders("X")) or read_terragrunt_config("path").
+     * If resolution fails from the current file's directory, tries resolving from includer directories.
      */
     @Nullable
     public static PsiFile resolveReadTerragruntConfig(TerragruntFunctionCall funcCall, PsiFile sourceFile) {
+        PsiFile result = resolveReadTerragruntConfigDirect(funcCall, sourceFile);
+        if (result != null) return result;
+
+        // Try resolving from includer directories (stack context)
+        return resolveReadTerragruntConfigFromIncluders(funcCall, sourceFile);
+    }
+
+    @Nullable
+    private static PsiFile resolveReadTerragruntConfigDirect(TerragruntFunctionCall funcCall, PsiFile sourceFile) {
         TerragruntArgList argList = funcCall.getArgList();
         if (argList == null) return null;
 
@@ -364,5 +375,95 @@ public class TerragruntFileResolver {
         }
 
         return null;
+    }
+
+    /**
+     * Tries resolving a read_terragrunt_config call from the directories of files that include sourceFile.
+     * This handles the stack context case where find_in_parent_folders needs to search from the includer.
+     */
+    @Nullable
+    private static PsiFile resolveReadTerragruntConfigFromIncluders(TerragruntFunctionCall funcCall, PsiFile sourceFile) {
+        VirtualFile sourceVFile = sourceFile.getVirtualFile();
+        if (sourceVFile == null) return null;
+        String sourceFileName = sourceVFile.getName();
+
+        TerragruntArgList argList = funcCall.getArgList();
+        if (argList == null) return null;
+
+        // Only handle find_in_parent_folders case (the common pattern)
+        TerragruntFunctionCall nestedFunc = PsiTreeUtil.findChildOfType(argList, TerragruntFunctionCall.class);
+        if (nestedFunc == null || !"find_in_parent_folders".equals(nestedFunc.getIdentifier().getText())) return null;
+
+        String targetFileName = "root.hcl";
+        TerragruntArgList nestedArgs = nestedFunc.getArgList();
+        if (nestedArgs != null) {
+            TerragruntStringLit stringLit = PsiTreeUtil.findChildOfType(nestedArgs, TerragruntStringLit.class);
+            if (stringLit != null) {
+                String extracted = extractStringContent(stringLit.getText());
+                if (extracted != null) targetFileName = extracted;
+            }
+        }
+
+        // Find files that include sourceFile via find_in_parent_folders("sourceFileName")
+        List<VirtualFile> includerDirs = findIncluderDirectories(sourceFile, sourceFileName);
+        if (includerDirs.isEmpty()) return null;
+
+        // Try resolving find_in_parent_folders from each includer's directory
+        for (VirtualFile includerDir : includerDirs) {
+            VirtualFile dir = includerDir.getParent();
+            while (dir != null) {
+                VirtualFile target = dir.findChild(targetFileName);
+                if (target != null && !target.isDirectory()) {
+                    return PsiManager.getInstance(sourceFile.getProject()).findFile(target);
+                }
+                dir = dir.getParent();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Finds directories of files that include the given file via find_in_parent_folders.
+     */
+    private static List<VirtualFile> findIncluderDirectories(PsiFile sourceFile, String sourceFileName) {
+        List<VirtualFile> dirs = new java.util.ArrayList<>();
+        com.intellij.openapi.project.Project project = sourceFile.getProject();
+        com.intellij.openapi.roots.ProjectRootManager rootManager =
+                com.intellij.openapi.roots.ProjectRootManager.getInstance(project);
+        for (VirtualFile contentRoot : rootManager.getContentRoots()) {
+            findIncludersRecursive(contentRoot, project, sourceFileName, sourceFile, dirs);
+        }
+        return dirs;
+    }
+
+    private static void findIncludersRecursive(VirtualFile dir, com.intellij.openapi.project.Project project,
+                                                String sourceFileName, PsiFile sourceFile, List<VirtualFile> dirs) {
+        for (VirtualFile child : dir.getChildren()) {
+            if (child.isDirectory()) {
+                findIncludersRecursive(child, project, sourceFileName, sourceFile, dirs);
+            } else if (child.getName().endsWith(".hcl")) {
+                PsiFile psiFile = PsiManager.getInstance(project).findFile(child);
+                if (psiFile == null || psiFile.equals(sourceFile)) continue;
+                // Check if this file has include { path = find_in_parent_folders("sourceFileName") }
+                for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(psiFile, TerragruntBlock.class)) {
+                    if (!"include".equals(block.getIdentifier().getText())) continue;
+                    TerragruntBody body = block.getBody();
+                    if (body == null) continue;
+                    for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                        if (!"path".equals(attr.getIdentifier().getText())) continue;
+                        TerragruntFunctionCall fc = PsiTreeUtil.findChildOfType(attr, TerragruntFunctionCall.class);
+                        if (fc != null && "find_in_parent_folders".equals(fc.getIdentifier().getText())) {
+                            TerragruntArgList args = fc.getArgList();
+                            if (args != null) {
+                                TerragruntStringLit sl = PsiTreeUtil.findChildOfType(args, TerragruntStringLit.class);
+                                if (sl != null && sourceFileName.equals(extractStringContent(sl.getText()))) {
+                                    dirs.add(child.getParent());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

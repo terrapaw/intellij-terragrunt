@@ -855,4 +855,43 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertNotNull("Should resolve basename(get_terragrunt_dir()) in path", resolved);
         assertEquals("vpc.hcl", resolved.getName());
     }
+
+    public void testStackContextResolution() {
+        // Marker so .hcl files are detected as Terragrunt
+        myFixture.addFileToProject("root.hcl", "");
+
+        // env sits at project root — only findable by walking up from a subdirectory
+        myFixture.addFileToProject("stack-ctx-env.hcl", """
+                locals {
+                  environment = "prod"
+                }
+                """);
+
+        // shared config uses read_terragrunt_config(find_in_parent_folders("stack-ctx-env.hcl"))
+        // From its own parent, find_in_parent_folders won't find it (same dir, search starts from parent)
+        // But from the includer's directory (stack-ctx-gen/api/), it walks up and finds it
+        PsiFile myconfig = myFixture.addFileToProject("stack-ctx-shared.hcl", """
+                locals {
+                  env_config = read_terragrunt_config(find_in_parent_folders("stack-ctx-env.hcl"))
+                  example    = local.env_config.locals.environment
+                }
+                """);
+
+        // A generated unit includes the shared config
+        myFixture.addFileToProject("stack-ctx-gen/api/terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("stack-ctx-shared.hcl")
+                }
+                """);
+
+        // Ctrl+B on "environment" in local.env_config.locals.environment
+        myFixture.configureFromExistingVirtualFile(myconfig.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("locals.environment") + "locals.".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve local.env_config.locals.environment via stack context", targets);
+        assertTrue("Should find target", targets.length > 0);
+    }
 }

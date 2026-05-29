@@ -28,6 +28,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
 - **Navigation (Ctrl+Click / Ctrl+B)**
   - `include` paths and `dependency` config_paths → jump to referenced files
   - Function-aware: resolves `get_parent_terragrunt_dir()`, `get_terragrunt_dir()`, `get_root_terragrunt_dir()`, `get_repo_root()`, `find_in_parent_folders()`, `dirname()`, `basename()` in paths
+  - Stack context: resolves `read_terragrunt_config(find_in_parent_folders(...))` from includer directories (e.g. `.terragrunt-stack/` generated units)
   - `local.app_name` → jump to definition in `locals` block
   - `dependency.vpc` → jump to `dependency "vpc"` block
   - `feature.flag` → jump to `feature "flag"` block
@@ -80,7 +81,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-212 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+213 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
