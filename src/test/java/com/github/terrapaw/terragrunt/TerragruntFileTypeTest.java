@@ -44,4 +44,19 @@ public class TerragruntFileTypeTest extends BasePlatformTestCase {
         assertEquals("custom-config.hcl near root.hcl should be Terragrunt",
                 TerragruntFileType.INSTANCE, customFile.getFileType());
     }
+
+    public void testOverriderDoesNotCrashOnDeletedParentDirectory() throws Exception {
+        // Simulate a file whose parent directory gets deleted (stale VFS reference)
+        PsiFile file = myFixture.addFileToProject("subdir/test.hcl", "locals { x = 1 }");
+        com.intellij.openapi.vfs.VirtualFile vFile = file.getVirtualFile();
+        com.intellij.openapi.vfs.VirtualFile dir = vFile.getParent();
+
+        // Delete the parent directory
+        com.intellij.openapi.application.WriteAction.runAndWait(() -> dir.delete(this));
+
+        // Should not throw InvalidVirtualFileAccessException
+        com.github.terrapaw.terragrunt.lang.TerragruntFileTypeOverrider overrider =
+                new com.github.terrapaw.terragrunt.lang.TerragruntFileTypeOverrider();
+        overrider.getOverriddenFileType(vFile);
+    }
 }

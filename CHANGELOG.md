@@ -19,6 +19,9 @@
 - Label count inspection highlights only the offending label, not the entire node
 - Restructured examples into focused subdirectories (basic, cross-file, function-paths, stack, inspections)
 
+### Fixed
+- Crash when directories are moved/deleted externally (e.g. `git mv`) while IDE is open
+
 ## [0.2.0] - 2024-05-24
 
 ### Added
