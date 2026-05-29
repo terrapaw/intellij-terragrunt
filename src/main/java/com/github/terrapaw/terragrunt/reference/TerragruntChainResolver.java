@@ -1,7 +1,6 @@
 package com.github.terrapaw.terragrunt.reference;
 
 import com.github.terrapaw.terragrunt.lang.psi.*;
-import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
