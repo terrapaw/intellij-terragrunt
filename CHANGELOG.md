@@ -24,8 +24,6 @@
 
 ## [0.2.0] - 2024-05-24
 
-## [0.2.0] - 2024-05-24
-
 ### Added
 - Cross-file navigation: `include.X.locals.Y`, `include.X.inputs.Y`
 - Deep navigation through aliases and `read_terragrunt_config()`
