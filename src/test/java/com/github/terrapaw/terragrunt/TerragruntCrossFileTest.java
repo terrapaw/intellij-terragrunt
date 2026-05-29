@@ -933,4 +933,119 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertNotNull("Should resolve include.root.locals.env_config.locals.environment", targets);
         assertTrue("Should find target", targets.length > 0);
     }
+
+    public void testDeepChainCompletion() {
+        // include.root.locals.env_config.locals. should suggest from deep-env.hcl
+        myFixture.addFileToProject("root.hcl", "");
+
+        myFixture.addFileToProject("deep-comp-env.hcl", """
+                locals {
+                  environment = "prod"
+                  region      = "us-east-1"
+                }
+                """);
+
+        myFixture.addFileToProject("deep-comp-shared.hcl", """
+                locals {
+                  env_config = read_terragrunt_config("deep-comp-env.hcl")
+                }
+                """);
+
+        PsiFile childFile = myFixture.addFileToProject("deep-comp-child/terragrunt.hcl", """
+                include "root" {
+                  path = "../deep-comp-shared.hcl"
+                }
+
+                inputs = {
+                  env = include.root.locals.env_config.locals.
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("env_config.locals.") + "env_config.locals.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for deep chain", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'environment'. Got: " + names, names.contains("environment"));
+        assertTrue("Should suggest 'region'. Got: " + names, names.contains("region"));
+    }
+
+    public void testDeepChainIntermediateCompletion() {
+        // include.root.locals.env_config. should suggest "locals" and "inputs"
+        myFixture.addFileToProject("root.hcl", "");
+
+        myFixture.addFileToProject("deep-int-env.hcl", """
+                locals {
+                  environment = "prod"
+                }
+                """);
+
+        myFixture.addFileToProject("deep-int-shared.hcl", """
+                locals {
+                  env_config = read_terragrunt_config("deep-int-env.hcl")
+                }
+                """);
+
+        PsiFile childFile = myFixture.addFileToProject("deep-int-child/terragrunt.hcl", """
+                include "root" {
+                  path = "../deep-int-shared.hcl"
+                }
+
+                inputs = {
+                  env = include.root.locals.env_config.
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("env_config.") + "env_config.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions after alias", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'locals'. Got: " + names, names.contains("locals"));
+        assertTrue("Should suggest 'inputs'. Got: " + names, names.contains("inputs"));
+    }
+
+    public void testLocalDeepChainIntermediateCompletion() {
+        // local.shared.locals.env_config. should suggest "locals" and "inputs"
+        myFixture.addFileToProject("root.hcl", "");
+
+        myFixture.addFileToProject("loc-deep-env.hcl", """
+                locals {
+                  environment = "prod"
+                }
+                """);
+
+        myFixture.addFileToProject("loc-deep-shared.hcl", """
+                locals {
+                  env_config = read_terragrunt_config("loc-deep-env.hcl")
+                }
+                """);
+
+        PsiFile mainFile = myFixture.addFileToProject("loc-deep-main/terragrunt.hcl", """
+                locals {
+                  shared = read_terragrunt_config("../loc-deep-shared.hcl")
+                }
+
+                inputs = {
+                  env = local.shared.locals.env_config.
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("env_config.") + "env_config.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for local deep chain intermediate", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'locals'. Got: " + names, names.contains("locals"));
+        assertTrue("Should suggest 'inputs'. Got: " + names, names.contains("inputs"));
+    }
 }

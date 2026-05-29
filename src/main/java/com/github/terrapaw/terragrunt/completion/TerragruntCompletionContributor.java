@@ -382,6 +382,37 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                         }
                     }
                 }
+            } else if (depth > 2 && getAttrs != null && getAttrs.length >= 2) {
+                // Deep chain: local.alias.locals.nested_alias.locals. or local.alias.locals.nested_alias.
+                String aliasName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                String firstSection = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+                if ("locals".equals(firstSection) || "inputs".equals(firstSection)) {
+                    PsiFile resolvedFile = resolveLocalAliasForCompletion(file, aliasName);
+                    if (resolvedFile != null) {
+                        String lastAttr = ((TerragruntGetAttr) getAttrs[depth - 1]).getIdentifier().getText();
+                        if ("locals".equals(lastAttr) || "inputs".equals(lastAttr)) {
+                            // Last was a section — suggest attributes from resolved file
+                            PsiFile deepFile = resolveDeepChainForCompletion(resolvedFile, getAttrs, 2, depth, file);
+                            if (deepFile != null) {
+                                addCompletionsFromFile(deepFile, lastAttr, result);
+                            }
+                        } else {
+                            // Last was an alias name — suggest locals/inputs
+                            PsiFile deepFile = resolveDeepChainForCompletion(resolvedFile, getAttrs, 2, depth - 1, file);
+                            if (deepFile != null) {
+                                PsiFile aliasFile = resolveLocalAliasForCompletion(deepFile, lastAttr);
+                                if (aliasFile != null) {
+                                    if (isIncludeLocalsAlias(deepFile, lastAttr)) {
+                                        addCompletionsFromFile(aliasFile, "locals", result);
+                                    } else {
+                                        result.addElement(LookupElementBuilder.create("locals").withTypeText("config section").bold());
+                                        result.addElement(LookupElementBuilder.create("inputs").withTypeText("config section").bold());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         } else if ("feature".equals(rootVar)) {
             if (depth == 0) {
@@ -442,6 +473,44 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                                 if (key != null) {
                                     result.addElement(LookupElementBuilder.create(key.getText())
                                             .withTypeText("included input").bold());
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (depth > 2 && getAttrs != null && getAttrs.length >= 2) {
+                // Deep chain: include.X.locals.alias.locals. -> resolve through aliases
+                // At odd depths (3, 5, ...) after an alias, suggest "locals"/"inputs"
+                // At even depths (4, 6, ...) after "locals"/"inputs", suggest attributes
+                String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                String firstSection = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+                if ("locals".equals(firstSection)) {
+                    TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
+                    if (includeBlock != null) {
+                        PsiFile targetFile = TerragruntFileResolver.resolveInclude(includeBlock);
+                        if (targetFile != null) {
+                            // Check if the last completed attr is an alias name (suggest locals/inputs)
+                            // or a section name like "locals" (suggest attributes from resolved file)
+                            String lastAttr = ((TerragruntGetAttr) getAttrs[depth - 1]).getIdentifier().getText();
+                            if ("locals".equals(lastAttr) || "inputs".equals(lastAttr)) {
+                                // Last was a section — resolve the chain and suggest attributes
+                                PsiFile deepFile = resolveDeepChainForCompletion(targetFile, getAttrs, 2, depth, file);
+                                if (deepFile != null) {
+                                    addCompletionsFromFile(deepFile, lastAttr, result);
+                                }
+                            } else {
+                                // Last was an alias name — check if it's a read_terragrunt_config alias
+                                PsiFile deepFile = resolveDeepChainForCompletion(targetFile, getAttrs, 2, depth - 1, file);
+                                if (deepFile != null) {
+                                    PsiFile aliasFile = resolveLocalAliasForCompletion(deepFile, lastAttr);
+                                    if (aliasFile != null) {
+                                        if (isIncludeLocalsAlias(deepFile, lastAttr)) {
+                                            addCompletionsFromFile(aliasFile, "locals", result);
+                                        } else {
+                                            result.addElement(LookupElementBuilder.create("locals").withTypeText("config section").bold());
+                                            result.addElement(LookupElementBuilder.create("inputs").withTypeText("config section").bold());
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -603,6 +672,57 @@ public class TerragruntCompletionContributor extends CompletionContributor {
         } else if ("dependency".equals(rootVar) && parts.length == 2) {
             // dependency.X. -> suggest "outputs"
             result.addElement(LookupElementBuilder.create("outputs").withTypeText("dependency outputs").bold());
+        }
+    }
+
+    /**
+     * Resolves a deep chain of aliases for completion, returning the final file to suggest from.
+     */
+    @Nullable
+    private PsiFile resolveDeepChainForCompletion(PsiFile currentFile, PsiElement[] getAttrs, int startIndex, int depth, PsiFile originFile) {
+        PsiFile file = currentFile;
+        int i = startIndex;
+
+        while (i < depth && file != null) {
+            String name = ((TerragruntGetAttr) getAttrs[i]).getIdentifier().getText();
+            // If next attr is "locals" or "inputs", this is an alias to resolve
+            if (i + 1 < getAttrs.length) {
+                String next = ((TerragruntGetAttr) getAttrs[i + 1]).getIdentifier().getText();
+                if ("locals".equals(next) || "inputs".equals(next)) {
+                    file = resolveLocalAliasForCompletion(file, name);
+                    i += 2;
+                    continue;
+                }
+            }
+            i++;
+        }
+        return file;
+    }
+
+    private void addCompletionsFromFile(PsiFile file, String section, com.intellij.codeInsight.completion.CompletionResultSet result) {
+        if ("locals".equals(section)) {
+            for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+                if (!"locals".equals(block.getIdentifier().getText())) continue;
+                TerragruntBody body = block.getBody();
+                if (body == null) continue;
+                for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                    result.addElement(LookupElementBuilder.create(attr.getIdentifier().getText())
+                            .withTypeText("from " + file.getName()).bold());
+                }
+            }
+        } else if ("inputs".equals(section)) {
+            for (TerragruntAttribute attr : PsiTreeUtil.findChildrenOfType(file, TerragruntAttribute.class)) {
+                if (!"inputs".equals(attr.getIdentifier().getText())) continue;
+                TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                if (obj == null) continue;
+                for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                    PsiElement key = elem.getFirstChild();
+                    if (key != null) {
+                        result.addElement(LookupElementBuilder.create(key.getText())
+                                .withTypeText("from " + file.getName()).bold());
+                    }
+                }
+            }
         }
     }
 }
