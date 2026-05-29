@@ -897,4 +897,40 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertNotNull("Should resolve local.env_config.locals.environment via stack context", targets);
         assertTrue("Should find target", targets.length > 0);
     }
+
+    public void testDeepChainNavigation() {
+        // include.root.locals.env_config.locals.environment — 5 levels deep
+        myFixture.addFileToProject("root.hcl", "");
+
+        myFixture.addFileToProject("deep-env.hcl", """
+                locals {
+                  environment = "prod"
+                }
+                """);
+
+        myFixture.addFileToProject("deep-shared.hcl", """
+                locals {
+                  env_config = read_terragrunt_config("deep-env.hcl")
+                }
+                """);
+
+        PsiFile childFile = myFixture.addFileToProject("deep-child/terragrunt.hcl", """
+                include "root" {
+                  path = "../deep-shared.hcl"
+                }
+
+                inputs = {
+                  env = include.root.locals.env_config.locals.environment
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.lastIndexOf("environment");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve include.root.locals.env_config.locals.environment", targets);
+        assertTrue("Should find target", targets.length > 0);
+    }
 }

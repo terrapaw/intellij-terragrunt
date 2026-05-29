@@ -84,23 +84,30 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
 
         PsiFile file = sourceElement.getContainingFile();
 
-        // Handle include.X.locals.Y / include.X.inputs.Y
-        if ("include".equals(rootVar) && getAttrs.length >= 3 && cursorIndex == 2) {
+        // Handle include.X.locals.Y / include.X.inputs.Y (and deeper chains)
+        if ("include".equals(rootVar) && getAttrs.length >= 3 && cursorIndex >= 2) {
             String includeName = chain[0];
             String section = chain[1]; // "locals" or "inputs"
-            String attrName = chain[2];
 
             TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
             if (includeBlock == null) return null;
             PsiFile targetFile = TerragruntFileResolver.resolveInclude(includeBlock);
             if (targetFile == null) return null;
 
-            if ("locals".equals(section)) {
-                TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(targetFile, attrName);
-                if (resolved != null) return new PsiElement[]{resolved};
-            } else if ("inputs".equals(section)) {
-                PsiElement resolved = TerragruntFileResolver.findInputKey(targetFile, attrName);
-                if (resolved != null) return new PsiElement[]{resolved};
+            if (cursorIndex == 2) {
+                // Simple case: include.X.locals.Y
+                String attrName = chain[2];
+                if ("locals".equals(section)) {
+                    TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(targetFile, attrName);
+                    if (resolved != null) return new PsiElement[]{resolved};
+                } else if ("inputs".equals(section)) {
+                    PsiElement resolved = TerragruntFileResolver.findInputKey(targetFile, attrName);
+                    if (resolved != null) return new PsiElement[]{resolved};
+                }
+            } else if ("locals".equals(section) && cursorIndex > 2) {
+                // Deep chain: include.X.locals.alias.locals.Y...
+                // Walk the chain from index 2 onward, resolving through aliases
+                return resolveDeepChain(targetFile, chain, 2, cursorIndex, file);
             }
         }
 
@@ -159,23 +166,72 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             }
         }
 
-        // Handle local.X.locals.Y at depth 2 — resolve via read_terragrunt_config or include alias
-        if ("local".equals(rootVar) && cursorIndex == 2 && getAttrs.length >= 3) {
+        // Handle local.X.locals.Y at depth 2+ — resolve via read_terragrunt_config or include alias
+        if ("local".equals(rootVar) && cursorIndex >= 2 && getAttrs.length >= 3) {
             String aliasName = chain[0];
             String section = chain[1]; // "locals" or "inputs"
-            String attrName = chain[2];
-            if ("locals".equals(section)) {
+            if (cursorIndex == 2) {
+                String attrName = chain[2];
+                if ("locals".equals(section)) {
+                    PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
+                    if (resolvedFile != null) {
+                        TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(resolvedFile, attrName);
+                        if (resolved != null) return new PsiElement[]{resolved};
+                    }
+                } else if ("inputs".equals(section)) {
+                    PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
+                    if (resolvedFile != null) {
+                        PsiElement resolved = TerragruntFileResolver.findInputKey(resolvedFile, attrName);
+                        if (resolved != null) return new PsiElement[]{resolved};
+                    }
+                }
+            } else if ("locals".equals(section) || "inputs".equals(section)) {
+                // Deep chain: local.alias.locals.nested_alias.locals.Y...
                 PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
                 if (resolvedFile != null) {
-                    TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(resolvedFile, attrName);
+                    return resolveDeepChain(resolvedFile, chain, 2, cursorIndex, file);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves a deep chain like include.X.locals.alias.locals.Y by walking through aliases.
+     * At each step, resolves the current name as a local alias to a file, then continues.
+     */
+    @Nullable
+    private PsiElement[] resolveDeepChain(PsiFile currentFile, String[] chain, int startIndex, int cursorIndex, PsiFile originFile) {
+        PsiFile file = currentFile;
+        int i = startIndex;
+
+        // Walk through the chain, resolving aliases until we reach the cursor position
+        while (i <= cursorIndex && file != null) {
+            String name = chain[i];
+
+            if (i == cursorIndex) {
+                // We're at the cursor — look up this name in the current file
+                // Check what the previous element was to determine lookup type
+                String prevSection = (i > 0) ? chain[i - 1] : "";
+                if ("locals".equals(prevSection)) {
+                    TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(file, name);
+                    if (resolved != null) return new PsiElement[]{resolved};
+                } else if ("inputs".equals(prevSection)) {
+                    PsiElement resolved = TerragruntFileResolver.findInputKey(file, name);
                     if (resolved != null) return new PsiElement[]{resolved};
                 }
-            } else if ("inputs".equals(section)) {
-                PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
-                if (resolvedFile != null) {
-                    PsiElement resolved = TerragruntFileResolver.findInputKey(resolvedFile, attrName);
-                    if (resolved != null) return new PsiElement[]{resolved};
-                }
+                return null;
+            }
+
+            // Check if next element is "locals" or "inputs" — if so, this name is an alias to resolve
+            if (i + 1 < chain.length && ("locals".equals(chain[i + 1]) || "inputs".equals(chain[i + 1]))) {
+                PsiFile resolved = resolveLocalAlias(file, name);
+                if (resolved == null) return null;
+                file = resolved;
+                i += 2; // skip alias name and "locals"/"inputs"
+            } else {
+                i++;
             }
         }
 
