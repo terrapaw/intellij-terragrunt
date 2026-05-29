@@ -28,12 +28,14 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
 - **Navigation (Ctrl+Click / Ctrl+B)**
   - `include` paths and `dependency` config_paths → jump to referenced files
   - Function-aware: resolves `get_parent_terragrunt_dir()`, `get_terragrunt_dir()`, `get_root_terragrunt_dir()`, `get_repo_root()`, `find_in_parent_folders()`, `dirname()`, `basename()` in paths
+  - Stack context: resolves `read_terragrunt_config(find_in_parent_folders(...))` from includer directories (e.g. `.terragrunt-stack/` generated units)
   - `local.app_name` → jump to definition in `locals` block
   - `dependency.vpc` → jump to `dependency "vpc"` block
   - `feature.flag` → jump to `feature "flag"` block
   - `include.root.locals.region` → jump to `region` in the included file
   - `local.env_vars.environment` → resolves alias (`env_vars = include.env.locals`), jumps to included file
   - `local.common.locals.region` → resolves `read_terragrunt_config()`, jumps to loaded file
+  - Deep chain: `include.root.locals.env_config.locals.environment` → resolves through nested aliases at any depth
   - `dependency.vpc.outputs.vpc_id` → jumps to `vpc_id` in mock_outputs
   - `feature.flag.value` → jumps to `default` attribute in feature block
   - From definition → find all usages (Ctrl+B on `app_name` in `locals`)
@@ -80,7 +82,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-212 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+218 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 

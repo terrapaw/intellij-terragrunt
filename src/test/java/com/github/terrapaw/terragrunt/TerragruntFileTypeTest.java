@@ -45,6 +45,13 @@ public class TerragruntFileTypeTest extends BasePlatformTestCase {
                 TerragruntFileType.INSTANCE, customFile.getFileType());
     }
 
+    public void testTerraformLockFileNotClaimedAsTerragrunt() {
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        PsiFile lockFile = myFixture.addFileToProject(".terraform.lock.hcl", "provider \"registry.terraform.io/hashicorp/aws\" {}");
+        assertFalse(".terraform.lock.hcl should NOT be claimed as Terragrunt",
+                TerragruntFileType.INSTANCE.equals(lockFile.getFileType()));
+    }
+
     public void testOverriderDoesNotCrashOnDeletedParentDirectory() throws Exception {
         // Simulate a file whose parent directory gets deleted (stale VFS reference)
         PsiFile file = myFixture.addFileToProject("subdir/test.hcl", "locals { x = 1 }");
