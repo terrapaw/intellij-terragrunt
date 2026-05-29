@@ -20,6 +20,7 @@
 - All inspections now use `GENERIC_ERROR_OR_WARNING` (respects user severity settings)
 - Label count inspection highlights only the offending label, not the entire node
 - Restructured examples into focused subdirectories (basic, cross-file, function-paths, stack, inspections)
+- Non-entry-point files using `find_in_parent_folders` no longer guess resolution — shows "no declaration" until includers exist
 
 ### Fixed
 - Crash when directories are moved/deleted externally (e.g. `git mv`) while IDE is open
