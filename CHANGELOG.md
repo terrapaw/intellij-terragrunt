@@ -9,6 +9,7 @@
   - `find_in_parent_folders()` inside interpolation (with fallback arg support)
   - `dirname()`, `basename()` (nested evaluation)
 - Stack context resolution: `read_terragrunt_config(find_in_parent_folders(...))` resolves from includer directories when direct resolution fails
+- Arbitrary-depth chain navigation and completion (e.g. `include.root.locals.env_config.locals.environment`)
 - Duplicate block name inspection
 - Label count inspection (missing labels, empty labels, extra labels)
 - Parser error recovery tests and label edge case tests
