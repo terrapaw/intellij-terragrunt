@@ -22,6 +22,7 @@
 
 ### Fixed
 - Crash when directories are moved/deleted externally (e.g. `git mv`) while IDE is open
+- `.terraform.lock.hcl` no longer claimed as a Terragrunt file
 
 ## [0.2.0] - 2024-05-24
 
