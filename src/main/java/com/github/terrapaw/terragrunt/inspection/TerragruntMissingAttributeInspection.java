@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class TerragruntMissingAttributeInspection extends LocalInspectionTool {
+public class TerragruntMissingAttributeInspection extends TerragruntBaseInspection {
     @NotNull
     @Override
     public PsiElementVisitor buildVisitor(@NotNull ProblemsHolder holder, boolean isOnTheFly) {

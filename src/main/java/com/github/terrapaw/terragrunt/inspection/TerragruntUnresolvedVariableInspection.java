@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class TerragruntUnresolvedVariableInspection extends LocalInspectionTool {
+public class TerragruntUnresolvedVariableInspection extends TerragruntBaseInspection {
     @NotNull
     @Override
     public PsiElementVisitor buildVisitor(@NotNull ProblemsHolder holder, boolean isOnTheFly) {

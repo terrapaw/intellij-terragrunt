@@ -2,7 +2,6 @@ package com.github.terrapaw.terragrunt.inspection;
 
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntLabel;
-import com.intellij.codeInspection.LocalInspectionTool;
 import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.codeInspection.ProblemsHolder;
 import com.intellij.psi.PsiElementVisitor;
@@ -12,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
-public class TerragruntDuplicateBlockInspection extends LocalInspectionTool {
+public class TerragruntDuplicateBlockInspection extends TerragruntBaseInspection {
     @NotNull
     @Override
     public PsiElementVisitor buildVisitor(@NotNull ProblemsHolder holder, boolean isOnTheFly) {
