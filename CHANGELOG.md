@@ -30,7 +30,6 @@
 - `.terraform.lock.hcl` no longer claimed as a Terragrunt file
 - Parser error with quoted keys in multi-line objects (e.g. `merge({"key1" = "val1"\n "key2" = "val2"})`)
 - Unresolved path warning suppressed for `.terragrunt-stack/` paths when `terragrunt.stack.hcl` defines the unit
-- Auto-close quotes when typing `"`
 
 ## [0.2.0] - 2024-05-24
 
