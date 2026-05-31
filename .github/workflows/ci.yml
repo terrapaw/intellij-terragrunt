@@ -25,6 +25,9 @@ jobs:
       - name: Build and Test
         run: ./gradlew buildPlugin test
 
+      - name: Verify plugin configuration
+        run: ./gradlew verifyPluginProjectConfiguration
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

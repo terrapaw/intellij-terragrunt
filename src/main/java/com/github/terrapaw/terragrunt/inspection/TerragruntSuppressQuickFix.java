@@ -66,7 +66,5 @@ public class TerragruntSuppressQuickFix implements SuppressQuickFix {
             parent.addBefore(child, target);
             child = next;
         }
-        // Force re-highlighting
-        com.intellij.codeInsight.daemon.DaemonCodeAnalyzer.getInstance(project).restart();
     }
 }
