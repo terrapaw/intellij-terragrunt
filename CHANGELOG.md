@@ -4,7 +4,8 @@
 
 ### Added
 - Function-aware path resolution in includes and read_terragrunt_config
-  - `get_terragrunt_dir()`, `get_parent_terragrunt_dir()`, `get_root_terragrunt_dir()`
+  - `get_terragrunt_dir()`, `get_root_terragrunt_dir()`
+  - `get_parent_terragrunt_dir()` with include semantics (returns own dir for parent configs, resolves include for children, supports named includes)
   - `get_repo_root()`, `get_path_to_repo_root()`, `get_path_from_repo_root()`
   - `find_in_parent_folders()` inside interpolation (with fallback arg support)
   - `dirname()`, `basename()` (nested evaluation)
@@ -24,7 +25,6 @@
 ### Fixed
 - Crash when directories are moved/deleted externally (e.g. `git mv`) while IDE is open
 - `.terraform.lock.hcl` no longer claimed as a Terragrunt file
-- `get_parent_terragrunt_dir()` now uses correct include semantics (returns own dir for parent configs, resolves include for children)
 
 ## [0.2.0] - 2024-05-24
 
