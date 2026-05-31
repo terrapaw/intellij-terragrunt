@@ -49,6 +49,11 @@ intellijPlatform {
             if (section.isBlank()) "See CHANGELOG.md" else section
         }
     }
+    pluginVerification {
+        ides {
+            recommended()
+        }
+    }
 }
 
 sourceSets {
