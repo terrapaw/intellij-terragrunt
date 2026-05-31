@@ -7,3 +7,8 @@ locals {
 inputs = {
   environment = local.env.locals.environment
 }
+
+# No warning here — plugin detects that terragrunt.stack.hcl defines unit "api"
+dependency "api" {
+  config_path = "./.terragrunt-stack/api"
+}
