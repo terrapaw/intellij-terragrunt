@@ -56,3 +56,9 @@ dependency {
 include "" {
   path = find_in_parent_folders("root.hcl")
 }
+
+# Suppressed — no warning shown (committable to source control)
+# noinspection TerragruntUnresolvedPath
+include "suppressed" {
+  path = "../this-does-not-exist.hcl"
+}
