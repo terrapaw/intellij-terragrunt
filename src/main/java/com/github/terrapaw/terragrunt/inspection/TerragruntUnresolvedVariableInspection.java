@@ -1,5 +1,6 @@
 package com.github.terrapaw.terragrunt.inspection;
 
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.*;
 import com.intellij.codeInspection.*;
 import com.intellij.psi.PsiElement;
@@ -77,22 +78,10 @@ public class TerragruntUnresolvedVariableInspection extends TerragruntBaseInspec
     }
 
     private boolean dependencyExists(PsiFile file, String name) {
-        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"dependency".equals(block.getIdentifier().getText())) continue;
-            for (TerragruntLabel label : block.getLabelList()) {
-                if (name.equals(label.getText().replace("\"", ""))) return true;
-            }
-        }
-        return false;
+        return TerragruntPsiUtil.blockExists(file, "dependency", name);
     }
 
     private boolean featureExists(PsiFile file, String name) {
-        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"feature".equals(block.getIdentifier().getText())) continue;
-            for (TerragruntLabel label : block.getLabelList()) {
-                if (name.equals(label.getText().replace("\"", ""))) return true;
-            }
-        }
-        return false;
+        return TerragruntPsiUtil.blockExists(file, "feature", name);
     }
 }

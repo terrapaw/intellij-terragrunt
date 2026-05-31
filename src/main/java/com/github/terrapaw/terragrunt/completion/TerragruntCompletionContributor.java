@@ -1,5 +1,6 @@
 package com.github.terrapaw.terragrunt.completion;
 
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.*;
 import com.github.terrapaw.terragrunt.reference.TerragruntChainResolver;
 import com.github.terrapaw.terragrunt.reference.TerragruntFileResolver;
@@ -284,7 +285,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
                     if ("dependency".equals(block.getIdentifier().getText())) {
                         for (TerragruntLabel label : block.getLabelList()) {
-                            String name = label.getText().replace("\"", "");
+                            String name = TerragruntPsiUtil.getLabelText(label);
                             result.addElement(LookupElementBuilder.create(name).withTypeText("dependency").bold());
                         }
                     }
@@ -300,7 +301,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                     for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
                         if (!"dependency".equals(block.getIdentifier().getText())) continue;
                         for (TerragruntLabel label : block.getLabelList()) {
-                            if (!depName.equals(label.getText().replace("\"", ""))) continue;
+                            if (!depName.equals(TerragruntPsiUtil.getLabelText(label))) continue;
                         }
                         // Find mock_outputs attribute in this block
                         TerragruntBody body = block.getBody();
@@ -444,7 +445,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
                     if ("feature".equals(block.getIdentifier().getText())) {
                         for (TerragruntLabel label : block.getLabelList()) {
-                            String name = label.getText().replace("\"", "");
+                            String name = TerragruntPsiUtil.getLabelText(label);
                             result.addElement(LookupElementBuilder.create(name).withTypeText("feature").bold());
                         }
                     }
@@ -459,7 +460,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
                     if ("include".equals(block.getIdentifier().getText())) {
                         for (TerragruntLabel label : block.getLabelList()) {
-                            String name = label.getText().replace("\"", "");
+                            String name = TerragruntPsiUtil.getLabelText(label);
                             result.addElement(LookupElementBuilder.create(name).withTypeText("include").bold());
                         }
                     }
@@ -632,7 +633,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
             for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
                 if (!"dependency".equals(block.getIdentifier().getText())) continue;
                 for (TerragruntLabel label : block.getLabelList()) {
-                    result.addElement(LookupElementBuilder.create(label.getText().replace("\"", "")).withTypeText("dependency").bold());
+                    result.addElement(LookupElementBuilder.create(TerragruntPsiUtil.getLabelText(label)).withTypeText("dependency").bold());
                 }
             }
         } else if ("dependency".equals(rootVar) && parts.length == 2) {

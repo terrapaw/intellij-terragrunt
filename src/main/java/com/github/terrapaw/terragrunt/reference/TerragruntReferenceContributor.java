@@ -1,5 +1,6 @@
 package com.github.terrapaw.terragrunt.reference;
 
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.*;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.LocalFileSystem;
@@ -134,7 +135,7 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
             for (TerragruntBlock block : blocks) {
                 if (!"dependency".equals(block.getIdentifier().getText())) continue;
                 for (TerragruntLabel label : block.getLabelList()) {
-                    String labelText = label.getText().replace("\"", "");
+                    String labelText = TerragruntPsiUtil.getLabelText(label);
                     if (depName.equals(labelText)) {
                         return block.getIdentifier();
                     }
@@ -160,7 +161,7 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
             for (TerragruntBlock block : blocks) {
                 if (!"feature".equals(block.getIdentifier().getText())) continue;
                 for (TerragruntLabel label : block.getLabelList()) {
-                    String labelText = label.getText().replace("\"", "");
+                    String labelText = TerragruntPsiUtil.getLabelText(label);
                     if (featureName.equals(labelText)) {
                         return block.getIdentifier();
                     }
