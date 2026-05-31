@@ -29,75 +29,38 @@ public class TerragruntLabelCountInspection extends LocalInspectionTool {
 
                     var labels = block.getLabelList();
 
-                    // Check for missing label on blocks that require one
-                    if (blockDef.hasLabel() && labels.isEmpty()) {
-                        holder.registerProblem(
-                                block.getIdentifier(),
-                                "'" + type + "' block requires a label",
-                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING
-                        );
-                        continue;
-                    }
-
-                    // Check for empty label (e.g. dependency "" {})
-                    if (blockDef.hasLabel() && labels.size() == 1) {
-                        String labelText = labels.getFirst().getText().replace("\"", "").trim();
-                        if (labelText.isEmpty()) {
+                    if (blockDef.hasLabel()) {
+                        if (labels.isEmpty()) {
                             holder.registerProblem(
-                                    labels.getFirst(),
-                                    "'" + type + "' block label must not be empty",
+                                    block.getIdentifier(),
+                                    "'" + type + "' block requires a label",
                                     ProblemHighlightType.GENERIC_ERROR_OR_WARNING
                             );
-                            continue;
+                        } else if (labels.size() == 1) {
+                            String labelText = labels.getFirst().getText().replace("\"", "").trim();
+                            if (labelText.isEmpty()) {
+                                holder.registerProblem(
+                                        labels.getFirst(),
+                                        "'" + type + "' block label must not be empty",
+                                        ProblemHighlightType.GENERIC_ERROR_OR_WARNING
+                                );
+                            }
+                        } else {
+                            // Multiple labels — highlight the second one onwards
+                            holder.registerProblem(
+                                    labels.get(1),
+                                    "'" + type + "' block expects 1 label, found " + labels.size(),
+                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING
+                            );
                         }
-                    }
-
-                    // Check for multiple label nodes (unquoted identifier labels)
-                    if (blockDef.hasLabel() && labels.size() > 1) {
-                        holder.registerProblem(
-                                labels.get(1),
-                                "'" + type + "' block expects 1 label, found " + labels.size(),
-                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING
-                        );
-                        continue;
-                    }
-
-                    for (TerragruntLabel label : labels) {
-                        String text = label.getText().trim();
-
-                        if (!blockDef.hasLabel()) {
+                    } else {
+                        // Block doesn't take labels — flag any that exist
+                        for (TerragruntLabel label : labels) {
                             holder.registerProblem(
                                     label,
                                     "'" + type + "' block does not take a label",
                                     ProblemHighlightType.GENERIC_ERROR_OR_WARNING
                             );
-                        } else {
-                            // Count quoted strings in the label text (our lexer merges them into one label node)
-                            int quoteCount = 0;
-                            for (char c : text.toCharArray()) {
-                                if (c == '"') quoteCount++;
-                            }
-                            int labelCount = quoteCount / 2;
-                            if (labelCount > 1) {
-                                // Highlight only from the second quoted string onwards
-                                int firstClose = text.indexOf('"', text.indexOf('"') + 1) + 1;
-                                int secondOpen = text.indexOf('"', firstClose);
-                                if (secondOpen >= 0) {
-                                    var range = com.intellij.openapi.util.TextRange.create(secondOpen, text.length());
-                                    holder.registerProblem(
-                                            label,
-                                            "'" + type + "' block expects 1 label, found " + labelCount,
-                                            ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
-                                            range
-                                    );
-                                } else {
-                                    holder.registerProblem(
-                                            label,
-                                            "'" + type + "' block expects 1 label, found " + labelCount,
-                                            ProblemHighlightType.GENERIC_ERROR_OR_WARNING
-                                    );
-                                }
-                            }
                         }
                     }
                 }

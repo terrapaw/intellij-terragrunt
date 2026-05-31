@@ -275,7 +275,7 @@ public class TerragruntParsingEdgeCaseTest extends BasePlatformTestCase {
     // --- Label Edge Case Tests ---
 
     public void testMultipleLabelsInOneNode() {
-        // Our grammar merges "vpc" "extra" into one label node with STRING_LITERAL+
+        // With QUOTE token, "vpc" "extra" produces two separate label nodes
         PsiFile file = myFixture.configureByText("terragrunt.hcl", """
                 dependency "vpc" "extra" {
                   config_path = "../vpc"
@@ -285,11 +285,10 @@ public class TerragruntParsingEdgeCaseTest extends BasePlatformTestCase {
         Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
         assertEquals(1, blocks.size());
         TerragruntBlock block = blocks.iterator().next();
-        // Grammar merges into one label node
-        assertEquals(1, block.getLabelList().size());
-        // But the text contains both quoted strings
-        String labelText = block.getLabelList().getFirst().getText();
-        assertTrue("Label should contain both strings", labelText.contains("vpc") && labelText.contains("extra"));
+        // Each quoted string is now a separate label node
+        assertEquals(2, block.getLabelList().size());
+        assertTrue(block.getLabelList().get(0).getText().contains("vpc"));
+        assertTrue(block.getLabelList().get(1).getText().contains("extra"));
     }
 
     public void testUnquotedIdentifierLabel() {
