@@ -362,4 +362,19 @@ public class TerragruntInspectionTest extends BasePlatformTestCase {
                 .count();
         assertEquals("Correct label usage should not warn", 0, warnings);
     }
+
+    public void testNoinspectionCommentSuppressesWarning() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnresolvedPathInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                # noinspection TerragruntUnresolvedPath
+                include "root" {
+                  path = "../nonexistent-file.hcl"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Cannot resolve"))
+                .count();
+        assertEquals("noinspection comment should suppress warning", 0, warnings);
+    }
 }

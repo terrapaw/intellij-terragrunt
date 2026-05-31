@@ -15,7 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.util.Set;
 
-public class TerragruntUnresolvedPathInspection extends LocalInspectionTool {
+public class TerragruntUnresolvedPathInspection extends TerragruntBaseInspection {
     private static final Set<String> PATH_ATTRS = Set.of("config_path", "path");
 
     /**
