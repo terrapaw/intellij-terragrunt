@@ -16,6 +16,7 @@
 - Parser error recovery tests and label edge case tests
 - Architecture documentation (`docs/architecture.md`)
 - Focused example projects (`examples/`)
+- Settings page (Languages & Frameworks → Terragrunt) for custom entry point filenames (`--config` support)
 
 ### Changed
 - All inspections now use `GENERIC_ERROR_OR_WARNING` (respects user severity settings)

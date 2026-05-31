@@ -99,5 +99,10 @@
         <renameHandler implementationClass="com.github.terrapaw.terragrunt.refactor.TerragruntRenameHandler"/>
         <defaultLiveTemplates file="/liveTemplates/Terragrunt.xml"/>
         <liveTemplateContext id="TERRAGRUNT" contextId="TERRAGRUNT" implementation="com.github.terrapaw.terragrunt.editor.TerragruntLiveTemplateContext"/>
+        <applicationService serviceImplementation="com.github.terrapaw.terragrunt.settings.TerragruntSettings"/>
+        <applicationConfigurable parentId="language"
+                                 instance="com.github.terrapaw.terragrunt.settings.TerragruntSettingsConfigurable"
+                                 id="com.github.terrapaw.terragrunt.settings"
+                                 displayName="Terragrunt"/>
     </extensions>
 </idea-plugin>
