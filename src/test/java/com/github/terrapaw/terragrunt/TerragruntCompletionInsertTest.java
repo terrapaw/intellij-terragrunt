@@ -204,4 +204,51 @@ public class TerragruntCompletionInsertTest extends BasePlatformTestCase {
             }
         }
     }
+
+    public void testNoCompletionInsideString() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  name = "hel<caret>"
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        if (completions != null) {
+            java.util.List<String> names = java.util.List.of(completions).stream()
+                    .map(l -> l.getLookupString()).toList();
+            assertFalse("Should NOT suggest 'locals' inside a string. Got: " + names,
+                    names.contains("locals"));
+            assertFalse("Should NOT suggest 'dependency' inside a string. Got: " + names,
+                    names.contains("dependency"));
+            assertFalse("Should NOT suggest 'merge' inside a string. Got: " + names,
+                    names.contains("merge"));
+            assertFalse("Should NOT suggest 'local' inside a string. Got: " + names,
+                    names.contains("local"));
+        }
+    }
+
+    public void testCompletionInsideInterpolation() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  name = "hello"
+                  greeting = "hi ${local.<caret>}"
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions inside interpolation", completions);
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'name' inside interpolation. Got: " + names,
+                names.contains("name"));
+    }
+
+    public void testAutoCloseQuote() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  name = <caret>
+                }
+                """);
+        myFixture.type('"');
+        String text = myFixture.getEditor().getDocument().getText();
+        assertTrue("Typing \" should auto-insert closing quote", text.contains("\"\""));
+    }
 }
