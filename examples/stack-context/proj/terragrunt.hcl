@@ -9,6 +9,7 @@ inputs = {
 }
 
 # No warning here — plugin detects that terragrunt.stack.hcl defines unit "api"
+# (if .terragrunt-stack/ is deleted, the warning is suppressed because the stack would generate it)
 dependency "api" {
   config_path = "./.terragrunt-stack/api"
 }
