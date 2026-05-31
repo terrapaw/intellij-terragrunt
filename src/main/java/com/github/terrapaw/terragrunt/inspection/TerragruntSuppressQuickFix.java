@@ -45,34 +45,28 @@ public class TerragruntSuppressQuickFix implements SuppressQuickFix {
     public void applyFix(@NotNull Project project, @NotNull ProblemDescriptor descriptor) {
         PsiElement element = descriptor.getPsiElement();
         if (element == null) return;
-        // Find the line-level element (block or attribute)
+
+        // Walk up to find the containing block
         PsiElement target = element;
-        while (target != null && target.getParent() != null && !(target.getParent() instanceof PsiFile)) {
-            if (target.getParent().getParent() instanceof PsiFile) break;
+        while (target != null) {
+            if (target instanceof com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock) break;
             target = target.getParent();
         }
-        if (target == null) return;
+        if (target == null) target = element;
 
-        // Create the suppression comment
-        String indent = getIndent(target);
+        // Create a file with just the comment, extract the comment + whitespace elements
         PsiFile dummyFile = PsiFileFactory.getInstance(project)
                 .createFileFromText("dummy.hcl", TerragruntFileType.INSTANCE,
-                        indent + "# noinspection " + shortName + "\n");
-        PsiElement comment = dummyFile.getFirstChild();
-        if (comment != null) {
-            target.getParent().addBefore(comment, target);
+                        "# noinspection " + shortName + "\n");
+        // Insert all elements from the dummy file before the target
+        PsiElement child = dummyFile.getFirstChild();
+        PsiElement parent = target.getParent();
+        while (child != null) {
+            PsiElement next = child.getNextSibling();
+            parent.addBefore(child, target);
+            child = next;
         }
-    }
-
-    private String getIndent(PsiElement element) {
-        PsiElement prev = element.getPrevSibling();
-        if (prev != null && prev.getText().contains("\n")) {
-            String text = prev.getText();
-            int lastNewline = text.lastIndexOf('\n');
-            if (lastNewline >= 0) {
-                return text.substring(lastNewline + 1);
-            }
-        }
-        return "";
+        // Force re-highlighting
+        com.intellij.codeInsight.daemon.DaemonCodeAnalyzer.getInstance(project).restart();
     }
 }
