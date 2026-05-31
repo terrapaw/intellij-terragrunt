@@ -29,6 +29,14 @@ public class TerragruntSettings implements PersistentStateComponent<TerragruntSe
         return myState.entryPointFilenames.contains(filename);
     }
 
+    public List<String> getMarkerFilenames() {
+        return myState.markerFilenames;
+    }
+
+    public void setMarkerFilenames(List<String> filenames) {
+        myState.markerFilenames = new ArrayList<>(filenames);
+    }
+
     @Override
     public @NotNull State getState() {
         return myState;
@@ -41,5 +49,6 @@ public class TerragruntSettings implements PersistentStateComponent<TerragruntSe
 
     public static class State {
         public List<String> entryPointFilenames = new ArrayList<>(List.of("terragrunt.hcl"));
+        public List<String> markerFilenames = new ArrayList<>(List.of("terragrunt.hcl", "root.hcl", "terragrunt.stack.hcl"));
     }
 }

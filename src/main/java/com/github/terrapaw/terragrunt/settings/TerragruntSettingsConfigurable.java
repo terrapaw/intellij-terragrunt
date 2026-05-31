@@ -13,7 +13,8 @@ import java.util.List;
 
 public class TerragruntSettingsConfigurable implements Configurable {
     private JPanel mainPanel;
-    private DefaultListModel<String> listModel;
+    private DefaultListModel<String> entryPointModel;
+    private DefaultListModel<String> markerModel;
 
     @Nls
     @Override
@@ -23,57 +24,72 @@ public class TerragruntSettingsConfigurable implements Configurable {
 
     @Override
     public @Nullable JComponent createComponent() {
-        listModel = new DefaultListModel<>();
         TerragruntSettings settings = TerragruntSettings.getInstance();
-        for (String name : settings.getEntryPointFilenames()) {
-            listModel.addElement(name);
-        }
 
-        JBList<String> list = new JBList<>(listModel);
+        entryPointModel = new DefaultListModel<>();
+        for (String name : settings.getEntryPointFilenames()) entryPointModel.addElement(name);
+
+        markerModel = new DefaultListModel<>();
+        for (String name : settings.getMarkerFilenames()) markerModel.addElement(name);
+
+        mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+
+        mainPanel.add(createListPanel("Entry point filenames (files treated as Terragrunt children):", entryPointModel));
+        mainPanel.add(Box.createVerticalStrut(12));
+        mainPanel.add(createListPanel("Marker filenames (presence indicates a Terragrunt project):", markerModel));
+
+        return mainPanel;
+    }
+
+    private JPanel createListPanel(String label, DefaultListModel<String> model) {
+        JBList<String> list = new JBList<>(model);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         ToolbarDecorator decorator = ToolbarDecorator.createDecorator(list)
                 .setAddAction(button -> {
-                    String input = JOptionPane.showInputDialog(mainPanel, "Entry point filename:", "terragrunt.hcl");
-                    if (input != null && !input.isBlank() && !listModel.contains(input)) {
-                        listModel.addElement(input.trim());
+                    String input = JOptionPane.showInputDialog(mainPanel, "Filename:");
+                    if (input != null && !input.isBlank() && !model.contains(input)) {
+                        model.addElement(input.trim());
                     }
                 })
                 .setRemoveAction(button -> {
                     int index = list.getSelectedIndex();
-                    if (index >= 0) listModel.remove(index);
+                    if (index >= 0) model.remove(index);
                 });
 
-        mainPanel = new JPanel(new BorderLayout());
-        mainPanel.add(new JLabel("Entry point filenames (files treated as Terragrunt children):"), BorderLayout.NORTH);
-        mainPanel.add(decorator.createPanel(), BorderLayout.CENTER);
-        return mainPanel;
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(new JLabel(label), BorderLayout.NORTH);
+        panel.add(decorator.createPanel(), BorderLayout.CENTER);
+        return panel;
     }
 
     @Override
     public boolean isModified() {
         TerragruntSettings settings = TerragruntSettings.getInstance();
-        return !getListItems().equals(settings.getEntryPointFilenames());
+        return !getListItems(entryPointModel).equals(settings.getEntryPointFilenames())
+                || !getListItems(markerModel).equals(settings.getMarkerFilenames());
     }
 
     @Override
     public void apply() {
-        TerragruntSettings.getInstance().setEntryPointFilenames(getListItems());
+        TerragruntSettings settings = TerragruntSettings.getInstance();
+        settings.setEntryPointFilenames(getListItems(entryPointModel));
+        settings.setMarkerFilenames(getListItems(markerModel));
     }
 
     @Override
     public void reset() {
-        listModel.clear();
-        for (String name : TerragruntSettings.getInstance().getEntryPointFilenames()) {
-            listModel.addElement(name);
-        }
+        TerragruntSettings settings = TerragruntSettings.getInstance();
+        entryPointModel.clear();
+        for (String name : settings.getEntryPointFilenames()) entryPointModel.addElement(name);
+        markerModel.clear();
+        for (String name : settings.getMarkerFilenames()) markerModel.addElement(name);
     }
 
-    private List<String> getListItems() {
+    private List<String> getListItems(DefaultListModel<String> model) {
         List<String> items = new ArrayList<>();
-        for (int i = 0; i < listModel.size(); i++) {
-            items.add(listModel.get(i));
-        }
+        for (int i = 0; i < model.size(); i++) items.add(model.get(i));
         return items;
     }
 }
