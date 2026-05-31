@@ -1,6 +1,7 @@
 package com.github.terrapaw.terragrunt.reference;
 
 import com.github.terrapaw.terragrunt.lang.psi.*;
+import com.github.terrapaw.terragrunt.settings.TerragruntSettings;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
@@ -320,8 +321,8 @@ public class TerragruntFileResolver {
         VirtualFile vFile = sourceFile.getVirtualFile();
         if (vFile == null) return null;
 
-        // Rule 1: not terragrunt.hcl → it's a parent config → return own directory
-        if (!"terragrunt.hcl".equals(vFile.getName())) {
+        // Rule 1: not an entry point → it's a parent config → return own directory
+        if (!TerragruntSettings.getInstance().isEntryPoint(vFile.getName())) {
             return sourceDir.getPath();
         }
 
@@ -390,7 +391,7 @@ public class TerragruntFileResolver {
             TerragruntFunctionCall nestedFunc = PsiTreeUtil.findChildOfType(argList, TerragruntFunctionCall.class);
             if (nestedFunc != null && "find_in_parent_folders".equals(nestedFunc.getIdentifier().getText())) {
                 String fileName = sourceFile.getName();
-                if (!"terragrunt.hcl".equals(fileName)) {
+                if (!TerragruntSettings.getInstance().isEntryPoint(fileName)) {
                     return null; // Context-dependent — don't guess
                 }
             }
