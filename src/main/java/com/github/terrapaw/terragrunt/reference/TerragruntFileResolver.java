@@ -48,8 +48,8 @@ public class TerragruntFileResolver {
                     return findInParentFolders(sourceFile, fileName);
                 }
             }
-            // No args — default to finding terragrunt.hcl or root.hcl
-            return findInParentFolders(sourceFile, "root.hcl");
+            // No args — default to finding terragrunt.hcl in parent folders
+            return findInParentFolders(sourceFile, "terragrunt.hcl");
         }
 
         // Check for plain string literal path
@@ -310,8 +310,13 @@ public class TerragruntFileResolver {
      * 2. File IS terragrunt.hcl with include block(s) → resolve the included file's directory
      * 3. File IS terragrunt.hcl without include → no parent → null
      */
+    private static final ThreadLocal<Boolean> resolvingParentDir = ThreadLocal.withInitial(() -> false);
+
     @Nullable
     private static String resolveParentTerragruntDir(String expr, VirtualFile sourceDir, PsiFile sourceFile) {
+        // Guard against recursion (get_parent_terragrunt_dir() used inside include path)
+        if (resolvingParentDir.get()) return null;
+
         VirtualFile vFile = sourceFile.getVirtualFile();
         if (vFile == null) return null;
 
@@ -321,27 +326,30 @@ public class TerragruntFileResolver {
         }
 
         // Rule 2: terragrunt.hcl → find include block and resolve its path
-        String includeName = extractFunctionArg(expr); // null if no arg
-        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(sourceFile, TerragruntBlock.class);
-        for (TerragruntBlock block : blocks) {
-            if (!"include".equals(block.getIdentifier().getText())) continue;
-            // If a name was specified, match the label
-            if (includeName != null) {
-                boolean matches = false;
-                for (TerragruntLabel label : block.getLabelList()) {
-                    if (includeName.equals(label.getText().replace("\"", ""))) {
-                        matches = true;
-                        break;
+        resolvingParentDir.set(true);
+        try {
+            String includeName = extractFunctionArg(expr); // null if no arg
+            Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(sourceFile, TerragruntBlock.class);
+            for (TerragruntBlock block : blocks) {
+                if (!"include".equals(block.getIdentifier().getText())) continue;
+                if (includeName != null) {
+                    boolean matches = false;
+                    for (TerragruntLabel label : block.getLabelList()) {
+                        if (includeName.equals(label.getText().replace("\"", ""))) {
+                            matches = true;
+                            break;
+                        }
                     }
+                    if (!matches) continue;
                 }
-                if (!matches) continue;
+                PsiFile resolved = resolveInclude(block);
+                if (resolved != null && resolved.getVirtualFile() != null) {
+                    VirtualFile parent = resolved.getVirtualFile().getParent();
+                    if (parent != null) return parent.getPath();
+                }
             }
-            // Resolve this include's path
-            PsiFile resolved = resolveInclude(block);
-            if (resolved != null && resolved.getVirtualFile() != null) {
-                VirtualFile parent = resolved.getVirtualFile().getParent();
-                if (parent != null) return parent.getPath();
-            }
+        } finally {
+            resolvingParentDir.set(false);
         }
 
         // Rule 3: no include resolved — can't determine parent
@@ -444,7 +452,7 @@ public class TerragruntFileResolver {
         TerragruntFunctionCall nestedFunc = PsiTreeUtil.findChildOfType(argList, TerragruntFunctionCall.class);
         if (nestedFunc == null || !"find_in_parent_folders".equals(nestedFunc.getIdentifier().getText())) return null;
 
-        String targetFileName = "root.hcl";
+        String targetFileName = "terragrunt.hcl";
         TerragruntArgList nestedArgs = nestedFunc.getArgList();
         if (nestedArgs != null) {
             TerragruntStringLit stringLit = PsiTreeUtil.findChildOfType(nestedArgs, TerragruntStringLit.class);
