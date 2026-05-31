@@ -25,6 +25,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Deprecated attributes
   - Unresolved file paths in `include` and `dependency` blocks (suppressed for `.terragrunt-stack/` when stack defines the unit)
   - Unresolved variable references (`local.X`, `dependency.X`, `feature.X`)
+  - All inspections suppressible with `# noinspection ShortName` comments (committable to source control)
 - **Navigation (Ctrl+Click / Ctrl+B)**
   - `include` paths and `dependency` config_paths → jump to referenced files
   - Function-aware: resolves `get_parent_terragrunt_dir()`, `get_terragrunt_dir()`, `get_root_terragrunt_dir()`, `get_repo_root()`, `find_in_parent_folders()`, `dirname()`, `basename()` in paths
@@ -84,7 +85,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-225 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+229 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
