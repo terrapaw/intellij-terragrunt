@@ -10,7 +10,7 @@ import com.intellij.psi.tree.TokenSet;
  */
 public interface TerragruntTokenTypes {
     TokenSet COMMENTS = TokenSet.create(TerragruntTypes.LINE_COMMENT, TerragruntTypes.BLOCK_COMMENT);
-    TokenSet STRINGS = TokenSet.create(TerragruntTypes.STRING_LITERAL, TerragruntTypes.HEREDOC_CONTENT);
+    TokenSet STRINGS = TokenSet.create(TerragruntTypes.STRING_LITERAL, TerragruntTypes.HEREDOC_CONTENT, TerragruntTypes.QUOTE);
     TokenSet KEYWORDS = TokenSet.create(
             TerragruntTypes.TRUE, TerragruntTypes.FALSE, TerragruntTypes.NULL,
             TerragruntTypes.FOR, TerragruntTypes.IN, TerragruntTypes.IF,
