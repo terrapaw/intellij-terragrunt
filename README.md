@@ -23,7 +23,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Unexpected label count (e.g. `locals "foo"`, `dependency "vpc" "extra"`, `dependency {}`, `dependency "" {}`)
   - Missing required attributes (with quick-fix to insert them)
   - Deprecated attributes
-  - Unresolved file paths in `include` and `dependency` blocks
+  - Unresolved file paths in `include` and `dependency` blocks (suppressed for `.terragrunt-stack/` when stack defines the unit)
   - Unresolved variable references (`local.X`, `dependency.X`, `feature.X`)
 - **Navigation (Ctrl+Click / Ctrl+B)**
   - `include` paths and `dependency` config_paths → jump to referenced files
