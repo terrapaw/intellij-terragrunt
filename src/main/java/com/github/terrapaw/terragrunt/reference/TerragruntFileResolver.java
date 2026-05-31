@@ -1,5 +1,6 @@
 package com.github.terrapaw.terragrunt.reference;
 
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.*;
 import com.github.terrapaw.terragrunt.settings.TerragruntSettings;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -132,16 +133,7 @@ public class TerragruntFileResolver {
      */
     @Nullable
     public static TerragruntBlock findIncludeBlock(PsiFile file, String labelName) {
-        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
-        for (TerragruntBlock block : blocks) {
-            if (!"include".equals(block.getIdentifier().getText())) continue;
-            for (TerragruntLabel label : block.getLabelList()) {
-                if (labelName.equals(label.getText().replace("\"", ""))) {
-                    return block;
-                }
-            }
-        }
-        return null;
+        return TerragruntPsiUtil.findBlock(file, "include", labelName);
     }
 
     /**
@@ -336,7 +328,7 @@ public class TerragruntFileResolver {
                 if (includeName != null) {
                     boolean matches = false;
                     for (TerragruntLabel label : block.getLabelList()) {
-                        if (includeName.equals(label.getText().replace("\"", ""))) {
+                        if (includeName.equals(TerragruntPsiUtil.getLabelText(label))) {
                             matches = true;
                             break;
                         }

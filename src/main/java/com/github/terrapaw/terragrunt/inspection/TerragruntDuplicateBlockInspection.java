@@ -1,5 +1,6 @@
 package com.github.terrapaw.terragrunt.inspection;
 
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntLabel;
 import com.intellij.codeInspection.ProblemHighlightType;
@@ -29,7 +30,7 @@ public class TerragruntDuplicateBlockInspection extends TerragruntBaseInspection
                     List<TerragruntLabel> labels = block.getLabelList();
                     if (labels.isEmpty()) continue;
 
-                    String label = labels.getFirst().getText().replace("\"", "");
+                    String label = TerragruntPsiUtil.getLabelText(labels.getFirst());
                     String key = type + ":" + label;
 
                     if (seen.containsKey(key)) {

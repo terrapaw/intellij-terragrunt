@@ -1,5 +1,6 @@
 package com.github.terrapaw.terragrunt.inspection;
 
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntLabel;
 import com.github.terrapaw.terragrunt.schema.TerragruntSchema;
@@ -36,7 +37,7 @@ public class TerragruntLabelCountInspection extends TerragruntBaseInspection {
                                     ProblemHighlightType.GENERIC_ERROR_OR_WARNING
                             );
                         } else if (labels.size() == 1) {
-                            String labelText = labels.getFirst().getText().replace("\"", "").trim();
+                            String labelText = TerragruntPsiUtil.getLabelText(labels.getFirst()).trim();
                             if (labelText.isEmpty()) {
                                 holder.registerProblem(
                                         labels.getFirst(),
