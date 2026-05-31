@@ -18,6 +18,7 @@
 - Focused example projects (`examples/`)
 - Settings page (Languages & Frameworks → Terragrunt) for custom entry point filenames and marker filenames (`--config` support)
 - Comment-based inspection suppression (`# noinspection TerragruntUnresolvedPath`) — committable to source control
+- Auto-close quotes when typing `"`
 
 ### Changed
 - All inspections now use `GENERIC_ERROR_OR_WARNING` (respects user severity settings)

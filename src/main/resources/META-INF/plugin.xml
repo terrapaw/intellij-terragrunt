@@ -24,6 +24,7 @@
                                     implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntDocumentationProvider"/>
         <lang.braceMatcher language="Terragrunt"
                            implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntBraceMatcher"/>
+        <typedHandler implementation="com.github.terrapaw.terragrunt.editor.TerragruntTypedHandler"/>
         <lang.commenter language="Terragrunt"
                         implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntCommenter"/>
         <lang.foldingBuilder language="Terragrunt"

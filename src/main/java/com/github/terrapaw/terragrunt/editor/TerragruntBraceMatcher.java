@@ -14,6 +14,7 @@ public class TerragruntBraceMatcher implements PairedBraceMatcher {
             new BracePair(TerragruntTypes.LBRACKET, TerragruntTypes.RBRACKET, false),
             new BracePair(TerragruntTypes.LPAREN, TerragruntTypes.RPAREN, false),
             new BracePair(TerragruntTypes.INTERPOLATION_START, TerragruntTypes.INTERPOLATION_END, false),
+            new BracePair(TerragruntTypes.QUOTE, TerragruntTypes.QUOTE, false),
     };
 
     @NotNull
