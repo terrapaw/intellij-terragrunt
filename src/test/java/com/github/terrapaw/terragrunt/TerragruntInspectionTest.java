@@ -199,6 +199,28 @@ public class TerragruntInspectionTest extends BasePlatformTestCase {
         assertEquals("Should not warn for interpolated path", 0, warnings);
     }
 
+    public void testUnresolvedPathSuppressedForStackGenerated() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnresolvedPathInspection());
+        // Create a terragrunt.stack.hcl that defines a unit with path "api"
+        myFixture.addFileToProject("terragrunt.stack.hcl", """
+                unit "api" {
+                  source = "./units/api"
+                  path   = "api"
+                }
+                """);
+        // Reference the .terragrunt-stack/api path which doesn't exist yet
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "api" {
+                  config_path = "./.terragrunt-stack/api"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Cannot resolve"))
+                .count();
+        assertEquals("Should not warn for stack-generated path", 0, warnings);
+    }
+
     public void testUnknownAttributeDetected() {
         myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnknownAttributeInspection());
         myFixture.configureByText("terragrunt.hcl", """
