@@ -42,7 +42,8 @@ locals "should_not_have_label" {
   x = 1
 }
 
-dependency "vpc" "extra_label" {
+# Too many labels — "extra_label" will be flagged
+dependency "ec2" "extra_label" {
   config_path = "../vpc"
 }
 

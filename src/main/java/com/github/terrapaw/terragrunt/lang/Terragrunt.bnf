@@ -72,7 +72,7 @@ private body_item ::= block | attribute {recoverWhile=body_item_recover}
 private body_item_recover ::= !(IDENTIFIER | RBRACE)
 
 block ::= IDENTIFIER label * LBRACE body RBRACE {pin=3}
-label ::= (QUOTE STRING_LITERAL* QUOTE)+ | IDENTIFIER
+label ::= QUOTE STRING_LITERAL* QUOTE | IDENTIFIER
 
 attribute ::= IDENTIFIER EQUALS expression {pin=2}
 

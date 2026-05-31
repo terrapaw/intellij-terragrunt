@@ -26,8 +26,8 @@ The alternative (used by the JetBrains Terraform/HCL plugin) is to emit the enti
 ### Consequences
 
 - Grammar: `string_lit ::= QUOTE (STRING_LITERAL | interpolation)* QUOTE`
-- Grammar: `label ::= (QUOTE STRING_LITERAL* QUOTE)+ | IDENTIFIER`
-- `"vpc" "extra"` (two HCL labels) becomes one label node with 6 tokens (QUOTE STRING_LITERAL QUOTE QUOTE STRING_LITERAL QUOTE). The `TerragruntLabelCountInspection` uses quote-counting to detect this.
+- Grammar: `label ::= QUOTE STRING_LITERAL* QUOTE | IDENTIFIER`
+- `"vpc" "extra"` (two HCL labels) produces two separate label nodes. The `TerragruntLabelCountInspection` simply checks `getLabelList().size()`.
 - String value extraction always needs a helper (`extractStringContent()`) to strip quotes.
 
 ### Lexer States
