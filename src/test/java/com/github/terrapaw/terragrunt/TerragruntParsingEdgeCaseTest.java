@@ -368,4 +368,30 @@ public class TerragruntParsingEdgeCaseTest extends BasePlatformTestCase {
             assertEquals(0, block.getLabelList().size());
         }
     }
+
+    public void testMergeWithMultiLineObjectsAndQuotedKeys() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  a = "abc"
+                  tags = merge(
+                    {
+                      "example" = "abc"
+                      "abc" = local.a
+                    },
+                    {
+                      "example" = "abc"
+                    }
+                  )
+                }
+                """);
+        Collection<PsiErrorElement> errors = PsiTreeUtil.findChildrenOfType(file, PsiErrorElement.class);
+        if (!errors.isEmpty()) {
+            StringBuilder msg = new StringBuilder("Parse errors found:");
+            for (PsiErrorElement err : errors) {
+                msg.append("\n  ").append(err.getErrorDescription())
+                   .append(" at offset ").append(err.getTextOffset());
+            }
+            fail(msg.toString());
+        }
+    }
 }

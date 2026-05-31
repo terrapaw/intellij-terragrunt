@@ -5,9 +5,9 @@
 #   get_repo_root(), get_path_to_repo_root(), get_path_from_repo_root()
 #   find_in_parent_folders("X"), dirname(X), basename(X)
 
-# get_parent_terragrunt_dir() walks up to find parent dir with root.hcl/terragrunt.hcl
+# find_in_parent_folders() is the correct way to locate parent configs in include paths
 include "root" {
-  path = "${get_parent_terragrunt_dir()}/root.hcl"
+  path = find_in_parent_folders("root.hcl")
 }
 
 locals {

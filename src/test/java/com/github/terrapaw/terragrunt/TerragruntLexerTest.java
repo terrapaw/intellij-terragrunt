@@ -49,15 +49,18 @@ public class TerragruntLexerTest extends BasePlatformTestCase {
 
     public void testStringLiteral() {
         List<IElementType> tokens = getTokenTypes("\"hello\"");
-        // Opening quote, content, closing quote - all STRING_LITERAL
-        assertTrue("All tokens should be STRING_LITERAL", tokens.stream().allMatch(t -> t == TerragruntTypes.STRING_LITERAL));
+        // Opening quote, content, closing quote
         assertEquals(3, tokens.size());
+        assertEquals(TerragruntTypes.QUOTE, tokens.get(0));
+        assertEquals(TerragruntTypes.STRING_LITERAL, tokens.get(1));
+        assertEquals(TerragruntTypes.QUOTE, tokens.get(2));
     }
 
     public void testEmptyString() {
         List<IElementType> tokens = getTokenTypes("\"\"");
-        assertTrue("Empty string should be STRING_LITERAL tokens", tokens.stream().allMatch(t -> t == TerragruntTypes.STRING_LITERAL));
         assertEquals(2, tokens.size());
+        assertEquals(TerragruntTypes.QUOTE, tokens.get(0));
+        assertEquals(TerragruntTypes.QUOTE, tokens.get(1));
     }
 
     public void testStringWithInterpolation() {
@@ -137,12 +140,14 @@ public class TerragruntLexerTest extends BasePlatformTestCase {
     }
 
     public void testTokenTypesAreSameInstances() {
-        // This is the bug that caused the original parsing failure
+        // Verify lexer returns the same token type instances the parser expects
         List<IElementType> tokens = getTokenTypes("\"test\"");
-        for (IElementType token : tokens) {
-            assertSame("Lexer STRING_LITERAL must be same instance as parser expects",
-                    TerragruntTypes.STRING_LITERAL, token);
-        }
+        assertSame("Lexer QUOTE must be same instance as parser expects",
+                TerragruntTypes.QUOTE, tokens.get(0));
+        assertSame("Lexer STRING_LITERAL must be same instance as parser expects",
+                TerragruntTypes.STRING_LITERAL, tokens.get(1));
+        assertSame("Lexer QUOTE must be same instance as parser expects",
+                TerragruntTypes.QUOTE, tokens.get(2));
 
         tokens = getTokenTypes("include");
         assertSame("Lexer IDENTIFIER must be same instance as parser expects",
