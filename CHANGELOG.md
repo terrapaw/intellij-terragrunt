@@ -27,6 +27,7 @@
 - Crash when directories are moved/deleted externally (e.g. `git mv`) while IDE is open
 - `.terraform.lock.hcl` no longer claimed as a Terragrunt file
 - Parser error with quoted keys in multi-line objects (e.g. `merge({"key1" = "val1"\n "key2" = "val2"})`)
+- Unresolved path warning suppressed for `.terragrunt-stack/` paths when `terragrunt.stack.hcl` defines the unit
 
 ## [0.2.0] - 2024-05-24
 
