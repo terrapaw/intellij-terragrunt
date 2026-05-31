@@ -48,7 +48,7 @@ public class TerragruntSyntaxHighlighter extends SyntaxHighlighterBase {
     @Override
     public TextAttributesKey @NotNull [] getTokenHighlights(IElementType tokenType) {
         if (TerragruntTokenTypes.KEYWORDS.contains(tokenType)) return KEYWORD_KEYS;
-        if (tokenType == TerragruntTypes.STRING_LITERAL || tokenType == TerragruntTypes.HEREDOC_CONTENT) return STRING_KEYS;
+        if (tokenType == TerragruntTypes.STRING_LITERAL || tokenType == TerragruntTypes.HEREDOC_CONTENT || tokenType == TerragruntTypes.QUOTE) return STRING_KEYS;
         if (tokenType == TerragruntTypes.INTERPOLATION_START || tokenType == TerragruntTypes.INTERPOLATION_END || tokenType == TerragruntTypes.DIRECTIVE_START) return IDENTIFIER_KEYS;
         if (tokenType == TerragruntTypes.NUMBER) return NUMBER_KEYS;
         if (tokenType == TerragruntTypes.LINE_COMMENT) return LINE_COMMENT_KEYS;
