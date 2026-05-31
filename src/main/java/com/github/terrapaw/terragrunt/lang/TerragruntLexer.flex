@@ -63,7 +63,7 @@ ESCAPE_SEQ = \\[nrt\"\\] | \\u[0-9a-fA-F]{4} | \\U[0-9a-fA-F]{8}
   "<<" / {IDENTIFIER}     { heredocId = null; yybegin(HEREDOC_ID); return HEREDOC_START; }
 
   // String
-  \"                      { pushState(STRING); return STRING_LITERAL; }
+  \"                      { pushState(STRING); return QUOTE; }
 
   // Keywords
   "true"    { return TRUE; }
@@ -122,7 +122,7 @@ ESCAPE_SEQ = \\[nrt\"\\] | \\u[0-9a-fA-F]{4} | \\U[0-9a-fA-F]{8}
 }
 
 <STRING> {
-  \"                      { popState(); return STRING_LITERAL; }
+  \"                      { popState(); return QUOTE; }
   {ESCAPE_SEQ}            { return STRING_LITERAL; }
   "$${"                   { return STRING_LITERAL; }
   "%%{"                   { return STRING_LITERAL; }
@@ -139,7 +139,7 @@ ESCAPE_SEQ = \\[nrt\"\\] | \\u[0-9a-fA-F]{4} | \\U[0-9a-fA-F]{8}
   {NEWLINE}               { return WHITE_SPACE; }
 
   // Nested string inside interpolation
-  \"                      { pushState(STRING); return STRING_LITERAL; }
+  \"                      { pushState(STRING); return QUOTE; }
 
   // Track brace depth for nested objects
   "{"                     { interpolationBraceDepth++; return LBRACE; }

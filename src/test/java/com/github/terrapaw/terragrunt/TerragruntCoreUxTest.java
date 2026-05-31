@@ -82,6 +82,29 @@ public class TerragruntCoreUxTest extends BasePlatformTestCase {
         assertEquals("Should have no unresolved warnings", 0, warnings);
     }
 
+    public void testLocalInsideMergeNoFalsePositive() {
+        myFixture.enableInspections(new TerragruntUnresolvedVariableInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  a = "abc"
+                  tags = merge(
+                    {
+                      "example" = "abc"
+                      "abc" = local.a
+                    },
+                    {
+                      "example" = "abc"
+                    }
+                  )
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unresolved"))
+                .count();
+        assertEquals("local.a inside merge should not be flagged", 0, warnings);
+    }
+
     public void testUnresolvedDependency() {
         myFixture.enableInspections(new TerragruntUnresolvedVariableInspection());
         myFixture.configureByText("terragrunt.hcl", """
