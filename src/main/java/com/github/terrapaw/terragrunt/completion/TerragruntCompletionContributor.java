@@ -25,6 +25,9 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                                                   @NotNull CompletionResultSet result) {
                         PsiElement position = parameters.getPosition();
 
+                        // Suppress completions inside strings (but allow inside interpolations)
+                        if (isInsideString(position)) return;
+
                         if (isAfterDot(position)) {
                             addDotCompletions(position, result);
                         } else if (isInBody(position)) {
@@ -48,6 +51,26 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                         }
                     }
                 });
+    }
+
+    private boolean isInsideString(PsiElement position) {
+        // Check if we're inside a string_lit node but NOT inside an interpolation
+        PsiElement parent = position.getParent();
+        while (parent != null) {
+            if (parent instanceof TerragruntInterpolation) return false; // inside ${...} — allow completions
+            if (parent instanceof TerragruntStringLit) return true;
+            parent = parent.getParent();
+        }
+        // Also check token type directly (for cases where PSI tree is broken during typing)
+        var node = position.getNode();
+        if (node != null) {
+            var type = node.getElementType();
+            if (type == TerragruntTypes.STRING_LITERAL || type == TerragruntTypes.QUOTE) {
+                // But not if inside interpolation
+                return PsiTreeUtil.getParentOfType(position, TerragruntInterpolation.class) == null;
+            }
+        }
+        return false;
     }
 
     private boolean isInBody(PsiElement position) {
