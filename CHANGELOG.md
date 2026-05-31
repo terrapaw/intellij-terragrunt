@@ -24,6 +24,8 @@
 ### Fixed
 - Crash when directories are moved/deleted externally (e.g. `git mv`) while IDE is open
 - `.terraform.lock.hcl` no longer claimed as a Terragrunt file
+- `get_parent_terragrunt_dir()` now uses correct include semantics (returns own dir for parent configs, resolves include for children)
+- `find_in_parent_folders()` with no args now defaults to `terragrunt.hcl` (was incorrectly `root.hcl`)
 
 ## [0.2.0] - 2024-05-24
 
