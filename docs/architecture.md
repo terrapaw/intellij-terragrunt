@@ -2,19 +2,22 @@
 
 ## Lexer Design: Multi-Token Strings
 
-The lexer emits multiple `STRING_LITERAL` tokens per quoted string to support `${...}` interpolation natively in the PSI tree.
+The lexer emits multiple tokens per quoted string to support `${...}` interpolation natively in the PSI tree.
 
 A string like `"hello ${name}"` is lexed as:
 
 ```
-STRING_LITERAL("hello ")  INTERPOLATION_START  IDENTIFIER("name")  INTERPOLATION_END  STRING_LITERAL("")
+QUOTE  STRING_LITERAL("hello ")  INTERPOLATION_START  IDENTIFIER("name")  INTERPOLATION_END  QUOTE
 ```
 
-A simple string like `"foo"` is 3 tokens: `"` (quote), `foo` (content), `"` (quote).
+A simple string like `"foo"` is 3 tokens: `QUOTE`, `STRING_LITERAL("foo")`, `QUOTE`.
+An empty string `""` is 2 tokens: `QUOTE`, `QUOTE`.
 
 ### Why
 
 This gives full PSI inside interpolations — navigation, completion, references, and highlighting all work automatically inside `${...}` without needing language injection or secondary parsing.
+
+The `QUOTE` token type distinguishes string delimiters from content, allowing the grammar to properly terminate strings. Without it, consecutive quoted strings (e.g. object keys on separate lines) would be parsed as one long string.
 
 ### Tradeoff
 
@@ -22,9 +25,9 @@ The alternative (used by the JetBrains Terraform/HCL plugin) is to emit the enti
 
 ### Consequences
 
-- Grammar rules expecting "one string" use `STRING_LITERAL+` to group tokens into one PSI node.
-- `label ::= STRING_LITERAL+ | IDENTIFIER` — the `+` groups quote/content/quote into one label.
-- `"vpc" "extra"` (two HCL labels) becomes one label node with 6 STRING_LITERAL tokens. The `TerragruntLabelCountInspection` uses quote-counting to detect this.
+- Grammar: `string_lit ::= QUOTE (STRING_LITERAL | interpolation)* QUOTE`
+- Grammar: `label ::= (QUOTE STRING_LITERAL* QUOTE)+ | IDENTIFIER`
+- `"vpc" "extra"` (two HCL labels) becomes one label node with 6 tokens (QUOTE STRING_LITERAL QUOTE QUOTE STRING_LITERAL QUOTE). The `TerragruntLabelCountInspection` uses quote-counting to detect this.
 - String value extraction always needs a helper (`extractStringContent()`) to strip quotes.
 
 ### Lexer States
