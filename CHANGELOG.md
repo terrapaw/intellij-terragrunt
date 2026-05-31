@@ -4,7 +4,8 @@
 
 ### Added
 - Function-aware path resolution in includes and read_terragrunt_config
-  - `get_terragrunt_dir()`, `get_parent_terragrunt_dir()`, `get_root_terragrunt_dir()`
+  - `get_terragrunt_dir()`, `get_root_terragrunt_dir()`
+  - `get_parent_terragrunt_dir()` with include semantics (returns own dir for parent configs, resolves include for children, supports named includes)
   - `get_repo_root()`, `get_path_to_repo_root()`, `get_path_from_repo_root()`
   - `find_in_parent_folders()` inside interpolation (with fallback arg support)
   - `dirname()`, `basename()` (nested evaluation)
