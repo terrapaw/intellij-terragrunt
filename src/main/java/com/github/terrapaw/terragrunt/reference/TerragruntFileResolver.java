@@ -198,7 +198,7 @@ public class TerragruntFileResolver {
                 int end = path.indexOf('}', i + 2);
                 if (end == -1) return null;
                 String expr = path.substring(i + 2, end).trim();
-                String evaluated = evaluateFunction(expr, sourceDir);
+                String evaluated = evaluateFunction(expr, sourceDir, sourceFile);
                 if (evaluated == null) return null;
                 result.append(evaluated);
                 i = end + 1;
@@ -214,21 +214,14 @@ public class TerragruntFileResolver {
      * Evaluates a single Terragrunt function expression to a path string.
      */
     @Nullable
-    private static String evaluateFunction(String expr, VirtualFile sourceDir) {
+    private static String evaluateFunction(String expr, VirtualFile sourceDir, PsiFile sourceFile) {
         // get_terragrunt_dir() — directory of the current file
         if (expr.equals("get_terragrunt_dir()")) {
             return sourceDir.getPath();
         }
-        // get_parent_terragrunt_dir() — walk up to find parent dir with terragrunt.hcl
-        if (expr.equals("get_parent_terragrunt_dir()")) {
-            VirtualFile dir = sourceDir.getParent();
-            while (dir != null) {
-                if (dir.findChild("terragrunt.hcl") != null || dir.findChild("root.hcl") != null) {
-                    return dir.getPath();
-                }
-                dir = dir.getParent();
-            }
-            return null;
+        // get_parent_terragrunt_dir() — directory of the included parent config
+        if (expr.equals("get_parent_terragrunt_dir()") || expr.startsWith("get_parent_terragrunt_dir(")) {
+            return resolveParentTerragruntDir(expr, sourceDir, sourceFile);
         }
         // get_root_terragrunt_dir() — walk up to find the topmost dir with root.hcl or terragrunt.hcl
         if (expr.equals("get_root_terragrunt_dir()")) {
@@ -269,7 +262,7 @@ public class TerragruntFileResolver {
         // dirname(X) — evaluate inner expression, return parent directory
         if (expr.startsWith("dirname(") && expr.endsWith(")")) {
             String inner = expr.substring("dirname(".length(), expr.length() - 1);
-            String innerResult = evaluateFunction(inner, sourceDir);
+            String innerResult = evaluateFunction(inner, sourceDir, sourceFile);
             if (innerResult == null) return null;
             int lastSlash = innerResult.lastIndexOf('/');
             return lastSlash > 0 ? innerResult.substring(0, lastSlash) : innerResult;
@@ -277,7 +270,7 @@ public class TerragruntFileResolver {
         // basename(X) — evaluate inner expression, return last path component
         if (expr.startsWith("basename(") && expr.endsWith(")")) {
             String inner = expr.substring("basename(".length(), expr.length() - 1);
-            String innerResult = evaluateFunction(inner, sourceDir);
+            String innerResult = evaluateFunction(inner, sourceDir, sourceFile);
             if (innerResult == null) return null;
             int lastSlash = innerResult.lastIndexOf('/');
             return lastSlash >= 0 ? innerResult.substring(lastSlash + 1) : innerResult;
@@ -307,6 +300,51 @@ public class TerragruntFileResolver {
             }
             return null;
         }
+        return null;
+    }
+
+    /**
+     * Resolves get_parent_terragrunt_dir() or get_parent_terragrunt_dir("name").
+     * Rules:
+     * 1. File is NOT terragrunt.hcl → it's a parent config → return its own directory
+     * 2. File IS terragrunt.hcl with include block(s) → resolve the included file's directory
+     * 3. File IS terragrunt.hcl without include → no parent → null
+     */
+    @Nullable
+    private static String resolveParentTerragruntDir(String expr, VirtualFile sourceDir, PsiFile sourceFile) {
+        VirtualFile vFile = sourceFile.getVirtualFile();
+        if (vFile == null) return null;
+
+        // Rule 1: not terragrunt.hcl → it's a parent config → return own directory
+        if (!"terragrunt.hcl".equals(vFile.getName())) {
+            return sourceDir.getPath();
+        }
+
+        // Rule 2: terragrunt.hcl → find include block and resolve its path
+        String includeName = extractFunctionArg(expr); // null if no arg
+        Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(sourceFile, TerragruntBlock.class);
+        for (TerragruntBlock block : blocks) {
+            if (!"include".equals(block.getIdentifier().getText())) continue;
+            // If a name was specified, match the label
+            if (includeName != null) {
+                boolean matches = false;
+                for (TerragruntLabel label : block.getLabelList()) {
+                    if (includeName.equals(label.getText().replace("\"", ""))) {
+                        matches = true;
+                        break;
+                    }
+                }
+                if (!matches) continue;
+            }
+            // Resolve this include's path
+            PsiFile resolved = resolveInclude(block);
+            if (resolved != null && resolved.getVirtualFile() != null) {
+                VirtualFile parent = resolved.getVirtualFile().getParent();
+                if (parent != null) return parent.getPath();
+            }
+        }
+
+        // Rule 3: no include resolved — can't determine parent
         return null;
     }
 
