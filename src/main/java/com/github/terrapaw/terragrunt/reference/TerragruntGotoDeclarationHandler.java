@@ -602,6 +602,8 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                         PsiFile file = keyElement.getContainingFile();
                         List<PsiElement> usages = new ArrayList<>();
                         findObjectKeyUsages(file, attrName, path, usages);
+                        // Also search other project files for cross-file usages
+                        findCrossFileObjectKeyUsages(file, attrName, path, usages);
                         return usages.isEmpty() ? null : usages.toArray(PsiElement.EMPTY_ARRAY);
                     }
                     break;
@@ -647,6 +649,79 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             }
             if (matches) {
                 usages.add(getAttr.getIdentifier());
+            }
+        }
+    }
+
+    /**
+     * Scans project files for cross-file object key usages.
+     * Looks for local.X.locals.attrName.key1.key2... where X resolves to sourceFile.
+     */
+    private void findCrossFileObjectKeyUsages(PsiFile sourceFile, String attrName, java.util.List<String> keyPath, List<PsiElement> usages) {
+        com.intellij.openapi.project.Project project = sourceFile.getProject();
+        com.intellij.openapi.roots.ProjectRootManager rootManager =
+                com.intellij.openapi.roots.ProjectRootManager.getInstance(project);
+        for (com.intellij.openapi.vfs.VirtualFile contentRoot : rootManager.getContentRoots()) {
+            findCrossFileObjectKeyUsagesRecursive(contentRoot, project, sourceFile, attrName, keyPath, usages);
+        }
+    }
+
+    private void findCrossFileObjectKeyUsagesRecursive(com.intellij.openapi.vfs.VirtualFile dir,
+                                                        com.intellij.openapi.project.Project project,
+                                                        PsiFile sourceFile, String attrName,
+                                                        java.util.List<String> keyPath, List<PsiElement> usages) {
+        for (com.intellij.openapi.vfs.VirtualFile child : dir.getChildren()) {
+            if (child.isDirectory()) {
+                findCrossFileObjectKeyUsagesRecursive(child, project, sourceFile, attrName, keyPath, usages);
+            } else if (child.getName().endsWith(".hcl")) {
+                PsiFile psiFile = PsiManager.getInstance(project).findFile(child);
+                if (psiFile == null || psiFile.equals(sourceFile)) continue;
+                // Look for local.X.locals.attrName.key... chains
+                Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(psiFile, TerragruntGetAttr.class);
+                for (TerragruntGetAttr getAttr : allGetAttrs) {
+                    String lastKey = keyPath.get(keyPath.size() - 1);
+                    if (!lastKey.equals(getAttr.getIdentifier().getText())) continue;
+
+                    PsiElement parent = getAttr.getParent();
+                    if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
+                    TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+                    if (primary == null) continue;
+                    TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+                    if (varExpr == null || !"local".equals(varExpr.getIdentifier().getText())) continue;
+
+                    PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+                    if (getAttrs == null) continue;
+
+                    // Expected: local.alias.locals.attrName.key1.key2...
+                    int expectedLen = keyPath.size() + 3; // alias + "locals" + attrName + keys
+                    if (getAttrs.length < expectedLen) continue;
+
+                    String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+                    if (!"locals".equals(section)) continue;
+
+                    String remoteAttr = ((TerragruntGetAttr) getAttrs[2]).getIdentifier().getText();
+                    if (!attrName.equals(remoteAttr)) continue;
+
+                    // Check remaining keys match
+                    boolean matches = true;
+                    for (int i = 0; i < keyPath.size(); i++) {
+                        if (getAttrs.length <= i + 3) { matches = false; break; }
+                        if (!keyPath.get(i).equals(((TerragruntGetAttr) getAttrs[i + 3]).getIdentifier().getText())) {
+                            matches = false;
+                            break;
+                        }
+                    }
+                    if (!matches) continue;
+
+                    // Verify the alias resolves to our source file
+                    String aliasName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                    PsiFile resolved = TerragruntChainResolver.resolveLocalAlias(psiFile, aliasName);
+                    if (resolved != null && resolved.getVirtualFile() != null &&
+                            sourceFile.getVirtualFile() != null &&
+                            resolved.getVirtualFile().getPath().equals(sourceFile.getVirtualFile().getPath())) {
+                        usages.add(getAttr.getIdentifier());
+                    }
+                }
             }
         }
     }

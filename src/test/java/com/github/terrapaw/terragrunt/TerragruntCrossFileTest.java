@@ -1082,4 +1082,37 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertNotNull("Should navigate to vpc_cidr in remote file's object", targets);
         assertTrue("Should find target", targets.length > 0);
     }
+
+    public void testCrossFileFindUsagesFromObjectKey() {
+        myFixture.addFileToProject("root.hcl", "");
+        // The file containing the object key definition
+        PsiFile remote = myFixture.addFileToProject("xusage-remote.hcl", """
+                locals {
+                  network = {
+                    vpc_cidr = "10.0.0.0/16"
+                  }
+                }
+                """);
+
+        // A child file that references it
+        myFixture.addFileToProject("xusage-child/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../xusage-remote.hcl")
+                }
+
+                inputs = {
+                  cidr = local.common.locals.network.vpc_cidr
+                }
+                """);
+
+        // Ctrl+B on vpc_cidr in the definition (remote file)
+        myFixture.configureFromExistingVirtualFile(remote.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("vpc_cidr");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should find cross-file usages of object key", targets);
+        assertTrue("Should find at least one usage", targets.length > 0);
+    }
 }

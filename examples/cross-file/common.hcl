@@ -4,10 +4,10 @@ locals {
 
   # Try: local.common.locals.network.vpc_cidr in the child file
   network = {
-    vpc_cidr = "10.0.0.0/16"
+    "vpc_cidr" = "10.0.0.0/16"
     az_count = 3
     subnets  = {
-      public  = "10.0.1.0/24"
+      "public"  = "10.0.1.0/24"
       private = "10.0.2.0/24"
     }
   }
