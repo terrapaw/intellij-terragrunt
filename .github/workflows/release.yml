@@ -55,3 +55,8 @@ jobs:
         with:
           files: build/distributions/*.zip
           body_path: /tmp/release-notes.md
+
+      - name: Publish to JetBrains Marketplace
+        run: ./gradlew publishPlugin
+        env:
+          PUBLISH_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
