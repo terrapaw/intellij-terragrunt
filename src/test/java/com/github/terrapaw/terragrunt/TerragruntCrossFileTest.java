@@ -1053,4 +1053,33 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue("Should suggest 'locals'. Got: " + names, names.contains("locals"));
         assertTrue("Should suggest 'inputs'. Got: " + names, names.contains("inputs"));
     }
+
+    public void testCrossFileObjectKeyNavigation() {
+        myFixture.addFileToProject("root.hcl", "");
+        myFixture.addFileToProject("xnav-remote.hcl", """
+                locals {
+                  network = {
+                    vpc_cidr = "10.0.0.0/16"
+                  }
+                }
+                """);
+
+        PsiFile child = myFixture.addFileToProject("xnav-child/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../xnav-remote.hcl")
+                }
+
+                inputs = {
+                  cidr = local.common.locals.network.vpc_cidr
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(child.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.lastIndexOf("vpc_cidr");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate to vpc_cidr in remote file's object", targets);
+        assertTrue("Should find target", targets.length > 0);
+    }
 }

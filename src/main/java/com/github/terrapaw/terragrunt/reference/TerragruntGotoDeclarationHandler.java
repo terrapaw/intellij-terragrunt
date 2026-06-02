@@ -217,7 +217,18 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 // Deep chain: local.alias.locals.nested_alias.locals.Y...
                 PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
                 if (resolvedFile != null) {
-                    return resolveDeepChain(resolvedFile, chain, 2, cursorIndex, file);
+                    PsiElement[] result = resolveDeepChain(resolvedFile, chain, 2, cursorIndex, file);
+                    if (result != null) return result;
+                    // Fallback: navigate into object keys in the resolved file
+                    // e.g. local.common.locals.network.vpc_cidr → find "network" attr in resolved file, walk into object
+                    if ("locals".equals(section) && cursorIndex > 2) {
+                        String attrName = chain[2];
+                        TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(resolvedFile, attrName);
+                        if (attr != null) {
+                            PsiElement key = findNestedObjectKey(attr, chain, 3, cursorIndex);
+                            if (key != null) return new PsiElement[]{key};
+                        }
+                    }
                 }
             }
             // Fallback: navigate into object value keys at any depth
