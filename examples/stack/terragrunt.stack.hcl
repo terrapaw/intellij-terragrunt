@@ -2,6 +2,7 @@
 
 unit "vpc" {
   source = "./modules/vpc"
+  path   = "vpc"
 
   values = {
     vpc_name = "main-vpc"
@@ -12,6 +13,7 @@ unit "vpc" {
 
 unit "app" {
   source = "./modules/app"
+  path   = "app"
 
   values = {
     app_name = "my-service"

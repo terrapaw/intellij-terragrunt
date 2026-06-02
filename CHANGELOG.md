@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-02
+
 ### Added
 - Function-aware path resolution in includes and read_terragrunt_config
   - `get_terragrunt_dir()`, `get_root_terragrunt_dir()`

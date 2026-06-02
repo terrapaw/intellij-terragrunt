@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.github.terrapaw"
-version = "0.2.0"
+version = "0.3.0"
 
 repositories {
     mavenCentral()
@@ -44,6 +44,7 @@ intellijPlatform {
             val section = changelog
                 .substringAfter("## [$ver]", "")
                 .ifEmpty { changelog.substringAfter("## [Unreleased]", "") }
+                .substringAfter("\n") // skip the date portion of the header line
                 .substringBefore("## [")
                 .trim()
             if (section.isBlank()) "See CHANGELOG.md" else section

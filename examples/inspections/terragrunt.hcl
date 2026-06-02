@@ -26,9 +26,9 @@ dependency "app" {
 }
 
 # Deprecated attribute
-terraform {
-  source           = "./modules/app"
-  extra_arguments  = {}
+dependency "cache" {
+  config_path                   = "../cache"
+  mock_outputs_merge_with_state = true
 }
 
 # Unresolved variable reference
