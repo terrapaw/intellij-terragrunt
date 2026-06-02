@@ -431,7 +431,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                                 addCompletionsFromFile(deepFile, lastAttr, result);
                             }
                         } else {
-                            // Last was an alias name — suggest locals/inputs
+                            // Last was an alias name — suggest locals/inputs or object keys
                             PsiFile deepFile = resolveDeepChainForCompletion(resolvedFile, getAttrs, 2, depth - 1, file);
                             if (deepFile != null) {
                                 PsiFile aliasFile = resolveLocalAliasForCompletion(deepFile, lastAttr);
@@ -441,6 +441,43 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                                     } else {
                                         result.addElement(LookupElementBuilder.create("locals").withTypeText("config section").bold());
                                         result.addElement(LookupElementBuilder.create("inputs").withTypeText("config section").bold());
+                                    }
+                                } else {
+                                    // Not an alias — try navigating into object keys in the resolved file
+                                    TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(deepFile, lastAttr);
+                                    if (attr != null) {
+                                        TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                                        if (obj != null) {
+                                            addObjectKeysToCompletion(obj, result);
+                                        }
+                                    }
+                                }
+                            }
+                            // Also try: resolve file at earlier depth, then walk into object keys
+                            if (depth >= 3) {
+                                // Find the file that contains the attribute, then walk object keys
+                                // e.g. local.remote.locals.config.network. → resolve remote → find config → walk into network
+                                PsiFile attrFile = resolveDeepChainForCompletion(resolvedFile, getAttrs, 2, 3, file);
+                                if (attrFile != null) {
+                                    String attrName = ((TerragruntGetAttr) getAttrs[2]).getIdentifier().getText();
+                                    TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(attrFile, attrName);
+                                    if (attr != null) {
+                                        TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                                        for (int idx = 3; idx < depth && obj != null; idx++) {
+                                            String keyName = ((TerragruntGetAttr) getAttrs[idx]).getIdentifier().getText();
+                                            TerragruntObjectElem matchedElem = null;
+                                            for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                                                PsiElement key = elem.getFirstChild();
+                                                if (key != null && keyName.equals(key.getText().replace("\"", ""))) {
+                                                    matchedElem = elem;
+                                                    break;
+                                                }
+                                            }
+                                            obj = matchedElem != null ? PsiTreeUtil.findChildOfType(matchedElem, TerragruntObjectExpr.class) : null;
+                                        }
+                                        if (obj != null) {
+                                            addObjectKeysToCompletion(obj, result);
+                                        }
                                     }
                                 }
                             }
