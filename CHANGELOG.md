@@ -2,9 +2,6 @@
 
 ## [Unreleased]
 
-### Added
-- Cross-file nested object key completion (e.g. `local.remote.locals.config.network.` suggests keys from the remote file's nested object)
-
 ## [0.3.0] - 2026-06-02
 
 ### Added
@@ -16,7 +13,7 @@
   - `dirname()`, `basename()` (nested evaluation)
 - Stack context resolution: `read_terragrunt_config(find_in_parent_folders(...))` resolves from includer directories (non-entry-point files won't guess — shows "no declaration" until includers exist)
 - Arbitrary-depth chain navigation and completion (e.g. `include.root.locals.env_config.locals.environment`)
-- Deep object key navigation and completion (e.g. `local.config.network.vpc_cidr` navigates into nested objects)
+- Deep object key navigation and completion (e.g. `local.config.network.vpc_cidr` navigates into nested objects, including cross-file)
 - Find usages from object key definitions (Ctrl+B on key → finds all `local.X.key` usages)
 - Duplicate block name inspection
 - Label count inspection (missing labels, empty labels, extra labels)
