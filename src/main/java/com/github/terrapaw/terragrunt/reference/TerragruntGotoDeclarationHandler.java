@@ -32,12 +32,33 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             return handleDefinitionToUsages(attr, sourceElement);
         }
 
-        // Case 3: On an IDENTIFIER that is a key inside an inputs map
-        // (e.g. Ctrl+B on "notification_email" in inputs = { notification_email = "x" })
+        // Case 3: On an IDENTIFIER that is a key inside an object
         if (parent instanceof TerragruntObjectElem) {
             // Check if this is the key (first child) of the object elem
             if (sourceElement == parent.getFirstChild()) {
-                return handleInputsKeyUsages(sourceElement);
+                // Check if inside inputs attribute
+                TerragruntAttribute inputsAttr = PsiTreeUtil.getParentOfType(sourceElement, TerragruntAttribute.class);
+                if (inputsAttr != null && "inputs".equals(inputsAttr.getIdentifier().getText())) {
+                    return handleInputsKeyUsages(sourceElement);
+                }
+                // Check if inside a locals attribute value — find usages of local.attr.key...
+                return handleLocalsObjectKeyUsages(sourceElement);
+            }
+        }
+
+        // Case 3b: On a STRING_LITERAL inside a quoted object key (e.g. "vpc_cidr" = ...)
+        if (parent instanceof TerragruntStringLit) {
+            TerragruntObjectElem objElem = PsiTreeUtil.getParentOfType(sourceElement, TerragruntObjectElem.class);
+            if (objElem != null) {
+                PsiElement firstChild = objElem.getFirstChild();
+                // Check the string_lit is in key position (part of the first expression)
+                if (firstChild != null && PsiTreeUtil.isAncestor(firstChild, sourceElement, false)) {
+                    TerragruntAttribute inputsAttr = PsiTreeUtil.getParentOfType(objElem, TerragruntAttribute.class);
+                    if (inputsAttr != null && "inputs".equals(inputsAttr.getIdentifier().getText())) {
+                        return handleInputsKeyUsages(sourceElement);
+                    }
+                    return handleLocalsObjectKeyUsages(firstChild);
+                }
             }
         }
 
@@ -165,6 +186,12 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 TerragruntAttribute resolved = TerragruntFileResolver.findLocalAttribute(resolvedFile, attrName);
                 if (resolved != null) return new PsiElement[]{resolved};
             }
+            // Fallback: navigate into object value keys
+            TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(file, aliasName);
+            if (attr != null) {
+                PsiElement key = findObjectKey(attr, attrName);
+                if (key != null) return new PsiElement[]{key};
+            }
         }
 
         // Handle local.X.locals.Y at depth 2+ — resolve via read_terragrunt_config or include alias
@@ -192,6 +219,22 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 if (resolvedFile != null) {
                     return resolveDeepChain(resolvedFile, chain, 2, cursorIndex, file);
                 }
+            }
+            // Fallback: navigate into object value keys at any depth
+            TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(file, aliasName);
+            if (attr != null) {
+                PsiElement key = findNestedObjectKey(attr, chain, 1, cursorIndex);
+                if (key != null) return new PsiElement[]{key};
+            }
+        }
+
+        // Fallback for local.X.Y where X is an object (cursorIndex == 1 already handled above)
+        if ("local".equals(rootVar) && cursorIndex >= 1) {
+            String localName = chain[0];
+            TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(file, localName);
+            if (attr != null) {
+                PsiElement key = findNestedObjectKey(attr, chain, 1, cursorIndex);
+                if (key != null) return new PsiElement[]{key};
             }
         }
 
@@ -504,6 +547,138 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                     return new PsiElement[]{attr};
                 }
             }
+        }
+        return null;
+    }
+
+    /**
+     * Finds usages of an object key inside a locals attribute value.
+     * Builds the path (local.attrName.key1.key2...) and searches for matching get_attr chains.
+     */
+    @Nullable
+    private PsiElement[] handleLocalsObjectKeyUsages(PsiElement keyElement) {
+        // Build the key path by walking up through nested objects
+        java.util.List<String> path = new java.util.ArrayList<>();
+        path.add(keyElement.getText().replace("\"", ""));
+        PsiElement current = keyElement.getParent(); // TerragruntObjectElem
+        while (current != null) {
+            if (current instanceof TerragruntObjectElem) {
+                current = current.getParent(); // TerragruntObjectExpr
+            } else if (current instanceof TerragruntObjectExpr) {
+                PsiElement objParent = current.getParent();
+                if (objParent instanceof TerragruntObjectElem) {
+                    // Nested object — add parent key to path
+                    PsiElement parentKey = objParent.getFirstChild();
+                    if (parentKey != null) path.add(parentKey.getText().replace("\"", ""));
+                    current = objParent;
+                } else {
+                    // Walk up through expression wrappers to find the attribute
+                    PsiElement walker = objParent;
+                    while (walker != null && !(walker instanceof TerragruntAttribute)) {
+                        if (walker instanceof TerragruntObjectElem) {
+                            // Hit a parent object elem — add its key
+                            PsiElement parentKey = walker.getFirstChild();
+                            if (parentKey != null) path.add(parentKey.getText().replace("\"", ""));
+                        }
+                        walker = walker.getParent();
+                    }
+                    if (walker instanceof TerragruntAttribute attr) {
+                        String attrName = attr.getIdentifier().getText();
+                        TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
+                        if (block == null || !"locals".equals(block.getIdentifier().getText())) return null;
+
+                        java.util.Collections.reverse(path);
+                        PsiFile file = keyElement.getContainingFile();
+                        List<PsiElement> usages = new ArrayList<>();
+                        findObjectKeyUsages(file, attrName, path, usages);
+                        return usages.isEmpty() ? null : usages.toArray(PsiElement.EMPTY_ARRAY);
+                    }
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        return null;
+    }
+
+    private void findObjectKeyUsages(PsiFile file, String localName, java.util.List<String> keyPath, List<PsiElement> usages) {
+        Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
+        for (TerragruntGetAttr getAttr : allGetAttrs) {
+            // Check if this matches the last key in our path
+            String lastKey = keyPath.get(keyPath.size() - 1);
+            if (!lastKey.equals(getAttr.getIdentifier().getText())) continue;
+
+            PsiElement parent = getAttr.getParent();
+            if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
+            TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+            if (primary == null) continue;
+            TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+            if (varExpr == null || !"local".equals(varExpr.getIdentifier().getText())) continue;
+
+            PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+            if (getAttrs == null) continue;
+
+            // Check chain matches: local.localName.key1.key2...lastKey
+            int expectedLen = keyPath.size() + 1; // +1 for localName
+            if (getAttrs.length < expectedLen) continue;
+
+            // First get_attr should be the localName
+            if (!localName.equals(((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText())) continue;
+
+            // Remaining should match keyPath
+            boolean matches = true;
+            for (int i = 0; i < keyPath.size(); i++) {
+                if (!keyPath.get(i).equals(((TerragruntGetAttr) getAttrs[i + 1]).getIdentifier().getText())) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                usages.add(getAttr.getIdentifier());
+            }
+        }
+    }
+
+    /**
+     * Finds a key in an attribute's object value.
+     */
+    @Nullable
+    private PsiElement findObjectKey(TerragruntAttribute attr, String keyName) {
+        TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+        return findKeyInObject(obj, keyName);
+    }
+
+    /**
+     * Finds a key inside an object expression.
+     */
+    @Nullable
+    private PsiElement findKeyInObject(TerragruntObjectExpr obj, String keyName) {
+        if (obj == null) return null;
+        for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+            PsiElement key = elem.getFirstChild();
+            if (key != null && keyName.equals(key.getText().replace("\"", ""))) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Navigates into nested object keys following a chain of names.
+     * Returns the final key element, or null if any step fails.
+     */
+    @Nullable
+    private PsiElement findNestedObjectKey(TerragruntAttribute attr, String[] chain, int startIndex, int targetIndex) {
+        TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+        for (int i = startIndex; i <= targetIndex && obj != null; i++) {
+            String keyName = chain[i];
+            PsiElement key = findKeyInObject(obj, keyName);
+            if (key == null) return null;
+            if (i == targetIndex) return key;
+            // Descend into the value's object
+            PsiElement parent = key.getParent(); // TerragruntObjectElem
+            obj = PsiTreeUtil.findChildOfType(parent, TerragruntObjectExpr.class);
         }
         return null;
     }

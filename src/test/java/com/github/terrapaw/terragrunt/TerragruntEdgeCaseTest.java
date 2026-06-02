@@ -294,4 +294,177 @@ public class TerragruntEdgeCaseTest extends BasePlatformTestCase {
             fail(sb.toString());
         }
     }
+
+    public void testNavigateIntoObjectKeys() {
+        // local.config.a.b should navigate to key "b" inside the nested object
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  config = {
+                    a = {
+                      b = "value"
+                    }
+                  }
+                }
+
+                inputs = {
+                  x = local.config.a.b
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.lastIndexOf(".b") + 1; // on "b"
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        var handler = new com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler();
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate to 'b' key in nested object", targets);
+        assertTrue("Should find target", targets.length > 0);
+        assertEquals("b", targets[0].getText());
+    }
+
+    public void testNavigateIntoObjectKeysFirstLevel() {
+        // local.config.a should navigate to key "a"
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  config = {
+                    a = {
+                      b = "value"
+                    }
+                  }
+                }
+
+                inputs = {
+                  x = local.config.a.b
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.lastIndexOf(".a.") + 1; // on "a"
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        var handler = new com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler();
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate to 'a' key in object", targets);
+        assertTrue("Should find target", targets.length > 0);
+        assertEquals("a", targets[0].getText());
+    }
+
+    public void testNoNavigationIntoNonObjectLocal() {
+        // local.name.something should not navigate when name is a string, not an object
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  name = "hello"
+                }
+
+                inputs = {
+                  x = local.name.something
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf(".something") + 1;
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        var handler = new com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler();
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNull("Should NOT navigate into a non-object local", targets);
+    }
+
+    public void testNavigateIntoQuotedObjectKey() {
+        // local.config.vpc_cidr should navigate to quoted key "vpc_cidr"
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  config = {
+                    "vpc_cidr" = "10.0.0.0/16"
+                  }
+                }
+
+                inputs = {
+                  x = local.config.vpc_cidr
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.lastIndexOf("vpc_cidr");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        var handler = new com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler();
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate to quoted key 'vpc_cidr'", targets);
+        assertTrue("Should find target", targets.length > 0);
+    }
+
+    public void testNavigateIntoObjectKeysArbitraryDepth() {
+        // local.config.a.b.c should navigate to key "c" three levels deep
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  config = {
+                    a = {
+                      b = {
+                        c = "deep"
+                      }
+                    }
+                  }
+                }
+
+                inputs = {
+                  x = local.config.a.b.c
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.lastIndexOf(".c") + 1;
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        var handler = new com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler();
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate to 'c' key three levels deep", targets);
+        assertTrue("Should find target", targets.length > 0);
+        assertEquals("c", targets[0].getText());
+    }
+
+    public void testFindUsagesFromObjectKey() {
+        // Ctrl+B on "vpc_cidr" in the object definition should find local.config.vpc_cidr usages
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  config = {
+                    vpc_cidr = "10.0.0.0/16"
+                  }
+                }
+
+                inputs = {
+                  cidr = local.config.vpc_cidr
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("vpc_cidr"); // the definition key
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        assertNotNull("Should find element at offset", element);
+        assertEquals("vpc_cidr", element.getText());
+
+        var handler = new com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler();
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should find usages of object key", targets);
+        assertTrue("Should find at least one usage", targets.length > 0);
+    }
+
+    public void testFindUsagesFromQuotedObjectKey() {
+        // Ctrl+B on the content of "vpc_cidr" (quoted key) should find usages
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  config = {
+                    "vpc_cidr" = "10.0.0.0/16"
+                  }
+                }
+
+                inputs = {
+                  cidr = local.config.vpc_cidr
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        // Find the first vpc_cidr which is inside the quoted key definition
+        int offset = text.indexOf("vpc_cidr");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        assertNotNull("Should find element at offset", element);
+
+        var handler = new com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler();
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should find usages from quoted object key", targets);
+        assertTrue("Should find at least one usage", targets.length > 0);
+    }
 }

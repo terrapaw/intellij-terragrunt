@@ -371,6 +371,15 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                         result.addElement(LookupElementBuilder.create("locals").withTypeText("config section").bold());
                         result.addElement(LookupElementBuilder.create("inputs").withTypeText("config section").bold());
                     }
+                } else {
+                    // Not a file alias — check if it's an object and suggest keys
+                    TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(file, aliasName);
+                    if (attr != null) {
+                        TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                        if (obj != null) {
+                            addObjectKeysToCompletion(obj, result);
+                        }
+                    }
                 }
             } else if (depth == 2 && getAttrs != null && getAttrs.length >= 2) {
                 // local.X.locals. or local.X.inputs. -> suggest attributes from resolved file
@@ -436,6 +445,30 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                                 }
                             }
                         }
+                    }
+                }
+            }
+            // Fallback for any depth: navigate into object keys
+            if (getAttrs != null && getAttrs.length >= 1) {
+                String localName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(file, localName);
+                if (attr != null) {
+                    TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                    // Walk into nested objects following the chain
+                    for (int idx = 1; idx < depth && obj != null; idx++) {
+                        String keyName = ((TerragruntGetAttr) getAttrs[idx]).getIdentifier().getText();
+                        TerragruntObjectElem matchedElem = null;
+                        for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                            PsiElement key = elem.getFirstChild();
+                            if (key != null && keyName.equals(key.getText().replace("\"", ""))) {
+                                matchedElem = elem;
+                                break;
+                            }
+                        }
+                        obj = matchedElem != null ? PsiTreeUtil.findChildOfType(matchedElem, TerragruntObjectExpr.class) : null;
+                    }
+                    if (obj != null) {
+                        addObjectKeysToCompletion(obj, result);
                     }
                 }
             }
@@ -648,6 +681,16 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     @Nullable
     private PsiFile resolveDeepChainForCompletion(PsiFile currentFile, PsiElement[] getAttrs, int startIndex, int depth, PsiFile originFile) {
         return TerragruntChainResolver.resolveChain(currentFile, getAttrs, startIndex, depth, originFile);
+    }
+
+    private void addObjectKeysToCompletion(TerragruntObjectExpr obj, com.intellij.codeInsight.completion.CompletionResultSet result) {
+        for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+            PsiElement key = elem.getFirstChild();
+            if (key != null) {
+                String keyText = key.getText().replace("\"", "");
+                result.addElement(LookupElementBuilder.create(keyText).withTypeText("object key").bold());
+            }
+        }
     }
 
     private void addCompletionsFromFile(PsiFile file, String section, com.intellij.codeInsight.completion.CompletionResultSet result) {

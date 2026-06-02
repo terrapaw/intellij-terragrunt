@@ -251,4 +251,56 @@ public class TerragruntCompletionInsertTest extends BasePlatformTestCase {
         String text = myFixture.getEditor().getDocument().getText();
         assertTrue("Typing \" should auto-insert closing quote", text.contains("\"\""));
     }
+
+    public void testObjectKeyCompletion() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  config = {
+                    network = {
+                      vpc_cidr = "10.0.0.0/16"
+                    }
+                    region = "us-east-1"
+                  }
+                }
+
+                inputs = {
+                  x = local.config.
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("local.config.") + "local.config.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for object keys", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'network'. Got: " + names, names.contains("network"));
+        assertTrue("Should suggest 'region'. Got: " + names, names.contains("region"));
+    }
+
+    public void testNestedObjectKeyCompletion() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  config = {
+                    network = {
+                      vpc_cidr = "10.0.0.0/16"
+                      az_count = 3
+                    }
+                  }
+                }
+
+                inputs = {
+                  x = local.config.network.
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("config.network.") + "config.network.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have completions for nested object keys", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'vpc_cidr'. Got: " + names, names.contains("vpc_cidr"));
+        assertTrue("Should suggest 'az_count'. Got: " + names, names.contains("az_count"));
+    }
 }
