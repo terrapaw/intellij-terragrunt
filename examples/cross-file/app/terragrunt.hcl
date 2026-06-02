@@ -23,9 +23,16 @@ inputs = {
   # Try: include.root.inputs. → autocomplete shows default_tags
   tags = include.root.inputs.default_tags
 
-  # Try: local.common.locals. → autocomplete shows org_name, team
+  # Try: local.common.locals. → autocomplete shows org_name, team, network
   org = local.common.locals.org_name
 
   # Try: local.common.inputs. → autocomplete shows notification_email, alert_slack_channel
   alerts = local.common.inputs.notification_email
+
+  # Cross-file nested object navigation:
+  # Try: local.common.locals.network. → suggests vpc_cidr, az_count, subnets
+  # Try: local.common.locals.network.subnets. → suggests public, private
+  # Try: Ctrl+B on vpc_cidr → jumps to common.hcl
+  vpc_cidr = local.common.locals.network.vpc_cidr
+  public   = local.common.locals.network.subnets.public
 }
