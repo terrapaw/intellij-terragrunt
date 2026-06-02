@@ -303,4 +303,35 @@ public class TerragruntCompletionInsertTest extends BasePlatformTestCase {
         assertTrue("Should suggest 'vpc_cidr'. Got: " + names, names.contains("vpc_cidr"));
         assertTrue("Should suggest 'az_count'. Got: " + names, names.contains("az_count"));
     }
+
+    public void testCrossFileNestedObjectKeyCompletion() {
+        myFixture.addFileToProject("root.hcl", "");
+        myFixture.addFileToProject("xfile-remote.hcl", """
+                locals {
+                  config = {
+                    network = {
+                      vpc_cidr = "10.0.0.0/16"
+                    }
+                  }
+                }
+                """);
+        com.intellij.psi.PsiFile child = myFixture.addFileToProject("xfile-child/terragrunt.hcl", """
+                locals {
+                  remote = read_terragrunt_config("../xfile-remote.hcl")
+                }
+
+                inputs = {
+                  x = local.remote.locals.config.network.
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(child.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("config.network.") + "config.network.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should have cross-file nested object completions", completions);
+        var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest 'vpc_cidr' from remote file's nested object. Got: " + names, names.contains("vpc_cidr"));
+    }
 }

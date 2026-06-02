@@ -6,6 +6,7 @@ plugins {
     id("java")
     id("org.jetbrains.intellij.platform") version "2.12.0"
     id("org.jetbrains.intellij.platform.grammarkit") version "2.12.0"
+    id("org.jetbrains.changelog") version "2.2.1"
 }
 
 group = "com.github.terrapaw"
@@ -39,15 +40,7 @@ intellijPlatform {
             sinceBuild = "251"
         }
         changeNotes = providers.provider {
-            val ver = project.version.toString()
-            val changelog = file("CHANGELOG.md").readText()
-            val section = changelog
-                .substringAfter("## [$ver]", "")
-                .ifEmpty { changelog.substringAfter("## [Unreleased]", "") }
-                .substringAfter("\n") // skip the date portion of the header line
-                .substringBefore("## [")
-                .trim()
-            if (section.isBlank()) "See CHANGELOG.md" else section
+            changelog.renderItem(changelog.get(project.version.toString()), org.jetbrains.changelog.Changelog.OutputType.HTML)
         }
     }
     pluginVerification {
@@ -58,6 +51,11 @@ intellijPlatform {
     publishing {
         token = providers.environmentVariable("PUBLISH_TOKEN")
     }
+}
+
+changelog {
+    version.set(project.version.toString())
+    path.set(file("CHANGELOG.md").canonicalPath)
 }
 
 sourceSets {
@@ -114,3 +112,4 @@ tasks {
         }
     }
 }
+
