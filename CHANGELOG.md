@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Cross-file nested object key completion (e.g. `local.remote.locals.config.network.` suggests keys from the remote file's nested object)
+
 ## [0.3.0] - 2026-06-02
 
 ### Added
