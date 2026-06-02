@@ -4,6 +4,17 @@ locals {
   app_name = "my-app"
   app_port = 8080
   env      = "dev"
+
+  # Object navigation — Ctrl+B works into nested keys
+  config = {
+    "network" = {
+      "vpc_cidr" = "10.0.0.0/16"
+      az_count = 3
+    }
+    tags = {
+      team = "platform"
+    }
+  }
 }
 
 # Try: Ctrl+B on "vpc" label below → finds all dependency.vpc usages
@@ -54,6 +65,10 @@ inputs = {
 
   # Try: Ctrl+Q on merge for documentation popup
   tags = merge({Name = local.app_name}, {Env = local.env})
+
+  # Try: Ctrl+B on network, vpc_cidr, or team → navigates into nested object keys
+  vpc_cidr = local.config.network.vpc_cidr
+  team     = local.config.tags.team
 }
 
 # Heredoc with interpolation — ${...} works inside heredocs too
