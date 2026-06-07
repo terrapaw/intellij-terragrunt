@@ -491,6 +491,7 @@ public class TerragruntFileResolver {
                                                 String sourceFileName, PsiFile sourceFile, List<VirtualFile> dirs) {
         for (VirtualFile child : dir.getChildren()) {
             if (child.isDirectory()) {
+                if (child.getName().startsWith(".") || child.getName().equals("node_modules")) continue;
                 findIncludersRecursive(child, project, sourceFileName, sourceFile, dirs);
             } else if (child.getName().endsWith(".hcl")) {
                 PsiFile psiFile = PsiManager.getInstance(project).findFile(child);

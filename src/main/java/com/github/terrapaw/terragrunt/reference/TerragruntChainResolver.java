@@ -104,7 +104,7 @@ public final class TerragruntChainResolver {
 
         while (i < endIndex && file != null) {
             String name = ((TerragruntGetAttr) getAttrs[i]).getIdentifier().getText();
-            if (i + 1 < getAttrs.length) {
+            if (i + 1 < endIndex) {
                 String next = ((TerragruntGetAttr) getAttrs[i + 1]).getIdentifier().getText();
                 if ("locals".equals(next) || "inputs".equals(next)) {
                     file = resolveLocalAlias(file, name);

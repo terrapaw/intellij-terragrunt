@@ -58,9 +58,15 @@ public class TerragruntSettings implements PersistentStateComponent<TerragruntSe
     private static String detectBinaryFromPath() {
         String pathEnv = System.getenv("PATH");
         if (pathEnv == null) return "terragrunt";
+        boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
+        String[] names = isWindows
+                ? new String[]{"terragrunt.exe", "terragrunt.cmd", "terragrunt"}
+                : new String[]{"terragrunt"};
         for (String dir : pathEnv.split(java.io.File.pathSeparator)) {
-            java.io.File candidate = new java.io.File(dir, "terragrunt");
-            if (candidate.isFile() && candidate.canExecute()) return candidate.getAbsolutePath();
+            for (String name : names) {
+                java.io.File candidate = new java.io.File(dir, name);
+                if (candidate.isFile() && candidate.canExecute()) return candidate.getAbsolutePath();
+            }
         }
         return "terragrunt";
     }
