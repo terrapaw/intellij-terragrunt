@@ -4,9 +4,9 @@ import org.gradle.kotlin.dsl.KotlinClosure2
 
 plugins {
     id("java")
-    id("org.jetbrains.intellij.platform") version "2.12.0"
-    id("org.jetbrains.intellij.platform.grammarkit") version "2.12.0"
-    id("org.jetbrains.changelog") version "2.2.1"
+    id("org.jetbrains.intellij.platform") version "2.16.0"
+    id("org.jetbrains.intellij.platform.grammarkit") version "2.16.0"
+    id("org.jetbrains.changelog") version "2.5.0"
 }
 
 group = "com.github.terrapaw"
