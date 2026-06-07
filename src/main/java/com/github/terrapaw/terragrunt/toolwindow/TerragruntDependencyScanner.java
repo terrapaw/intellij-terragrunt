@@ -3,7 +3,6 @@ package com.github.terrapaw.terragrunt.toolwindow;
 import com.github.terrapaw.terragrunt.lang.TerragruntFileDetection;
 import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute;
-import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBody;
 import com.intellij.openapi.project.Project;

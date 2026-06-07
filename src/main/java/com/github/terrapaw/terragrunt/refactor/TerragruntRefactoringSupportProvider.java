@@ -3,7 +3,6 @@ package com.github.terrapaw.terragrunt.refactor;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute;
 import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
-import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.lang.refactoring.RefactoringSupportProvider;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;

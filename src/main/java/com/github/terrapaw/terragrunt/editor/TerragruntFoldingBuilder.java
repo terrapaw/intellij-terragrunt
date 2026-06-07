@@ -3,7 +3,6 @@ package com.github.terrapaw.terragrunt.editor;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
 import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.lang.ASTNode;
-import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.lang.folding.FoldingBuilderEx;
 import com.intellij.lang.folding.FoldingDescriptor;
 import com.intellij.openapi.editor.Document;

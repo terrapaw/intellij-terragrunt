@@ -3,7 +3,6 @@ package com.github.terrapaw.terragrunt.refactor;
 import com.github.terrapaw.terragrunt.lang.TerragruntFile;
 import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.*;
-import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.command.WriteCommandAction;

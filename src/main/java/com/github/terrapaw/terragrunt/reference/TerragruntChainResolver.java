@@ -3,7 +3,6 @@ package com.github.terrapaw.terragrunt.reference;
 import com.github.terrapaw.terragrunt.lang.psi.*;
 import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.psi.PsiElement;
-import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.Nullable;

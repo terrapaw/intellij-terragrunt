@@ -3,7 +3,6 @@ package com.github.terrapaw.terragrunt.inspection;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
 import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBody;
-import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.schema.TerragruntSchema;
 import com.intellij.codeInspection.*;
 import com.intellij.psi.PsiElement;

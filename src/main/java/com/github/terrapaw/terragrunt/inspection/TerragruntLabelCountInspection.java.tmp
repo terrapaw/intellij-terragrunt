@@ -1,0 +1,11 @@
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
+import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
+import com.github.terrapaw.terragrunt.lang.psi.TerragruntLabel;
+import com.github.terrapaw.terragrunt.schema.TerragruntSchema;
+import com.intellij.codeInspection.ProblemHighlightType;
+import com.intellij.codeInspection.ProblemsHolder;
+import com.intellij.psi.PsiElementVisitor;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.util.PsiTreeUtil;
+import java.util.Collection;
+import org.jetbrains.annotations.NotNull;

@@ -1,0 +1,14 @@
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
+import com.github.terrapaw.terragrunt.lang.psi.*;
+import com.github.terrapaw.terragrunt.reference.TerragruntChainResolver;
+import com.github.terrapaw.terragrunt.reference.TerragruntFileResolver;
+import com.github.terrapaw.terragrunt.schema.TerragruntSchema;
+import com.intellij.codeInsight.completion.*;
+import com.intellij.codeInsight.lookup.LookupElementBuilder;
+import com.intellij.patterns.PlatformPatterns;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.util.ProcessingContext;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
