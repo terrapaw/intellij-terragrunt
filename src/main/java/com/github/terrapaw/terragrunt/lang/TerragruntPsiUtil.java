@@ -23,13 +23,22 @@ public final class TerragruntPsiUtil {
     }
 
     /**
+     * Returns the block type name, or null if the block has no identifier (broken PSI).
+     */
+    @Nullable
+    public static String getBlockType(@NotNull TerragruntBlock block) {
+        var id = block.getIdentifier();
+        return id != null ? id.getText() : null;
+    }
+
+    /**
      * Finds a block by type and label name in the given file.
      * Returns null if not found.
      */
     @Nullable
     public static TerragruntBlock findBlock(@NotNull PsiFile file, @NotNull String blockType, @NotNull String labelName) {
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!blockType.equals(block.getIdentifier().getText())) continue;
+            if (!blockType.equals(getBlockType(block))) continue;
             for (TerragruntLabel label : block.getLabelList()) {
                 if (labelName.equals(getLabelText(label))) return block;
             }

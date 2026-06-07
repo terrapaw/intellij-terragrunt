@@ -101,7 +101,7 @@ public class TerragruntUnresolvedPathInspection extends TerragruntBaseInspection
                 // Resolve relative path
                 PsiFile file = attr.getContainingFile();
                 VirtualFile vFile = file.getVirtualFile();
-                if (vFile == null) return;
+                if (vFile == null || vFile.getParent() == null) return;
                 File baseDir = new File(vFile.getParent().getPath());
                 File target = new File(baseDir, path);
 

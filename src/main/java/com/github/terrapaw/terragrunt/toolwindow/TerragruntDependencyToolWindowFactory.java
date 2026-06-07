@@ -37,7 +37,8 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
 
     private List<TerragruntDependencyScanner.DependencyNode> allNodes = List.of();
     private Set<String> entryPoints = Set.of();
-    private boolean dirty = false;
+    private volatile boolean dirty = false;
+    private org.jetbrains.concurrency.CancellablePromise<?> pendingRefresh;
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
@@ -49,13 +50,15 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
         tree.setShowsRootHandles(true);
         tree.setCellRenderer(new DependencyTreeCellRenderer());
 
+        // Search filter (declared early so toolbar can reference it)
+        final FilterComponent[] filterRef = new FilterComponent[1];
+
         // Toolbar
         DefaultActionGroup actionGroup = new DefaultActionGroup();
         actionGroup.add(new AnAction("Refresh", "Rescan dependencies", AllIcons.Actions.Refresh) {
             @Override
             public void actionPerformed(@NotNull AnActionEvent e) {
-                com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
-                renderTree(root, tree, "");
+                scheduleRefresh(project, root, tree, filterRef[0]);
             }
         });
         actionGroup.add(new AnAction("Expand All", "Expand all nodes", AllIcons.Actions.Expandall) {
@@ -88,6 +91,7 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                 renderTree(root, tree, getFilter());
             }
         };
+        filterRef[0] = filter;
 
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.add(toolbar.getComponent(), BorderLayout.NORTH);
@@ -118,10 +122,7 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                         ev.getFile() != null && ev.getFile().getName().endsWith(".hcl"));
                 if (relevant) {
                     if (toolWindow.isVisible()) {
-                        SwingUtilities.invokeLater(() -> {
-                            com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
-                            renderTree(root, tree, filter.getFilter());
-                        });
+                        scheduleRefresh(project, root, tree, filterRef[0]);
                     } else {
                         dirty = true;
                     }
@@ -135,19 +136,27 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
             public void selectionChanged(@NotNull com.intellij.ui.content.ContentManagerEvent event) {
                 if (dirty && toolWindow.isVisible()) {
                     dirty = false;
-                    SwingUtilities.invokeLater(() -> {
-                        com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
-                        renderTree(root, tree, filter.getFilter());
-                    });
+                    scheduleRefresh(project, root, tree, filterRef[0]);
                 }
             }
         });
 
-        com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
-        renderTree(root, tree, "");
+        scheduleRefresh(project, root, tree, filterRef[0]);
 
         Content content = ContentFactory.getInstance().createContent(panel, "", false);
         toolWindow.getContentManager().addContent(content);
+    }
+
+    private void scheduleRefresh(Project project, DefaultMutableTreeNode root, Tree tree, FilterComponent filter) {
+        if (pendingRefresh != null && !pendingRefresh.isDone()) {
+            pendingRefresh.cancel();
+        }
+        pendingRefresh = com.intellij.openapi.application.ReadAction.nonBlocking(() -> {
+            refreshData(project);
+            return null;
+        }).finishOnUiThread(com.intellij.openapi.application.ModalityState.defaultModalityState(), result -> {
+            renderTree(root, tree, filter != null ? filter.getFilter() : "");
+        }).submit(com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService());
     }
 
     private void refreshData(Project project) {
@@ -155,12 +164,13 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
         // Entry points = units that no other unit depends on
         Set<String> allDepPaths = new HashSet<>();
         for (var node : allNodes) allDepPaths.addAll(node.dependencyPaths());
-        entryPoints = new HashSet<>();
+        Set<String> newEntryPoints = new HashSet<>();
         for (var node : allNodes) {
             if (!allDepPaths.contains(node.file().getPath())) {
-                entryPoints.add(node.file().getPath());
+                newEntryPoints.add(node.file().getPath());
             }
         }
+        entryPoints = newEntryPoints;
     }
 
     private void renderTree(DefaultMutableTreeNode root, Tree tree, String filterText) {
@@ -235,6 +245,7 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                 menu.add(new AbstractAction("Run terragrunt " + cmd) {
                     @Override
                     public void actionPerformed(java.awt.event.ActionEvent ev) {
+                        if (info.file().getParent() == null) return;
                         runCommand(project, cmd, info.file().getParent().getPath());
                     }
                 });
@@ -318,7 +329,12 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                 VirtualFile file = chosen.findOrCreateChildData(this, "dependency-graph.dot");
                 file.setBinaryContent(dot.toString().getBytes());
                 FileEditorManager.getInstance(project).openFile(file, true);
-            } catch (java.io.IOException ignored) {}
+            } catch (java.io.IOException ex) {
+                com.intellij.notification.Notifications.Bus.notify(
+                        new com.intellij.notification.Notification("Terragrunt", "Export Failed",
+                                "Could not write dependency-graph.dot: " + ex.getMessage(),
+                                com.intellij.notification.NotificationType.ERROR));
+            }
         });
     }
 

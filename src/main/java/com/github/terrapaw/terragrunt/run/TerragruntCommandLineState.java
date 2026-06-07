@@ -28,14 +28,15 @@ public class TerragruntCommandLineState extends CommandLineState {
         cmd.setExePath(binary);
 
         // Add command (may be multi-word like "stack generate")
-        for (String part : config.getCommand().split("\\s+")) {
+        String command = config.getCommand() != null ? config.getCommand() : "plan";
+        for (String part : command.split("\\s+")) {
             cmd.addParameter(part);
         }
 
-        // Add additional args
+        // Add additional args (respects quoted strings)
         String args = config.getAdditionalArgs();
         if (args != null && !args.isBlank()) {
-            for (String arg : args.split("\\s+")) {
+            for (String arg : com.intellij.util.execution.ParametersListUtil.parse(args)) {
                 cmd.addParameter(arg);
             }
         }

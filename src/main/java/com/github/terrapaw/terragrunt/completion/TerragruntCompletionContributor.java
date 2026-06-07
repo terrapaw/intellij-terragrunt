@@ -164,7 +164,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     }
 
     private void addBlockAttributeCompletions(@NotNull TerragruntBlock block, @NotNull CompletionResultSet result) {
-        String blockType = block.getIdentifier().getText();
+        String blockType = TerragruntPsiUtil.getBlockType(block);
         TerragruntSchema.BlockDef def = TerragruntSchema.getBlock(blockType);
         if (def == null) return;
 
@@ -283,7 +283,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
             if (depth == 0) {
                 // dependency. -> suggest dependency names
                 for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-                    if ("dependency".equals(block.getIdentifier().getText())) {
+                    if ("dependency".equals(TerragruntPsiUtil.getBlockType(block))) {
                         for (TerragruntLabel label : block.getLabelList()) {
                             String name = TerragruntPsiUtil.getLabelText(label);
                             result.addElement(LookupElementBuilder.create(name).withTypeText("dependency").bold());
@@ -299,10 +299,9 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                         ? ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText() : null;
                 if (depName != null) {
                     for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-                        if (!"dependency".equals(block.getIdentifier().getText())) continue;
-                        for (TerragruntLabel label : block.getLabelList()) {
-                            if (!depName.equals(TerragruntPsiUtil.getLabelText(label))) continue;
-                        }
+                        if (!"dependency".equals(TerragruntPsiUtil.getBlockType(block))) continue;
+                        java.util.List<com.github.terrapaw.terragrunt.lang.psi.TerragruntLabel> labels = block.getLabelList();
+                        if (labels.isEmpty() || !depName.equals(TerragruntPsiUtil.getLabelText(labels.get(0)))) continue;
                         // Find mock_outputs attribute in this block
                         TerragruntBody body = block.getBody();
                         if (body == null) continue;
@@ -326,7 +325,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
             if (depth == 0) {
                 // local. -> suggest locals attributes
                 for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-                    if ("locals".equals(block.getIdentifier().getText())) {
+                    if ("locals".equals(TerragruntPsiUtil.getBlockType(block))) {
                         TerragruntBody body = block.getBody();
                         if (body == null) continue;
                         for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -344,7 +343,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                     if (isIncludeLocalsAlias(file, aliasName)) {
                         // Already points to locals — suggest attributes directly
                         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(resolvedFile, TerragruntBlock.class)) {
-                            if (!"locals".equals(block.getIdentifier().getText())) continue;
+                            if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                             TerragruntBody body = block.getBody();
                             if (body == null) continue;
                             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -391,7 +390,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                         // Find the matching top-level block or attribute
                         if ("locals".equals(section)) {
                             for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(resolvedFile, TerragruntBlock.class)) {
-                                if (!"locals".equals(block.getIdentifier().getText())) continue;
+                                if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                                 TerragruntBody body = block.getBody();
                                 if (body == null) continue;
                                 for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -513,7 +512,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
             if (depth == 0) {
                 // feature. -> suggest feature names
                 for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-                    if ("feature".equals(block.getIdentifier().getText())) {
+                    if ("feature".equals(TerragruntPsiUtil.getBlockType(block))) {
                         for (TerragruntLabel label : block.getLabelList()) {
                             String name = TerragruntPsiUtil.getLabelText(label);
                             result.addElement(LookupElementBuilder.create(name).withTypeText("feature").bold());
@@ -528,7 +527,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
             if (depth == 0) {
                 // include. -> suggest include labels
                 for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-                    if ("include".equals(block.getIdentifier().getText())) {
+                    if ("include".equals(TerragruntPsiUtil.getBlockType(block))) {
                         for (TerragruntLabel label : block.getLabelList()) {
                             String name = TerragruntPsiUtil.getLabelText(label);
                             result.addElement(LookupElementBuilder.create(name).withTypeText("include").bold());
@@ -550,7 +549,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                     PsiFile targetFile = TerragruntFileResolver.resolveInclude(includeBlock);
                     if (targetFile != null && "locals".equals(section)) {
                         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(targetFile, TerragruntBlock.class)) {
-                            if (!"locals".equals(block.getIdentifier().getText())) continue;
+                            if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                             TerragruntBody body = block.getBody();
                             if (body == null) continue;
                             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -656,7 +655,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 if (isIncludeLocalsAlias(file, parts[1])) {
                     // include.X.locals alias -> suggest attributes directly
                     for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(resolved, TerragruntBlock.class)) {
-                        if (!"locals".equals(block.getIdentifier().getText())) continue;
+                        if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                         TerragruntBody body = block.getBody();
                         if (body == null) continue;
                         for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -689,7 +688,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
             PsiFile resolved = resolveLocalAliasForCompletion(file, parts[1]);
             if (resolved != null) {
                 for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(resolved, TerragruntBlock.class)) {
-                    if (!"locals".equals(block.getIdentifier().getText())) continue;
+                    if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                     TerragruntBody body = block.getBody();
                     if (body == null) continue;
                     for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -701,7 +700,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
         } else if ("dependency".equals(rootVar) && parts.length == 1) {
             // dependency. -> suggest dependency names
             for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-                if (!"dependency".equals(block.getIdentifier().getText())) continue;
+                if (!"dependency".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                 for (TerragruntLabel label : block.getLabelList()) {
                     result.addElement(LookupElementBuilder.create(TerragruntPsiUtil.getLabelText(label)).withTypeText("dependency").bold());
                 }
@@ -733,7 +732,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     private void addCompletionsFromFile(PsiFile file, String section, com.intellij.codeInsight.completion.CompletionResultSet result) {
         if ("locals".equals(section)) {
             for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-                if (!"locals".equals(block.getIdentifier().getText())) continue;
+                if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                 TerragruntBody body = block.getBody();
                 if (body == null) continue;
                 for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {

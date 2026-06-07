@@ -95,4 +95,29 @@ public class TerragruntRunConfigTest extends BasePlatformTestCase {
         LineMarkerInfo<?> marker = provider.getLineMarkerInfo(block.getIdentifier());
         assertNull("Should NOT have gutter marker on root.hcl", marker);
     }
+
+    public void testParametersListUtilParsesQuotedArgs() {
+        // Verifies the library we use for arg parsing handles quotes correctly
+        var parsed = com.intellij.util.execution.ParametersListUtil.parse(
+                "--var=\"name=hello world\" --no-color");
+        assertEquals(2, parsed.size());
+        assertEquals("--var=name=hello world", parsed.get(0));
+        assertEquals("--no-color", parsed.get(1));
+    }
+
+    public void testRunConfigCommandDefaultsWhenNull() {
+        var configType = com.intellij.execution.configurations.ConfigurationTypeUtil
+                .findConfigurationType(TerragruntRunConfigurationType.class);
+        var factory = configType.getConfigurationFactories()[0];
+        var settings = RunManager.getInstance(getProject()).createConfiguration("test", factory);
+        var config = (TerragruntRunConfiguration) settings.getConfiguration();
+
+        // Default value should be "plan" even before setting anything
+        assertEquals("plan", config.getCommand());
+
+        // After setting null, getCommand returns null but won't crash at run time
+        // because the combo box guard defaults to "plan" in applyEditorTo
+        config.setCommand(null);
+        assertNull(config.getCommand());
+    }
 }

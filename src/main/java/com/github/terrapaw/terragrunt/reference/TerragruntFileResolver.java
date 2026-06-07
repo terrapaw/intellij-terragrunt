@@ -23,7 +23,7 @@ public class TerragruntFileResolver {
      */
     @Nullable
     public static PsiFile resolveInclude(TerragruntBlock includeBlock) {
-        if (!"include".equals(includeBlock.getIdentifier().getText())) return null;
+        if (!"include".equals(TerragruntPsiUtil.getBlockType(includeBlock))) return null;
         TerragruntBody body = includeBlock.getBody();
         if (body == null) return null;
 
@@ -142,7 +142,7 @@ public class TerragruntFileResolver {
     @Nullable
     public static TerragruntAttribute findLocalAttribute(PsiFile file, String name) {
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"locals".equals(block.getIdentifier().getText())) continue;
+            if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
             TerragruntBody body = block.getBody();
             if (body == null) continue;
             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -324,7 +324,7 @@ public class TerragruntFileResolver {
             String includeName = extractFunctionArg(expr); // null if no arg
             Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(sourceFile, TerragruntBlock.class);
             for (TerragruntBlock block : blocks) {
-                if (!"include".equals(block.getIdentifier().getText())) continue;
+                if (!"include".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                 if (includeName != null) {
                     boolean matches = false;
                     for (TerragruntLabel label : block.getLabelList()) {
@@ -491,13 +491,14 @@ public class TerragruntFileResolver {
                                                 String sourceFileName, PsiFile sourceFile, List<VirtualFile> dirs) {
         for (VirtualFile child : dir.getChildren()) {
             if (child.isDirectory()) {
+                if (child.getName().startsWith(".") || child.getName().equals("node_modules")) continue;
                 findIncludersRecursive(child, project, sourceFileName, sourceFile, dirs);
             } else if (child.getName().endsWith(".hcl")) {
                 PsiFile psiFile = PsiManager.getInstance(project).findFile(child);
                 if (psiFile == null || psiFile.equals(sourceFile)) continue;
                 // Check if this file has include { path = find_in_parent_folders("sourceFileName") }
                 for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(psiFile, TerragruntBlock.class)) {
-                    if (!"include".equals(block.getIdentifier().getText())) continue;
+                    if (!"include".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                     TerragruntBody body = block.getBody();
                     if (body == null) continue;
                     for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {

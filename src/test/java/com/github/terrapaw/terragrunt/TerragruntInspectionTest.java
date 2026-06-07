@@ -377,4 +377,26 @@ public class TerragruntInspectionTest extends BasePlatformTestCase {
                 .count();
         assertEquals("noinspection comment should suppress warning", 0, warnings);
     }
+
+    public void testInspectionDoesNotCrashOnBlockAtFileStart() {
+        // Regression test: isSuppressedFor should handle blocks at file start
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnknownBlockInspection());
+        myFixture.configureByText("terragrunt.hcl", "badblock {\n}\n");
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getSeverity().getName().equals("WARNING") || h.getSeverity().getName().equals("GENERIC_ERROR_OR_WARNING"))
+                .count();
+        assertTrue("Should produce a warning, not crash", warnings > 0);
+    }
+
+    public void testInspectionDoesNotCrashOnBlockAfterSingleNewline() {
+        // Edge case: block on line 2 where prevLineStart would be -1
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnknownBlockInspection());
+        myFixture.configureByText("terragrunt.hcl", "\nbadblock {\n}\n");
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getSeverity().getName().equals("WARNING") || h.getSeverity().getName().equals("GENERIC_ERROR_OR_WARNING"))
+                .count();
+        assertTrue("Should produce a warning, not crash", warnings > 0);
+    }
 }

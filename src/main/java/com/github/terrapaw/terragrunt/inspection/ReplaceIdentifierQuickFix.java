@@ -38,12 +38,13 @@ public class ReplaceIdentifierQuickFix implements LocalQuickFix {
                 "dummy.hcl", element.getContainingFile().getFileType(),
                 replacement + " {}");
         TerragruntBlock block = PsiTreeUtil.findChildOfType(dummyFile, TerragruntBlock.class);
-        if (block != null) {
+        if (block != null && block.getIdentifier() != null) {
             element.replace(block.getIdentifier());
         }
     }
 
     public static String findClosest(String input, Iterable<String> candidates) {
+        if (input == null) return null;
         String best = null;
         int bestDist = Integer.MAX_VALUE;
         for (String candidate : candidates) {

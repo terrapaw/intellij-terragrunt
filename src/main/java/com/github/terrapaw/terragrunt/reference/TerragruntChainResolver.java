@@ -1,6 +1,7 @@
 package com.github.terrapaw.terragrunt.reference;
 
 import com.github.terrapaw.terragrunt.lang.psi.*;
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -21,7 +22,7 @@ public final class TerragruntChainResolver {
     @Nullable
     public static PsiFile resolveLocalAlias(PsiFile file, String aliasName) {
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"locals".equals(block.getIdentifier().getText())) continue;
+            if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
             TerragruntBody body = block.getBody();
             if (body == null) continue;
             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -70,7 +71,7 @@ public final class TerragruntChainResolver {
      */
     public static boolean isIncludeAlias(PsiFile file, String aliasName, String section) {
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"locals".equals(block.getIdentifier().getText())) continue;
+            if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
             TerragruntBody body = block.getBody();
             if (body == null) continue;
             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -103,7 +104,7 @@ public final class TerragruntChainResolver {
 
         while (i < endIndex && file != null) {
             String name = ((TerragruntGetAttr) getAttrs[i]).getIdentifier().getText();
-            if (i + 1 < getAttrs.length) {
+            if (i + 1 < endIndex) {
                 String next = ((TerragruntGetAttr) getAttrs[i + 1]).getIdentifier().getText();
                 if ("locals".equals(next) || "inputs".equals(next)) {
                     file = resolveLocalAlias(file, name);

@@ -84,7 +84,8 @@ public class TerragruntRunConfiguration extends RunConfigurationBase<TerragruntR
 
         @Override
         protected void applyEditorTo(@NotNull TerragruntRunConfiguration config) {
-            config.setCommand((String) commandCombo.getSelectedItem());
+            Object selected = commandCombo.getSelectedItem();
+            config.setCommand(selected != null ? (String) selected : "plan");
             config.setWorkingDirectory(workingDirField.getText());
             config.setAdditionalArgs(additionalArgsField.getText());
         }

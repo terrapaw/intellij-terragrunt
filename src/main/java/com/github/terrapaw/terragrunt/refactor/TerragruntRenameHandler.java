@@ -1,6 +1,7 @@
 package com.github.terrapaw.terragrunt.refactor;
 
 import com.github.terrapaw.terragrunt.lang.TerragruntFile;
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.*;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
@@ -65,7 +66,7 @@ public class TerragruntRenameHandler implements RenameHandler {
         if (element.getParent() instanceof TerragruntAttribute attr) {
             if (element == attr.getIdentifier()) {
                 TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
-                if (block != null && "locals".equals(block.getIdentifier().getText())) {
+                if (block != null && "locals".equals(TerragruntPsiUtil.getBlockType(block))) {
                     return element;
                 }
             }
@@ -93,7 +94,7 @@ public class TerragruntRenameHandler implements RenameHandler {
 
         // Find the definition in locals block
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"locals".equals(block.getIdentifier().getText())) continue;
+            if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
             TerragruntBody body = block.getBody();
             if (body == null) continue;
             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {

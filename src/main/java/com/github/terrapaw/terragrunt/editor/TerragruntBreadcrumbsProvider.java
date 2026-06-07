@@ -30,7 +30,8 @@ public class TerragruntBreadcrumbsProvider implements BreadcrumbsProvider {
     @Override
     public @NotNull String getElementInfo(@NotNull PsiElement element) {
         if (element instanceof TerragruntBlock block) {
-            String name = block.getIdentifier().getText();
+            String name = TerragruntPsiUtil.getBlockType(block);
+            if (name == null) return "?";
             List<TerragruntLabel> labels = block.getLabelList();
             if (!labels.isEmpty()) {
                 name += " \"" + TerragruntPsiUtil.getLabelText(labels.get(0)) + "\"";

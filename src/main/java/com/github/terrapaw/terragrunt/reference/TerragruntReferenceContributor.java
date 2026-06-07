@@ -35,8 +35,8 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
 
                         TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
                         if (block == null) return PsiReference.EMPTY_ARRAY;
-                        String blockType = block.getIdentifier().getText();
-                        if (!blockType.equals("include") && !blockType.equals("dependency")) return PsiReference.EMPTY_ARRAY;
+                        String blockType = TerragruntPsiUtil.getBlockType(block);
+                        if (!"include".equals(blockType) && !"dependency".equals(blockType)) return PsiReference.EMPTY_ARRAY;
 
                         String text = element.getText();
                         if (text.length() < 3 || text.contains("${")) return PsiReference.EMPTY_ARRAY;
@@ -106,7 +106,7 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
             PsiFile file = myElement.getContainingFile();
             Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
             for (TerragruntBlock block : blocks) {
-                if (!"locals".equals(block.getIdentifier().getText())) continue;
+                if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                 TerragruntBody body = block.getBody();
                 if (body == null) continue;
                 for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -133,7 +133,7 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
             PsiFile file = myElement.getContainingFile();
             Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
             for (TerragruntBlock block : blocks) {
-                if (!"dependency".equals(block.getIdentifier().getText())) continue;
+                if (!"dependency".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                 for (TerragruntLabel label : block.getLabelList()) {
                     String labelText = TerragruntPsiUtil.getLabelText(label);
                     if (depName.equals(labelText)) {
@@ -159,7 +159,7 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
             PsiFile file = myElement.getContainingFile();
             Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
             for (TerragruntBlock block : blocks) {
-                if (!"feature".equals(block.getIdentifier().getText())) continue;
+                if (!"feature".equals(TerragruntPsiUtil.getBlockType(block))) continue;
                 for (TerragruntLabel label : block.getLabelList()) {
                     String labelText = TerragruntPsiUtil.getLabelText(label);
                     if (featureName.equals(labelText)) {
@@ -185,7 +185,7 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
         @Override
         public PsiElement resolve() {
             VirtualFile vFile = myElement.getContainingFile().getVirtualFile();
-            if (vFile == null) return null;
+            if (vFile == null || vFile.getParent() == null) return null;
             File baseDir = new File(vFile.getParent().getPath());
             File target = new File(baseDir, path);
             if (isDirectory) {

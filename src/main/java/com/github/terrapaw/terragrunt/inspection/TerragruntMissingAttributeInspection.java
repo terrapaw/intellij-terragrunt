@@ -1,6 +1,7 @@
 package com.github.terrapaw.terragrunt.inspection;
 
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute;
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBody;
 import com.github.terrapaw.terragrunt.schema.TerragruntSchema;
@@ -25,7 +26,8 @@ public class TerragruntMissingAttributeInspection extends TerragruntBaseInspecti
             public void visitElement(@NotNull PsiElement element) {
                 if (!(element instanceof TerragruntBlock block)) return;
 
-                String blockType = block.getIdentifier().getText();
+                if (block.getIdentifier() == null) return;
+                String blockType = TerragruntPsiUtil.getBlockType(block);
                 TerragruntSchema.BlockDef def = TerragruntSchema.getBlock(blockType);
                 if (def == null) return;
 

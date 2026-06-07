@@ -24,7 +24,8 @@ public class TerragruntDuplicateBlockInspection extends TerragruntBaseInspection
                 Map<String, TerragruntBlock> seen = new HashMap<>();
 
                 for (TerragruntBlock block : blocks) {
-                    String type = block.getIdentifier().getText();
+                    if (block.getIdentifier() == null) continue;
+                    String type = TerragruntPsiUtil.getBlockType(block);
 
                     // Unlabeled blocks (locals, terraform) can appear multiple times — Terragrunt merges them
                     List<TerragruntLabel> labels = block.getLabelList();

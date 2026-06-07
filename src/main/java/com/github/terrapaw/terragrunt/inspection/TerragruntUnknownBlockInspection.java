@@ -1,6 +1,7 @@
 package com.github.terrapaw.terragrunt.inspection;
 
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBody;
 import com.github.terrapaw.terragrunt.schema.TerragruntSchema;
 import com.intellij.codeInspection.*;
@@ -20,7 +21,8 @@ public class TerragruntUnknownBlockInspection extends TerragruntBaseInspection {
                 if (!(block.getParent() instanceof TerragruntBody body)) return;
                 if (body.getParent() instanceof TerragruntBlock) return;
 
-                String name = block.getIdentifier().getText();
+                if (block.getIdentifier() == null) return;
+                String name = TerragruntPsiUtil.getBlockType(block);
                 if (!TerragruntSchema.isKnownBlock(name)) {
                     String closest = ReplaceIdentifierQuickFix.findClosest(name, TerragruntSchema.getAllBlocks().keySet());
                     if (closest != null) {

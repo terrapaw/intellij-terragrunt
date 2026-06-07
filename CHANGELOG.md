@@ -18,6 +18,13 @@
 - Binary path setting in Settings → Languages & Frameworks → Terragrunt (auto-detects from PATH)
 - Dependency tree tool window (View → Tool Windows → Terragrunt Dependencies) showing DAG of dependency blocks across the project
 
+### Fixed
+- `feature.X.value` and `dependency.X.outputs.Y` navigation incorrectly matched the first block instead of the named one when multiple blocks existed
+- `dependency.X.outputs.` completion suggested mock_outputs keys from the wrong dependency block when multiple existed
+- Potential crash during live editing when parser produces incomplete block nodes (null identifier guard)
+- StackOverflow crash on projects with `.terragrunt-cache` symlinks during find-usages (now skips hidden dirs)
+- Chain resolver reading past cursor boundary causing incorrect completion in deep chains
+
 ## [0.3.0] - 2026-06-02
 
 ### Added
