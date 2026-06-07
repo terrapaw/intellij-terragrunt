@@ -71,6 +71,8 @@
                         implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntCommenter"/>
         <lang.foldingBuilder language="Terragrunt"
                              implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntFoldingBuilder"/>
+        <lang.psiStructureViewFactory language="Terragrunt"
+                                      implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntStructureViewFactory"/>
         <lang.formatter language="Terragrunt"
                         implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntFormattingModelBuilder"/>
         <langCodeStyleSettingsProvider implementation="com.github.terrapaw.terragrunt.editor.TerragruntCodeStyleSettingsProvider"/>

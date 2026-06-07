@@ -85,4 +85,53 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
             assertFalse(name + " should not be empty", result.isBlank());
         }
     }
+
+    public void testStructureViewShowsBlocksAndAttributes() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  region = "us-east-1"
+                }
+
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+
+                inputs = {
+                  name = "app"
+                }
+                """);
+        var factory = new com.github.terrapaw.terragrunt.editor.TerragruntStructureViewFactory();
+        var viewBuilder = factory.getStructureViewBuilder(file);
+        assertNotNull("Structure view builder should be created", viewBuilder);
+
+        var model = ((com.intellij.ide.structureView.TreeBasedStructureViewBuilder) viewBuilder)
+                .createStructureViewModel(myFixture.getEditor());
+        var root = model.getRoot();
+        var children = root.getChildren();
+
+        // Should have: locals, dependency "vpc", inputs
+        assertTrue("Should have at least 3 top-level elements", children.length >= 3);
+
+        var names = new java.util.ArrayList<String>();
+        for (var child : children) {
+            names.add(child.getPresentation().getPresentableText());
+        }
+        assertTrue("Should contain locals block", names.contains("locals"));
+        assertTrue("Should contain dependency with label",
+                names.stream().anyMatch(n -> n.contains("dependency") && n.contains("vpc")));
+        assertTrue("Should contain inputs attribute", names.contains("inputs"));
+
+        // Verify inputs shows its object keys as children
+        for (var child : children) {
+            if ("inputs".equals(child.getPresentation().getPresentableText())) {
+                var inputChildren = ((com.intellij.ide.structureView.StructureViewTreeElement) child).getChildren();
+                assertTrue("inputs should show object keys as children", inputChildren.length > 0);
+                var childNames = new java.util.ArrayList<String>();
+                for (var ic : inputChildren) {
+                    childNames.add(ic.getPresentation().getPresentableText());
+                }
+                assertTrue("inputs should contain 'name' key", childNames.contains("name"));
+            }
+        }
+    }
 }
