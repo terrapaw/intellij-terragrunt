@@ -36,7 +36,7 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
                         TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
                         if (block == null) return PsiReference.EMPTY_ARRAY;
                         String blockType = TerragruntPsiUtil.getBlockType(block);
-                        if (!blockType.equals("include") && !blockType.equals("dependency")) return PsiReference.EMPTY_ARRAY;
+                        if (!"include".equals(blockType) && !"dependency".equals(blockType)) return PsiReference.EMPTY_ARRAY;
 
                         String text = element.getText();
                         if (text.length() < 3 || text.contains("${")) return PsiReference.EMPTY_ARRAY;
@@ -185,7 +185,7 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
         @Override
         public PsiElement resolve() {
             VirtualFile vFile = myElement.getContainingFile().getVirtualFile();
-            if (vFile == null) return null;
+            if (vFile == null || vFile.getParent() == null) return null;
             File baseDir = new File(vFile.getParent().getPath());
             File target = new File(baseDir, path);
             if (isDirectory) {

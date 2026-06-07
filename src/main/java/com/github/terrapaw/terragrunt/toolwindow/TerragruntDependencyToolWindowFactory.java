@@ -164,12 +164,13 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
         // Entry points = units that no other unit depends on
         Set<String> allDepPaths = new HashSet<>();
         for (var node : allNodes) allDepPaths.addAll(node.dependencyPaths());
-        entryPoints = new HashSet<>();
+        Set<String> newEntryPoints = new HashSet<>();
         for (var node : allNodes) {
             if (!allDepPaths.contains(node.file().getPath())) {
-                entryPoints.add(node.file().getPath());
+                newEntryPoints.add(node.file().getPath());
             }
         }
+        entryPoints = newEntryPoints;
     }
 
     private void renderTree(DefaultMutableTreeNode root, Tree tree, String filterText) {
