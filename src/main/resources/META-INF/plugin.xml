@@ -2,8 +2,6 @@
     <id>com.github.terrapaw.terragrunt</id>
     <name>Terragrunt HCL</name>
     <vendor>terrapaw</vendor>
-    <description><![CDATA[IntelliSense and linting for Terragrunt HCL configuration files.]]></description>
-
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -29,6 +27,9 @@
                         implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntCommenter"/>
         <lang.foldingBuilder language="Terragrunt"
                              implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntFoldingBuilder"/>
+        <lang.psiStructureViewFactory language="Terragrunt"
+                                      implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntStructureViewFactory"/>
+        <breadcrumbsInfoProvider implementation="com.github.terrapaw.terragrunt.editor.TerragruntBreadcrumbsProvider"/>
         <lang.formatter language="Terragrunt"
                         implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntFormattingModelBuilder"/>
         <langCodeStyleSettingsProvider implementation="com.github.terrapaw.terragrunt.editor.TerragruntCodeStyleSettingsProvider"/>
@@ -106,4 +107,11 @@
                                  id="com.github.terrapaw.terragrunt.settings"
                                  displayName="Terragrunt"/>
     </extensions>
+
+    <actions>
+        <action id="Terragrunt.NewFile"
+                class="com.github.terrapaw.terragrunt.lang.CreateTerragruntFileAction">
+            <add-to-group group-id="NewGroup" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>
