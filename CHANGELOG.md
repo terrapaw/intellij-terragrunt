@@ -16,6 +16,7 @@
 - Run configurations: execute `terragrunt` commands (plan/apply/init/validate/destroy) from the IDE with output in the Run tool window
 - Gutter run marker on `terragrunt.hcl` (plan, apply, init) and `terragrunt.stack.hcl` (stack generate, stack run plan, stack run apply)
 - Binary path setting in Settings → Languages & Frameworks → Terragrunt (auto-detects from PATH)
+- Dependency tree tool window (View → Tool Windows → Terragrunt Dependencies) showing DAG of dependency blocks across the project
 
 ## [0.3.0] - 2026-06-02
 
