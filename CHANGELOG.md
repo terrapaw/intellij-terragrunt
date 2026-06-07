@@ -12,6 +12,7 @@
 - Quick-fix: Rename duplicate block label (Alt+Enter on duplicates)
 - Quick-fix: Remove duplicate block (Alt+Enter on duplicates)
 - Quick-fix: Suggest closest name for typos in block types, attributes, and variable references
+- `values.X` navigation in stack units (Ctrl+B jumps to definition in `terragrunt.stack.hcl`, find usages from definition)
 
 ## [0.3.0] - 2026-06-02
 

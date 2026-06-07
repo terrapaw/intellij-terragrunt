@@ -1,4 +1,5 @@
 # Stack unit — uses values.X to reference data passed from terragrunt.stack.hcl
+# Try: Ctrl+B on vpc_name → jumps to definition in terragrunt.stack.hcl
 # Try: values. → autocomplete shows vpc_name, cidr, azs
 
 terraform {

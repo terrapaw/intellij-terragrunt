@@ -36,6 +36,14 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         if (parent instanceof TerragruntObjectElem) {
             // Check if this is the key (first child) of the object elem
             if (sourceElement == parent.getFirstChild()) {
+                // Check if inside a values attribute in a unit block
+                TerragruntAttribute valuesAttr = PsiTreeUtil.getParentOfType(sourceElement, TerragruntAttribute.class);
+                if (valuesAttr != null && "values".equals(valuesAttr.getIdentifier().getText())) {
+                    TerragruntBlock unitBlock = PsiTreeUtil.getParentOfType(valuesAttr, TerragruntBlock.class);
+                    if (unitBlock != null && "unit".equals(unitBlock.getIdentifier().getText())) {
+                        return handleValuesKeyUsages(sourceElement, unitBlock);
+                    }
+                }
                 // Check if inside inputs attribute
                 TerragruntAttribute inputsAttr = PsiTreeUtil.getParentOfType(sourceElement, TerragruntAttribute.class);
                 if (inputsAttr != null && "inputs".equals(inputsAttr.getIdentifier().getText())) {
@@ -139,6 +147,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             if ("local".equals(rootVar)) return resolveLocal(file, attrName);
             if ("dependency".equals(rootVar)) return resolveDependency(file, attrName);
             if ("feature".equals(rootVar)) return resolveFeature(file, attrName);
+            if ("values".equals(rootVar)) return resolveValuesKey(file, attrName);
             if ("include".equals(rootVar)) {
                 // include.X -> navigate to the include block
                 TerragruntBlock block = TerragruntFileResolver.findIncludeBlock(file, attrName);
@@ -774,8 +783,118 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         return block != null ? new PsiElement[]{block} : null;
     }
 
+    private PsiElement[] handleValuesKeyUsages(PsiElement keyElement, TerragruntBlock unitBlock) {
+        String keyName = keyElement.getText();
+        PsiFile stackFile = keyElement.getContainingFile();
+        com.intellij.openapi.vfs.VirtualFile stackVf = stackFile.getVirtualFile();
+        if (stackVf == null) return null;
+        com.intellij.openapi.vfs.VirtualFile stackDir = stackVf.getParent();
+        if (stackDir == null) return null;
+
+        // Get the unit's path attribute
+        TerragruntBody body = unitBlock.getBody();
+        if (body == null) return null;
+        String unitPath = null;
+        for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+            if ("path".equals(attr.getIdentifier().getText())) {
+                PsiElement value = attr.getLastChild();
+                if (value != null) unitPath = value.getText().replace("\"", "").trim();
+            }
+        }
+        if (unitPath == null) return null;
+
+        // Find the unit's terragrunt.hcl (in .terragrunt-stack/<path>/)
+        com.intellij.openapi.vfs.VirtualFile unitDir = stackDir.findFileByRelativePath(".terragrunt-stack/" + unitPath);
+        if (unitDir == null || !unitDir.isDirectory()) {
+            // Fallback: try without .terragrunt-stack/ prefix
+            unitDir = stackDir.findFileByRelativePath(unitPath);
+        }
+        if (unitDir == null || !unitDir.isDirectory()) return null;
+        com.intellij.openapi.vfs.VirtualFile unitFile = unitDir.findChild("terragrunt.hcl");
+        if (unitFile == null) return null;
+
+        PsiFile psiUnitFile = PsiManager.getInstance(stackFile.getProject()).findFile(unitFile);
+        if (psiUnitFile == null) return null;
+
+        // Find values.keyName references
+        List<PsiElement> usages = new ArrayList<>();
+        for (TerragruntGetAttr getAttr : PsiTreeUtil.findChildrenOfType(psiUnitFile, TerragruntGetAttr.class)) {
+            if (!keyName.equals(getAttr.getIdentifier().getText())) continue;
+            PsiElement parent = getAttr.getParent();
+            if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
+            TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+            if (primary == null) continue;
+            TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+            if (varExpr == null || !"values".equals(varExpr.getIdentifier().getText())) continue;
+            usages.add(getAttr.getIdentifier());
+        }
+        return usages.isEmpty() ? null : usages.toArray(PsiElement.EMPTY_ARRAY);
+    }
+
     private PsiElement[] resolveFeature(PsiFile file, String name) {
         TerragruntBlock block = TerragruntPsiUtil.findBlock(file, "feature", name);
         return block != null ? new PsiElement[]{block} : null;
+    }
+
+    private PsiElement[] resolveValuesKey(PsiFile file, String keyName) {
+        // Find the parent terragrunt.stack.hcl
+        com.intellij.openapi.vfs.VirtualFile vf = file.getVirtualFile();
+        if (vf == null) return null;
+        com.intellij.openapi.vfs.VirtualFile dir = vf.getParent();
+        if (dir == null) return null;
+
+        // Walk up to find terragrunt.stack.hcl, tracking the relative path
+        com.intellij.openapi.vfs.VirtualFile stackVf = null;
+        com.intellij.openapi.vfs.VirtualFile searchDir = dir.getParent();
+        String relativePath = dir.getName();
+        while (searchDir != null) {
+            stackVf = searchDir.findChild("terragrunt.stack.hcl");
+            if (stackVf != null) break;
+            relativePath = searchDir.getName() + "/" + relativePath;
+            searchDir = searchDir.getParent();
+        }
+        if (stackVf == null) return null;
+
+        // The unit path in the stack file is relative (without .terragrunt-stack/ prefix)
+        // Strip the .terragrunt-stack/ prefix if present
+        String unitRelPath = relativePath;
+        if (unitRelPath.startsWith(".terragrunt-stack/")) {
+            unitRelPath = unitRelPath.substring(".terragrunt-stack/".length());
+        }
+
+        PsiFile stackFile = PsiManager.getInstance(file.getProject()).findFile(stackVf);
+        if (stackFile == null) return null;
+
+        // Find the unit block whose path matches
+        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(stackFile, TerragruntBlock.class)) {
+            if (!"unit".equals(block.getIdentifier().getText())) continue;
+            TerragruntBody body = block.getBody();
+            if (body == null) continue;
+
+            String unitPath = null;
+            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                if ("path".equals(attr.getIdentifier().getText())) {
+                    PsiElement value = attr.getLastChild();
+                    if (value != null) {
+                        unitPath = value.getText().replace("\"", "").trim();
+                    }
+                }
+            }
+            if (unitPath == null || !unitPath.equals(unitRelPath)) continue;
+
+            // Find the values attribute and navigate to the key
+            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                if ("values".equals(attr.getIdentifier().getText())) {
+                    var objExpr = PsiTreeUtil.findChildOfType(attr, com.github.terrapaw.terragrunt.lang.psi.TerragruntObjectExpr.class);
+                    if (objExpr == null) continue;
+                    for (var elem : objExpr.getObjectElemList()) {
+                        if (elem.getIdentifier() != null && keyName.equals(elem.getIdentifier().getText())) {
+                            return new PsiElement[]{elem.getIdentifier()};
+                        }
+                    }
+                }
+            }
+        }
+        return null;
     }
 }
