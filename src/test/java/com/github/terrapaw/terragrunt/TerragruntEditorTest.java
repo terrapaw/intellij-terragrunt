@@ -135,6 +135,38 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         }
     }
 
+    public void testStructureViewNestedObjects() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  network = {
+                    vpc_cidr = "10.0.0.0/16"
+                    subnets = {
+                      public = "10.0.1.0/24"
+                    }
+                  }
+                }
+                """);
+        var factory = new com.github.terrapaw.terragrunt.editor.TerragruntStructureViewFactory();
+        var viewBuilder = factory.getStructureViewBuilder(file);
+        var model = ((com.intellij.ide.structureView.TreeBasedStructureViewBuilder) viewBuilder)
+                .createStructureViewModel(myFixture.getEditor());
+        var root = model.getRoot();
+        // root > locals > network > subnets > public
+        var locals = root.getChildren()[0]; // locals block
+        var network = ((com.intellij.ide.structureView.StructureViewTreeElement) locals).getChildren()[0]; // network attr
+        assertEquals("network", network.getPresentation().getPresentableText());
+        var networkChildren = ((com.intellij.ide.structureView.StructureViewTreeElement) network).getChildren();
+        assertTrue("network should have children", networkChildren.length >= 2);
+        // Find subnets
+        for (var child : networkChildren) {
+            if ("subnets".equals(child.getPresentation().getPresentableText())) {
+                var subnetsChildren = ((com.intellij.ide.structureView.StructureViewTreeElement) child).getChildren();
+                assertTrue("subnets should have children", subnetsChildren.length > 0);
+                assertEquals("public", subnetsChildren[0].getPresentation().getPresentableText());
+            }
+        }
+    }
+
     public void testBreadcrumbsForBlock() {
         PsiFile file = myFixture.configureByText("terragrunt.hcl", """
                 include "root" {

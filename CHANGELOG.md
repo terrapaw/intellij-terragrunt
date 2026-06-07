@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- Plugin logo for Marketplace listing
+- Rich HTML description on Marketplace plugin page
+- File templates: New → Terragrunt File (Unit, Root, Stack)
+- Structure view (Alt+7) showing blocks, attributes, and nested object keys
+- Breadcrumbs showing block/attribute/object key hierarchy in the editor
+
 ## [0.3.0] - 2026-06-02
 
 ### Added

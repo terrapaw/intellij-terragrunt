@@ -50,6 +50,9 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
 - **Formatter (Ctrl+Alt+L)** — auto-indents with 2 spaces (configurable in Settings → Code Style)
 - **String interpolation** — full support for `${...}` in strings and heredocs (highlighting, navigation, completion)
 - **Editor support** — code folding, brace matching, auto-close quotes/brackets, comment/uncomment, color settings
+- **Structure view (Alt+7)** — shows blocks, attributes, and nested object keys in the Structure tool window
+- **Breadcrumbs** — editor breadcrumb bar showing block/attribute hierarchy
+- **File templates** — New → Terragrunt File (Unit, Root, Stack templates)
 - **Settings** — configurable entry point filenames (Settings → Languages & Frameworks → Terragrunt) for `--config` support, and marker filenames for project detection
 
 ## Supported Blocks
@@ -85,7 +88,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-244 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+253 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
