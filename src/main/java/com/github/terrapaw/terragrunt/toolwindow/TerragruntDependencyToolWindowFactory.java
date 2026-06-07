@@ -57,6 +57,13 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                 for (int i = tree.getRowCount() - 1; i >= 0; i--) tree.collapseRow(i);
             }
         });
+        actionGroup.addSeparator();
+        actionGroup.add(new AnAction("Export DOT", "Export dependency graph as .dot file", AllIcons.ToolbarDecorator.Export) {
+            @Override
+            public void actionPerformed(@NotNull AnActionEvent e) {
+                exportDot(project);
+            }
+        });
 
         ActionToolbar toolbar = ActionManager.getInstance().createActionToolbar("TerragruntDependencies", actionGroup, true);
         toolbar.setTargetComponent(panel);
@@ -141,5 +148,38 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                 }
             }
         }
+    }
+
+    private void exportDot(Project project) {
+        List<TerragruntDependencyScanner.DependencyNode> nodes = TerragruntDependencyScanner.scanProject(project);
+        Map<String, String> pathToName = new HashMap<>();
+        for (var node : nodes) pathToName.put(node.file().getPath(), node.displayName());
+
+        StringBuilder dot = new StringBuilder("digraph dependencies {\n  rankdir=LR;\n  node [shape=box];\n\n");
+        for (var node : nodes) {
+            String from = node.displayName().replace("/", "_").replace("-", "_");
+            dot.append("  ").append(from).append(" [label=\"").append(node.displayName()).append("\"];\n");
+        }
+        dot.append("\n");
+        for (var node : nodes) {
+            String from = node.displayName().replace("/", "_").replace("-", "_");
+            for (String depPath : node.dependencyPaths()) {
+                String depName = pathToName.getOrDefault(depPath, depPath);
+                String to = depName.replace("/", "_").replace("-", "_");
+                dot.append("  ").append(from).append(" -> ").append(to).append(";\n");
+            }
+        }
+        dot.append("}\n");
+
+        // Write to project root
+        VirtualFile baseDir = project.getBaseDir();
+        if (baseDir == null) return;
+        com.intellij.openapi.application.WriteAction.run(() -> {
+            try {
+                VirtualFile file = baseDir.findOrCreateChildData(this, "dependency-graph.dot");
+                file.setBinaryContent(dot.toString().getBytes());
+                FileEditorManager.getInstance(project).openFile(file, true);
+            } catch (java.io.IOException ignored) {}
+        });
     }
 }
