@@ -106,6 +106,9 @@
                                  instance="com.github.terrapaw.terragrunt.settings.TerragruntSettingsConfigurable"
                                  id="com.github.terrapaw.terragrunt.settings"
                                  displayName="Terragrunt"/>
+        <configurationType implementation="com.github.terrapaw.terragrunt.run.TerragruntRunConfigurationType"/>
+        <codeInsight.lineMarkerProvider language="Terragrunt"
+                                        implementationClass="com.github.terrapaw.terragrunt.run.TerragruntRunLineMarkerProvider"/>
     </extensions>
 
     <actions>
