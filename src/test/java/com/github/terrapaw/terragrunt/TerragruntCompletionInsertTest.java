@@ -334,4 +334,34 @@ public class TerragruntCompletionInsertTest extends BasePlatformTestCase {
         var names = java.util.List.of(completions).stream().map(l -> l.getLookupString()).toList();
         assertTrue("Should suggest 'vpc_cidr' from remote file's nested object. Got: " + names, names.contains("vpc_cidr"));
     }
+
+    public void testMockOutputsCompletionMatchesCorrectDependency() {
+        // Regression: should suggest keys from the matching dependency, not the first one
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "rds" {
+                  config_path = "../rds"
+                  mock_outputs = {
+                    db_host = "localhost"
+                  }
+                }
+
+                dependency "vpc" {
+                  config_path = "../vpc"
+                  mock_outputs = {
+                    vpc_id = "vpc-123"
+                    subnet_ids = []
+                  }
+                }
+
+                inputs = {
+                  id = dependency.vpc.outputs.<caret>
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        assertNotNull(completions);
+        var names = java.util.Arrays.stream(completions)
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest vpc_id from vpc's mock_outputs", names.contains("vpc_id"));
+        assertFalse("Should NOT suggest db_host from rds's mock_outputs", names.contains("db_host"));
+    }
 }
