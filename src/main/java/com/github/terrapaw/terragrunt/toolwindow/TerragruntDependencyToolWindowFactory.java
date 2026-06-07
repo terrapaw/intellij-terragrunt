@@ -151,35 +151,43 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
     }
 
     private void exportDot(Project project) {
+        // Let user choose save location
+        var descriptor = com.intellij.openapi.fileChooser.FileChooserDescriptorFactory.createSingleFolderDescriptor();
+        descriptor.setTitle("Export Dependency Graph");
+        descriptor.setDescription("Choose directory to save dependency-graph.dot");
+        var chosen = com.intellij.openapi.fileChooser.FileChooser.chooseFile(descriptor, project, project.getBaseDir());
+        if (chosen == null) return;
+
         List<TerragruntDependencyScanner.DependencyNode> nodes = TerragruntDependencyScanner.scanProject(project);
         Map<String, String> pathToName = new HashMap<>();
         for (var node : nodes) pathToName.put(node.file().getPath(), node.displayName());
 
         StringBuilder dot = new StringBuilder("digraph dependencies {\n  rankdir=LR;\n  node [shape=box];\n\n");
         for (var node : nodes) {
-            String from = node.displayName().replace("/", "_").replace("-", "_");
+            String from = sanitizeId(node.displayName());
             dot.append("  ").append(from).append(" [label=\"").append(node.displayName()).append("\"];\n");
         }
         dot.append("\n");
         for (var node : nodes) {
-            String from = node.displayName().replace("/", "_").replace("-", "_");
+            String from = sanitizeId(node.displayName());
             for (String depPath : node.dependencyPaths()) {
                 String depName = pathToName.getOrDefault(depPath, depPath);
-                String to = depName.replace("/", "_").replace("-", "_");
+                String to = sanitizeId(depName);
                 dot.append("  ").append(from).append(" -> ").append(to).append(";\n");
             }
         }
         dot.append("}\n");
 
-        // Write to project root
-        VirtualFile baseDir = project.getBaseDir();
-        if (baseDir == null) return;
         com.intellij.openapi.application.WriteAction.run(() -> {
             try {
-                VirtualFile file = baseDir.findOrCreateChildData(this, "dependency-graph.dot");
+                VirtualFile file = chosen.findOrCreateChildData(this, "dependency-graph.dot");
                 file.setBinaryContent(dot.toString().getBytes());
                 FileEditorManager.getInstance(project).openFile(file, true);
             } catch (java.io.IOException ignored) {}
         });
+    }
+
+    private static String sanitizeId(String name) {
+        return "\"" + name.replace("\"", "\\\"") + "\"";
     }
 }
