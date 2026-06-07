@@ -91,8 +91,8 @@ public class TerragruntDependencyTreeTest extends BasePlatformTestCase {
         assertTrue("Unresolved paths should not appear in dependency list", app.dependencyPaths().isEmpty());
     }
 
-    public void testScannerHandlesFileAtContentRoot() {
-        // terragrunt.hcl at the root level — getParent relative to base could be empty
+    public void testScannerDoesNotCrashWithFileAtContentRoot() {
+        // Smoke test: terragrunt.hcl at the root level
         myFixture.addFileToProject("terragrunt.hcl", """
                 dependency "vpc" {
                   config_path = "./vpc"
