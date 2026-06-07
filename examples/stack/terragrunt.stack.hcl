@@ -1,7 +1,7 @@
 # Stack definition — defines units that Terragrunt deploys together
 
 unit "vpc" {
-  source = "./modules/vpc"
+  source = "./units/vpc"
   path   = "vpc"
 
   values = {
@@ -12,7 +12,7 @@ unit "vpc" {
 }
 
 unit "app" {
-  source = "./modules/app"
+  source = "./units/app"
   path   = "app"
 
   values = {
