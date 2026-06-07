@@ -54,7 +54,7 @@ public class TerragruntStructureViewElement implements StructureViewTreeElement 
     @Override
     public @NotNull ItemPresentation getPresentation() {
         if (element instanceof TerragruntBlock block) {
-            String name = block.getIdentifier().getText();
+            String name = TerragruntPsiUtil.getBlockType(block);
             List<TerragruntLabel> labels = block.getLabelList();
             if (!labels.isEmpty()) {
                 name += " \"" + TerragruntPsiUtil.getLabelText(labels.get(0)) + "\"";

@@ -98,7 +98,7 @@ public class TerragruntUnresolvedVariableInspection extends TerragruntBaseInspec
     private Set<String> getLocalNames(PsiFile file) {
         Set<String> names = new java.util.HashSet<>();
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"locals".equals(block.getIdentifier().getText())) continue;
+            if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
             TerragruntBody body = block.getBody();
             if (body == null) continue;
             PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)
@@ -110,7 +110,7 @@ public class TerragruntUnresolvedVariableInspection extends TerragruntBaseInspec
     private Set<String> getBlockLabels(PsiFile file, String blockType) {
         Set<String> labels = new java.util.HashSet<>();
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!blockType.equals(block.getIdentifier().getText())) continue;
+            if (!blockType.equals(TerragruntPsiUtil.getBlockType(block))) continue;
             var labelList = block.getLabelList();
             if (!labelList.isEmpty()) {
                 labels.add(TerragruntPsiUtil.getLabelText(labelList.getFirst()));

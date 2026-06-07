@@ -1,7 +1,9 @@
 package com.github.terrapaw.terragrunt.refactor;
 
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute;
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.lang.refactoring.RefactoringSupportProvider;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -14,7 +16,7 @@ public class TerragruntRefactoringSupportProvider extends RefactoringSupportProv
         // Allow inline rename for attribute identifiers inside locals block
         if (element.getParent() instanceof TerragruntAttribute attr) {
             TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
-            return block != null && "locals".equals(block.getIdentifier().getText());
+            return block != null && "locals".equals(TerragruntPsiUtil.getBlockType(block));
         }
         return false;
     }

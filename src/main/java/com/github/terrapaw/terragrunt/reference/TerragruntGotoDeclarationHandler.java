@@ -74,7 +74,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         if (parent instanceof TerragruntLabel labelNode) {
             TerragruntBlock block = PsiTreeUtil.getParentOfType(parent, TerragruntBlock.class);
             if (block != null) {
-                String blockType = block.getIdentifier().getText();
+                String blockType = TerragruntPsiUtil.getBlockType(block);
                 String labelName = TerragruntPsiUtil.getLabelText(labelNode);
                 PsiFile file = sourceElement.getContainingFile();
                 if ("feature".equals(blockType) || "dependency".equals(blockType)) {
@@ -316,7 +316,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         // Check if we're inside a locals block
         TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
         if (block == null) return null;
-        String blockType = block.getIdentifier().getText();
+        String blockType = TerragruntPsiUtil.getBlockType(block);
 
         String name = attr.getIdentifier().getText();
         PsiFile file = sourceElement.getContainingFile();
@@ -449,7 +449,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
     private boolean isAliasForIncludeLocals(PsiFile file, String aliasName, PsiFile sourceFile) {
         // Find: locals { aliasName = include.X.locals } or locals { aliasName = read_terragrunt_config(...) }
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"locals".equals(block.getIdentifier().getText())) continue;
+            if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
             TerragruntBody body = block.getBody();
             if (body == null) continue;
             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -518,7 +518,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
     @Nullable
     private PsiElement findFeatureDefault(PsiFile file, String featureName) {
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"feature".equals(block.getIdentifier().getText())) continue;
+            if (!"feature".equals(TerragruntPsiUtil.getBlockType(block))) continue;
             List<TerragruntLabel> labels = block.getLabelList();
             if (labels.isEmpty() || !featureName.equals(TerragruntPsiUtil.getLabelText(labels.get(0)))) continue;
             TerragruntBody body = block.getBody();
@@ -535,7 +535,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
     @Nullable
     private PsiElement findMockOutputKey(PsiFile file, String depName, String outputName) {
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"dependency".equals(block.getIdentifier().getText())) continue;
+            if (!"dependency".equals(TerragruntPsiUtil.getBlockType(block))) continue;
             List<TerragruntLabel> labels = block.getLabelList();
             if (labels.isEmpty() || !depName.equals(TerragruntPsiUtil.getLabelText(labels.get(0)))) continue;
             TerragruntBody body = block.getBody();
@@ -557,7 +557,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
 
     private PsiElement[] resolveLocal(PsiFile file, String name) {
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"locals".equals(block.getIdentifier().getText())) continue;
+            if (!"locals".equals(TerragruntPsiUtil.getBlockType(block))) continue;
             TerragruntBody body = block.getBody();
             if (body == null) continue;
             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -603,7 +603,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                     if (walker instanceof TerragruntAttribute attr) {
                         String attrName = attr.getIdentifier().getText();
                         TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
-                        if (block == null || !"locals".equals(block.getIdentifier().getText())) return null;
+                        if (block == null || !"locals".equals(TerragruntPsiUtil.getBlockType(block))) return null;
 
                         java.util.Collections.reverse(path);
                         PsiFile file = keyElement.getContainingFile();
@@ -865,7 +865,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
 
         // Find the unit block whose path matches
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(stackFile, TerragruntBlock.class)) {
-            if (!"unit".equals(block.getIdentifier().getText())) continue;
+            if (!"unit".equals(TerragruntPsiUtil.getBlockType(block))) continue;
             TerragruntBody body = block.getBody();
             if (body == null) continue;
 

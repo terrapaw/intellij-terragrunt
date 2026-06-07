@@ -1,7 +1,9 @@
 package com.github.terrapaw.terragrunt.toolwindow;
 
 import com.github.terrapaw.terragrunt.lang.TerragruntFileDetection;
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute;
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBody;
 import com.intellij.openapi.project.Project;
@@ -63,7 +65,8 @@ public class TerragruntDependencyScanner {
         if (dir == null) return deps;
 
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(psiFile, TerragruntBlock.class)) {
-            String type = block.getIdentifier().getText();
+            if (block.getIdentifier() == null) continue;
+            String type = TerragruntPsiUtil.getBlockType(block);
             if ("dependency".equals(type)) {
                 TerragruntBody body = block.getBody();
                 if (body == null) continue;

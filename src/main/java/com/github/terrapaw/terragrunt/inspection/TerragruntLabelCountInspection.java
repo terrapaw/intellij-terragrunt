@@ -23,7 +23,8 @@ public class TerragruntLabelCountInspection extends TerragruntBaseInspection {
                 Collection<TerragruntBlock> blocks = PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class);
 
                 for (TerragruntBlock block : blocks) {
-                    String type = block.getIdentifier().getText();
+                    if (block.getIdentifier() == null) continue;
+                    String type = TerragruntPsiUtil.getBlockType(block);
                     var blockDef = TerragruntSchema.getBlock(type);
                     if (blockDef == null) continue;
 

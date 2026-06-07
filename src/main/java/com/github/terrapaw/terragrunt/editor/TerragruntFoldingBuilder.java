@@ -1,7 +1,9 @@
 package com.github.terrapaw.terragrunt.editor;
 
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.lang.ASTNode;
+import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.lang.folding.FoldingBuilderEx;
 import com.intellij.lang.folding.FoldingDescriptor;
 import com.intellij.openapi.editor.Document;
@@ -35,7 +37,7 @@ public class TerragruntFoldingBuilder extends FoldingBuilderEx {
     public String getPlaceholderText(@NotNull ASTNode node) {
         PsiElement psi = node.getPsi();
         if (psi instanceof TerragruntBlock block) {
-            StringBuilder sb = new StringBuilder(block.getIdentifier().getText());
+            StringBuilder sb = new StringBuilder(TerragruntPsiUtil.getBlockType(block));
             for (var label : block.getLabelList()) {
                 sb.append(" ").append(label.getText());
             }
