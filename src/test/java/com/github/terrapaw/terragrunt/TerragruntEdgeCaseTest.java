@@ -467,4 +467,65 @@ public class TerragruntEdgeCaseTest extends BasePlatformTestCase {
         assertNotNull("Should find usages from quoted object key", targets);
         assertTrue("Should find at least one usage", targets.length > 0);
     }
+
+    public void testFeatureValueNavigatesToCorrectBlock() {
+        // Bug: findFeatureDefault matched the FIRST feature block regardless of label
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                feature "wrong" {
+                  default = false
+                }
+
+                feature "correct" {
+                  default = true
+                }
+
+                locals {
+                  val = feature.correct.value
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        // Cursor on "value" in feature.correct.value
+        int offset = text.indexOf("feature.correct.value") + "feature.correct.".length();
+        PsiElement element = file.findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate to default", targets);
+        assertTrue(targets.length > 0);
+        // The target should be in the "correct" block (default = true), not "wrong" block (default = false)
+        String targetContext = targets[0].getParent().getText();
+        assertTrue("Should navigate to correct feature block, got: " + targetContext,
+                targetContext.contains("true"));
+    }
+
+    public void testMockOutputNavigatesToCorrectDependency() {
+        // Bug: findMockOutputKey matched the FIRST dependency block regardless of label
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                dependency "wrong" {
+                  config_path = "../wrong"
+                  mock_outputs = {
+                    id = "wrong-id"
+                  }
+                }
+
+                dependency "correct" {
+                  config_path = "../correct"
+                  mock_outputs = {
+                    id = "correct-id"
+                  }
+                }
+
+                inputs = {
+                  val = dependency.correct.outputs.id
+                }
+                """);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("dependency.correct.outputs.id") + "dependency.correct.outputs.".length();
+        PsiElement element = file.findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate to mock output key", targets);
+        assertTrue(targets.length > 0);
+        // Should be in the "correct" dependency, not "wrong"
+        String context = targets[0].getParent().getText();
+        assertTrue("Should navigate to correct dependency's mock_outputs, got: " + context,
+                context.contains("correct-id"));
+    }
 }

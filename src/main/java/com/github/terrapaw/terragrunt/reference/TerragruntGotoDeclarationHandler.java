@@ -519,9 +519,8 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
     private PsiElement findFeatureDefault(PsiFile file, String featureName) {
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
             if (!"feature".equals(block.getIdentifier().getText())) continue;
-            for (TerragruntLabel label : block.getLabelList()) {
-                if (!featureName.equals(TerragruntPsiUtil.getLabelText(label))) continue;
-            }
+            List<TerragruntLabel> labels = block.getLabelList();
+            if (labels.isEmpty() || !featureName.equals(TerragruntPsiUtil.getLabelText(labels.get(0)))) continue;
             TerragruntBody body = block.getBody();
             if (body == null) continue;
             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
@@ -537,9 +536,8 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
     private PsiElement findMockOutputKey(PsiFile file, String depName, String outputName) {
         for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
             if (!"dependency".equals(block.getIdentifier().getText())) continue;
-            for (TerragruntLabel label : block.getLabelList()) {
-                if (!depName.equals(TerragruntPsiUtil.getLabelText(label))) continue;
-            }
+            List<TerragruntLabel> labels = block.getLabelList();
+            if (labels.isEmpty() || !depName.equals(TerragruntPsiUtil.getLabelText(labels.get(0)))) continue;
             TerragruntBody body = block.getBody();
             if (body == null) continue;
             for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
