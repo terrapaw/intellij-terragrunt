@@ -53,7 +53,7 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
         actionGroup.add(new AnAction("Refresh", "Rescan dependencies", AllIcons.Actions.Refresh) {
             @Override
             public void actionPerformed(@NotNull AnActionEvent e) {
-                refreshData(project);
+                com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
                 renderTree(root, tree, "");
             }
         });
@@ -117,14 +117,14 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                         ev.getFile() != null && ev.getFile().getName().endsWith(".hcl"));
                 if (relevant) {
                     SwingUtilities.invokeLater(() -> {
-                        refreshData(project);
+                        com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
                         renderTree(root, tree, filter.getFilter());
                     });
                 }
             }
         });
 
-        refreshData(project);
+        com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
         renderTree(root, tree, "");
 
         Content content = ContentFactory.getInstance().createContent(panel, "", false);
