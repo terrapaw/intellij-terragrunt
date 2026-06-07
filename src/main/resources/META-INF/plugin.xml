@@ -73,6 +73,7 @@
                              implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntFoldingBuilder"/>
         <lang.psiStructureViewFactory language="Terragrunt"
                                       implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntStructureViewFactory"/>
+        <breadcrumbsInfoProvider implementation="com.github.terrapaw.terragrunt.editor.TerragruntBreadcrumbsProvider"/>
         <lang.formatter language="Terragrunt"
                         implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntFormattingModelBuilder"/>
         <langCodeStyleSettingsProvider implementation="com.github.terrapaw.terragrunt.editor.TerragruntCodeStyleSettingsProvider"/>

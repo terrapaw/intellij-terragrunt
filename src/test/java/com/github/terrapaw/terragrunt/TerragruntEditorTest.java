@@ -134,4 +134,62 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
             }
         }
     }
+
+    public void testBreadcrumbsForBlock() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("root.hcl")
+                }
+                """);
+        var provider = new com.github.terrapaw.terragrunt.editor.TerragruntBreadcrumbsProvider();
+        // Find the path attribute
+        var attr = com.intellij.psi.util.PsiTreeUtil.findChildOfType(file,
+                com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute.class);
+        assertNotNull(attr);
+        assertTrue(provider.acceptElement(attr));
+        assertEquals("path", provider.getElementInfo(attr));
+
+        // Find the include block
+        var block = com.intellij.psi.util.PsiTreeUtil.findChildOfType(file,
+                com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock.class);
+        assertNotNull(block);
+        assertTrue(provider.acceptElement(block));
+        assertEquals("include \"root\"", provider.getElementInfo(block));
+    }
+
+    public void testBreadcrumbsForNestedObjectKey() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                remote_state {
+                  config = {
+                    bucket = "my-bucket"
+                  }
+                }
+                """);
+        var provider = new com.github.terrapaw.terragrunt.editor.TerragruntBreadcrumbsProvider();
+        var elems = com.intellij.psi.util.PsiTreeUtil.findChildrenOfType(file,
+                com.github.terrapaw.terragrunt.lang.psi.TerragruntObjectElem.class);
+        // Should find "bucket" object elem
+        var bucket = elems.stream()
+                .filter(e -> e.getIdentifier() != null && "bucket".equals(e.getIdentifier().getText()))
+                .findFirst().orElse(null);
+        assertNotNull("Should find bucket object elem", bucket);
+        assertTrue(provider.acceptElement(bucket));
+        assertEquals("bucket", provider.getElementInfo(bucket));
+    }
+
+    public void testBreadcrumbsShowsQuotedKeys() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  data = merge({"key1" = "val1"})
+                }
+                """);
+        var provider = new com.github.terrapaw.terragrunt.editor.TerragruntBreadcrumbsProvider();
+        var elems = com.intellij.psi.util.PsiTreeUtil.findChildrenOfType(file,
+                com.github.terrapaw.terragrunt.lang.psi.TerragruntObjectElem.class);
+        for (var elem : elems) {
+            assertTrue("Should accept all object elems", provider.acceptElement(elem));
+            String info = provider.getElementInfo(elem);
+            assertFalse("Should not show '?'", info.equals("?"));
+        }
+    }
 }
