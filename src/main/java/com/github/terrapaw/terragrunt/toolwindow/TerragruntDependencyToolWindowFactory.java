@@ -328,7 +328,12 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                 VirtualFile file = chosen.findOrCreateChildData(this, "dependency-graph.dot");
                 file.setBinaryContent(dot.toString().getBytes());
                 FileEditorManager.getInstance(project).openFile(file, true);
-            } catch (java.io.IOException ignored) {}
+            } catch (java.io.IOException ex) {
+                com.intellij.notification.Notifications.Bus.notify(
+                        new com.intellij.notification.Notification("Terragrunt", "Export Failed",
+                                "Could not write dependency-graph.dot: " + ex.getMessage(),
+                                com.intellij.notification.NotificationType.ERROR));
+            }
         });
     }
 

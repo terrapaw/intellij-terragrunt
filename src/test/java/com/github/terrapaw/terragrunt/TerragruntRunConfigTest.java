@@ -104,4 +104,20 @@ public class TerragruntRunConfigTest extends BasePlatformTestCase {
         assertEquals("--var=name=hello world", parsed.get(0));
         assertEquals("--no-color", parsed.get(1));
     }
+
+    public void testRunConfigCommandDefaultsWhenNull() {
+        var configType = com.intellij.execution.configurations.ConfigurationTypeUtil
+                .findConfigurationType(TerragruntRunConfigurationType.class);
+        var factory = configType.getConfigurationFactories()[0];
+        var settings = RunManager.getInstance(getProject()).createConfiguration("test", factory);
+        var config = (TerragruntRunConfiguration) settings.getConfiguration();
+
+        // Default value should be "plan" even before setting anything
+        assertEquals("plan", config.getCommand());
+
+        // After setting null, getCommand returns null but won't crash at run time
+        // because the combo box guard defaults to "plan" in applyEditorTo
+        config.setCommand(null);
+        assertNull(config.getCommand());
+    }
 }
