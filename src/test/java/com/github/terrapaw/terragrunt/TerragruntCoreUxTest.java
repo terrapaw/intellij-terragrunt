@@ -338,4 +338,35 @@ public class TerragruntCoreUxTest extends BasePlatformTestCase {
         assertNotNull("Should suggest closest dependency name", fix);
         assertTrue(fix.getText().contains("vpc"));
     }
+
+    public void testFindClosestBasicMatch() {
+        var result = com.github.terrapaw.terragrunt.inspection.ReplaceIdentifierQuickFix
+                .findClosest("depdency", java.util.List.of("dependency", "locals", "include"));
+        assertEquals("dependency", result);
+    }
+
+    public void testFindClosestNoMatchWhenTooFar() {
+        // "xyz" is too far from anything — should return null
+        var result = com.github.terrapaw.terragrunt.inspection.ReplaceIdentifierQuickFix
+                .findClosest("xyz", java.util.List.of("dependency", "locals", "include"));
+        assertNull("Should not suggest when distance is too large", result);
+    }
+
+    public void testFindClosestNullInput() {
+        var result = com.github.terrapaw.terragrunt.inspection.ReplaceIdentifierQuickFix
+                .findClosest(null, java.util.List.of("dependency", "locals"));
+        assertNull("Should return null for null input", result);
+    }
+
+    public void testFindClosestEmptyInput() {
+        var result = com.github.terrapaw.terragrunt.inspection.ReplaceIdentifierQuickFix
+                .findClosest("", java.util.List.of("dependency", "locals"));
+        assertNull("Should return null for empty input (too far from everything)", result);
+    }
+
+    public void testFindClosestSingleCharTypo() {
+        var result = com.github.terrapaw.terragrunt.inspection.ReplaceIdentifierQuickFix
+                .findClosest("loals", java.util.List.of("dependency", "locals", "include"));
+        assertEquals("locals", result);
+    }
 }

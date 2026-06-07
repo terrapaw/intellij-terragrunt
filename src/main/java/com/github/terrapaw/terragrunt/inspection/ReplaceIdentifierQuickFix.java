@@ -44,6 +44,7 @@ public class ReplaceIdentifierQuickFix implements LocalQuickFix {
     }
 
     public static String findClosest(String input, Iterable<String> candidates) {
+        if (input == null) return null;
         String best = null;
         int bestDist = Integer.MAX_VALUE;
         for (String candidate : candidates) {
