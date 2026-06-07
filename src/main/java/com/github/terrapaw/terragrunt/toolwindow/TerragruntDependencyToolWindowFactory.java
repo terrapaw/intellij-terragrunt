@@ -37,7 +37,8 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
 
     private List<TerragruntDependencyScanner.DependencyNode> allNodes = List.of();
     private Set<String> entryPoints = Set.of();
-    private boolean dirty = false;
+    private volatile boolean dirty = false;
+    private org.jetbrains.concurrency.CancellablePromise<?> pendingRefresh;
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
@@ -147,7 +148,10 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
     }
 
     private void scheduleRefresh(Project project, DefaultMutableTreeNode root, Tree tree, FilterComponent filter) {
-        com.intellij.openapi.application.ReadAction.nonBlocking(() -> {
+        if (pendingRefresh != null && !pendingRefresh.isDone()) {
+            pendingRefresh.cancel();
+        }
+        pendingRefresh = com.intellij.openapi.application.ReadAction.nonBlocking(() -> {
             refreshData(project);
             return null;
         }).finishOnUiThread(com.intellij.openapi.application.ModalityState.defaultModalityState(), result -> {
