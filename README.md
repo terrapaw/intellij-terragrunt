@@ -56,6 +56,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
 - **File templates** — New → Terragrunt File (Unit, Root, Stack templates)
 - **Run configurations** — execute terragrunt commands from the IDE (plan, apply, init, validate, destroy, stack generate) with output in the Run tool window
 - **Gutter run markers** — click the run icon in the gutter to quickly run commands for the current file
+- **Dependency tree** — tool window showing the DAG of dependency blocks across the project, with search, context menu, entry point highlighting, and DOT export
 - **Settings** — configurable entry point filenames, marker filenames, and binary path (Settings → Languages & Frameworks → Terragrunt)
 
 ## Supported Blocks
@@ -91,7 +92,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-274 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+279 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 

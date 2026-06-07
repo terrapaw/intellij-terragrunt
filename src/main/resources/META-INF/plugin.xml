@@ -111,6 +111,12 @@
                                         implementationClass="com.github.terrapaw.terragrunt.run.TerragruntRunLineMarkerProvider"/>
     </extensions>
 
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Terragrunt Dependencies"
+                    anchor="bottom"
+                    factoryClass="com.github.terrapaw.terragrunt.toolwindow.TerragruntDependencyToolWindowFactory"/>
+    </extensions>
+
     <actions>
         <action id="Terragrunt.NewFile"
                 class="com.github.terrapaw.terragrunt.lang.CreateTerragruntFileAction">
