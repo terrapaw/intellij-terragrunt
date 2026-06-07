@@ -36,7 +36,9 @@ public class TerragruntFoldingBuilder extends FoldingBuilderEx {
     public String getPlaceholderText(@NotNull ASTNode node) {
         PsiElement psi = node.getPsi();
         if (psi instanceof TerragruntBlock block) {
-            StringBuilder sb = new StringBuilder(TerragruntPsiUtil.getBlockType(block));
+            String type = TerragruntPsiUtil.getBlockType(block);
+            if (type == null) return "...";
+            StringBuilder sb = new StringBuilder(type);
             for (var label : block.getLabelList()) {
                 sb.append(" ").append(label.getText());
             }
