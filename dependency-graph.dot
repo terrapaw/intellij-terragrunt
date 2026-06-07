@@ -1,0 +1,17 @@
+digraph dependencies {
+  rankdir=LR;
+  node [shape=box];
+
+  "examples/basic" [label="examples/basic"];
+  "examples/stack/units/app" [label="examples/stack/units/app"];
+  "examples/stack/units/vpc" [label="examples/stack/units/vpc"];
+  "examples/stack/.terragrunt-stack/app" [label="examples/stack/.terragrunt-stack/app"];
+  "examples/stack/.terragrunt-stack/vpc" [label="examples/stack/.terragrunt-stack/vpc"];
+  "examples/cross-file/app" [label="examples/cross-file/app"];
+  "examples/inspections" [label="examples/inspections"];
+  "examples/stack-context/proj" [label="examples/stack-context/proj"];
+  "examples/stack-context/proj/.terragrunt-stack/api" [label="examples/stack-context/proj/.terragrunt-stack/api"];
+  "examples/function-paths/app" [label="examples/function-paths/app"];
+
+  "examples/stack-context/proj" -> "examples/stack-context/proj/.terragrunt-stack/api";
+}
