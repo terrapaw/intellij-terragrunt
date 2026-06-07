@@ -49,13 +49,15 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
         tree.setShowsRootHandles(true);
         tree.setCellRenderer(new DependencyTreeCellRenderer());
 
+        // Search filter (declared early so toolbar can reference it)
+        final FilterComponent[] filterRef = new FilterComponent[1];
+
         // Toolbar
         DefaultActionGroup actionGroup = new DefaultActionGroup();
         actionGroup.add(new AnAction("Refresh", "Rescan dependencies", AllIcons.Actions.Refresh) {
             @Override
             public void actionPerformed(@NotNull AnActionEvent e) {
-                com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
-                renderTree(root, tree, "");
+                scheduleRefresh(project, root, tree, filterRef[0]);
             }
         });
         actionGroup.add(new AnAction("Expand All", "Expand all nodes", AllIcons.Actions.Expandall) {
@@ -88,6 +90,7 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                 renderTree(root, tree, getFilter());
             }
         };
+        filterRef[0] = filter;
 
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.add(toolbar.getComponent(), BorderLayout.NORTH);
@@ -118,10 +121,7 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                         ev.getFile() != null && ev.getFile().getName().endsWith(".hcl"));
                 if (relevant) {
                     if (toolWindow.isVisible()) {
-                        SwingUtilities.invokeLater(() -> {
-                            com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
-                            renderTree(root, tree, filter.getFilter());
-                        });
+                        scheduleRefresh(project, root, tree, filterRef[0]);
                     } else {
                         dirty = true;
                     }
@@ -135,19 +135,24 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
             public void selectionChanged(@NotNull com.intellij.ui.content.ContentManagerEvent event) {
                 if (dirty && toolWindow.isVisible()) {
                     dirty = false;
-                    SwingUtilities.invokeLater(() -> {
-                        com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
-                        renderTree(root, tree, filter.getFilter());
-                    });
+                    scheduleRefresh(project, root, tree, filterRef[0]);
                 }
             }
         });
 
-        com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
-        renderTree(root, tree, "");
+        scheduleRefresh(project, root, tree, filterRef[0]);
 
         Content content = ContentFactory.getInstance().createContent(panel, "", false);
         toolWindow.getContentManager().addContent(content);
+    }
+
+    private void scheduleRefresh(Project project, DefaultMutableTreeNode root, Tree tree, FilterComponent filter) {
+        com.intellij.openapi.application.ReadAction.nonBlocking(() -> {
+            refreshData(project);
+            return null;
+        }).finishOnUiThread(com.intellij.openapi.application.ModalityState.defaultModalityState(), result -> {
+            renderTree(root, tree, filter != null ? filter.getFilter() : "");
+        }).submit(com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService());
     }
 
     private void refreshData(Project project) {
