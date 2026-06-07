@@ -26,6 +26,18 @@ You can also use Alt+Enter on any warning → "Suppress" to insert the comment a
 | `TerragruntDuplicateBlock` | Flags duplicate block type + label in the same file |
 | `TerragruntLabelCount` | Flags missing, empty, or extra labels on blocks |
 
+## Quick-Fixes
+
+| Inspection | Quick-Fix |
+|---|---|
+| `TerragruntMissingAttribute` | Insert missing required attributes with defaults |
+| `TerragruntDuplicateBlock` | Change block label / Remove duplicate block |
+| `TerragruntLabelCount` | Remove extra label |
+| `TerragruntUnknownBlock` | Change to closest matching block name (typo fix) |
+| `TerragruntUnknownAttribute` | Change to closest matching attribute name (typo fix) |
+| `TerragruntUnresolvedVariable` | Change to closest matching local/dependency/feature (typo fix) |
+| All inspections | Suppress with `# noinspection` comment |
+
 ## Disabling Inspections
 
 - **Per-statement:** `# noinspection ShortName` comment (see above)

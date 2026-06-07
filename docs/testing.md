@@ -32,7 +32,19 @@ Run a single test:
 | `TerragruntCrossFileTest` | Cross-file navigation, completion, stack context, deep chains |
 | `TerragruntSettingsTest` | Settings defaults and integration |
 | `TerragruntFileTypeTest` | File detection, exclusions |
-| `TerragruntCoreUxTest` | Find usages, quick-fix, unresolved variable |
+| `TerragruntCoreUxTest` | Find usages, quick-fix, unresolved variable, typo suggestions |
+| `TerragruntEditorTest` | Folding, file templates, structure view, breadcrumbs |
+| `TerragruntStackTest` | Stack/unit blocks, values completion, values navigation |
+| `TerragruntEdgeCaseTest` | Boundary conditions, feature/dependency navigation |
+| `TerragruntRunConfigTest` | Run configuration type, binary path, gutter markers |
+| `TerragruntDependencyTreeTest` | Dependency scanner, entry points, unresolved paths |
+| `TerragruntPsiDebugTest` | PSI structure regression tests |
+| `TerragruntRenameTest` | Rename handler and names validator |
+| `TerragruntInterpolationTest` | String/heredoc interpolation |
+| `TerragruntFormatterTest` | Indentation for blocks, maps, lists |
+| `TerragruntDocumentationTest` | Ctrl+Q documentation provider |
+| `TerragruntSchemaTest` | Schema lookups, required attrs, functions |
+| `TerragruntReferenceTest` | Go-to-definition for local/dependency/feature |
 
 ## Tips
 
