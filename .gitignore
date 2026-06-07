@@ -5,3 +5,6 @@ src/main/gen/
 *.iml
 .idea/
 out/
+# Terragrunt stack generated files
+.terragrunt-stack-manifest
+terragrunt.values.hcl

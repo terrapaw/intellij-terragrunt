@@ -54,7 +54,9 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
 - **Structure view (Alt+7)** — shows blocks, attributes, and nested object keys in the Structure tool window
 - **Breadcrumbs** — editor breadcrumb bar showing block/attribute hierarchy
 - **File templates** — New → Terragrunt File (Unit, Root, Stack templates)
-- **Settings** — configurable entry point filenames (Settings → Languages & Frameworks → Terragrunt) for `--config` support, and marker filenames for project detection
+- **Run configurations** — execute terragrunt commands from the IDE (plan, apply, init, validate, destroy, stack generate) with output in the Run tool window
+- **Gutter run markers** — click the run icon in the gutter to quickly run commands for the current file
+- **Settings** — configurable entry point filenames, marker filenames, and binary path (Settings → Languages & Frameworks → Terragrunt)
 
 ## Supported Blocks
 
@@ -89,7 +91,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-267 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+274 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 

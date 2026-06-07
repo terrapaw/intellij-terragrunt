@@ -37,6 +37,34 @@ public class TerragruntSettings implements PersistentStateComponent<TerragruntSe
         myState.markerFilenames = new ArrayList<>(filenames);
     }
 
+    public String getBinaryPath() {
+        return myState.binaryPath;
+    }
+
+    public void setBinaryPath(String path) {
+        myState.binaryPath = path;
+    }
+
+    /**
+     * Returns the effective binary path: user-configured or auto-detected from PATH.
+     */
+    public String getEffectiveBinaryPath() {
+        if (myState.binaryPath != null && !myState.binaryPath.isBlank()) {
+            return myState.binaryPath;
+        }
+        return detectBinaryFromPath();
+    }
+
+    private static String detectBinaryFromPath() {
+        String pathEnv = System.getenv("PATH");
+        if (pathEnv == null) return "terragrunt";
+        for (String dir : pathEnv.split(java.io.File.pathSeparator)) {
+            java.io.File candidate = new java.io.File(dir, "terragrunt");
+            if (candidate.isFile() && candidate.canExecute()) return candidate.getAbsolutePath();
+        }
+        return "terragrunt";
+    }
+
     @Override
     public @NotNull State getState() {
         return myState;
@@ -50,5 +78,6 @@ public class TerragruntSettings implements PersistentStateComponent<TerragruntSe
     public static class State {
         public List<String> entryPointFilenames = new ArrayList<>(List.of("terragrunt.hcl"));
         public List<String> markerFilenames = new ArrayList<>(List.of("terragrunt.hcl", "root.hcl", "terragrunt.stack.hcl"));
+        public String binaryPath = "";
     }
 }
