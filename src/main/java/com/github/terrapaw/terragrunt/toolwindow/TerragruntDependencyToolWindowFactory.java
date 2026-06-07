@@ -37,6 +37,7 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
 
     private List<TerragruntDependencyScanner.DependencyNode> allNodes = List.of();
     private Set<String> entryPoints = Set.of();
+    private boolean dirty = false;
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
@@ -109,13 +110,31 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
             }
         });
 
-        // Auto-refresh on file changes
+        // Auto-refresh on file changes (only when visible)
         project.getMessageBus().connect().subscribe(VirtualFileManager.VFS_CHANGES, new BulkFileListener() {
             @Override
             public void after(@NotNull List<? extends VFileEvent> events) {
                 boolean relevant = events.stream().anyMatch(ev ->
                         ev.getFile() != null && ev.getFile().getName().endsWith(".hcl"));
                 if (relevant) {
+                    if (toolWindow.isVisible()) {
+                        SwingUtilities.invokeLater(() -> {
+                            com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
+                            renderTree(root, tree, filter.getFilter());
+                        });
+                    } else {
+                        dirty = true;
+                    }
+                }
+            }
+        });
+
+        // Refresh when tool window becomes visible
+        toolWindow.addContentManagerListener(new com.intellij.ui.content.ContentManagerListener() {
+            @Override
+            public void selectionChanged(@NotNull com.intellij.ui.content.ContentManagerEvent event) {
+                if (dirty && toolWindow.isVisible()) {
+                    dirty = false;
                     SwingUtilities.invokeLater(() -> {
                         com.intellij.openapi.application.ReadAction.run(() -> refreshData(project));
                         renderTree(root, tree, filter.getFilter());
