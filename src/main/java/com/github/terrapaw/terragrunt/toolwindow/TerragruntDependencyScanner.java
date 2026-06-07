@@ -122,7 +122,9 @@ public class TerragruntDependencyScanner {
 
     private static String getRelativePath(VirtualFile base, VirtualFile file) {
         String basePath = base.getPath();
-        String filePath = file.getParent().getPath();
+        VirtualFile parent = file.getParent();
+        if (parent == null) return file.getName();
+        String filePath = parent.getPath();
         if (filePath.startsWith(basePath)) {
             String rel = filePath.substring(basePath.length());
             if (rel.startsWith("/")) rel = rel.substring(1);

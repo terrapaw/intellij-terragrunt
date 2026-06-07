@@ -51,7 +51,7 @@ public class TerragruntRunLineMarkerProvider implements LineMarkerProvider {
                 e -> tooltip,
                 (e, elt) -> {
                     PsiFile file = elt.getContainingFile();
-                    if (file == null || file.getVirtualFile() == null) return;
+                    if (file == null || file.getVirtualFile() == null || file.getVirtualFile().getParent() == null) return;
                     String dir = file.getVirtualFile().getParent().getPath();
                     var project = elt.getProject();
 

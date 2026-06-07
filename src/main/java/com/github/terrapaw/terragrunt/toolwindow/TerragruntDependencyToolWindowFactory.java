@@ -244,6 +244,7 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
                 menu.add(new AbstractAction("Run terragrunt " + cmd) {
                     @Override
                     public void actionPerformed(java.awt.event.ActionEvent ev) {
+                        if (info.file().getParent() == null) return;
                         runCommand(project, cmd, info.file().getParent().getPath());
                     }
                 });

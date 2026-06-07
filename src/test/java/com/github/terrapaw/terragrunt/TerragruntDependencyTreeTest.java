@@ -90,4 +90,17 @@ public class TerragruntDependencyTreeTest extends BasePlatformTestCase {
         assertNotNull(app);
         assertTrue("Unresolved paths should not appear in dependency list", app.dependencyPaths().isEmpty());
     }
+
+    public void testScannerHandlesFileAtContentRoot() {
+        // terragrunt.hcl at the root level — getParent relative to base could be empty
+        myFixture.addFileToProject("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "./vpc"
+                }
+                """);
+        myFixture.addFileToProject("vpc/terragrunt.hcl", "locals {}");
+        // Should not crash
+        var nodes = TerragruntDependencyScanner.scanProject(getProject());
+        assertFalse("Should find nodes", nodes.isEmpty());
+    }
 }
