@@ -40,7 +40,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 TerragruntAttribute valuesAttr = PsiTreeUtil.getParentOfType(sourceElement, TerragruntAttribute.class);
                 if (valuesAttr != null && "values".equals(valuesAttr.getIdentifier().getText())) {
                     TerragruntBlock unitBlock = PsiTreeUtil.getParentOfType(valuesAttr, TerragruntBlock.class);
-                    if (unitBlock != null && "unit".equals(unitBlock.getIdentifier().getText())) {
+                    if (unitBlock != null && "unit".equals(TerragruntPsiUtil.getBlockType(unitBlock))) {
                         return handleValuesKeyUsages(sourceElement, unitBlock);
                     }
                 }

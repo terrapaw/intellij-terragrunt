@@ -23,7 +23,7 @@ public class TerragruntFileResolver {
      */
     @Nullable
     public static PsiFile resolveInclude(TerragruntBlock includeBlock) {
-        if (!"include".equals(includeBlock.getIdentifier().getText())) return null;
+        if (!"include".equals(TerragruntPsiUtil.getBlockType(includeBlock))) return null;
         TerragruntBody body = includeBlock.getBody();
         if (body == null) return null;
 

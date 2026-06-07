@@ -38,7 +38,7 @@ public class ReplaceIdentifierQuickFix implements LocalQuickFix {
                 "dummy.hcl", element.getContainingFile().getFileType(),
                 replacement + " {}");
         TerragruntBlock block = PsiTreeUtil.findChildOfType(dummyFile, TerragruntBlock.class);
-        if (block != null) {
+        if (block != null && block.getIdentifier() != null) {
             element.replace(block.getIdentifier());
         }
     }
