@@ -300,9 +300,8 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                 if (depName != null) {
                     for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
                         if (!"dependency".equals(block.getIdentifier().getText())) continue;
-                        for (TerragruntLabel label : block.getLabelList()) {
-                            if (!depName.equals(TerragruntPsiUtil.getLabelText(label))) continue;
-                        }
+                        java.util.List<com.github.terrapaw.terragrunt.lang.psi.TerragruntLabel> labels = block.getLabelList();
+                        if (labels.isEmpty() || !depName.equals(TerragruntPsiUtil.getLabelText(labels.get(0)))) continue;
                         // Find mock_outputs attribute in this block
                         TerragruntBody body = block.getBody();
                         if (body == null) continue;
