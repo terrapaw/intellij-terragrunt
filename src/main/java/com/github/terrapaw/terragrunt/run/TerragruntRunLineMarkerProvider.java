@@ -38,7 +38,7 @@ public class TerragruntRunLineMarkerProvider implements LineMarkerProvider {
         if ("terragrunt.hcl".equals(fileName)) {
             return createMarker(element, "Run Terragrunt...", new String[]{"plan", "apply", "init"});
         } else if ("terragrunt.stack.hcl".equals(fileName)) {
-            return createMarker(element, "Run Terragrunt Stack...", new String[]{"stack generate", "stack run plan", "stack run apply"});
+            return createMarker(element, "Run Terragrunt Stack...", new String[]{"stack generate", "stack run init", "stack run plan", "stack run apply"});
         }
         return null;
     }
