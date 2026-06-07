@@ -8,6 +8,10 @@
 - File templates: New → Terragrunt File (Unit, Root, Stack)
 - Structure view (Alt+7) showing blocks, attributes, and nested object keys
 - Breadcrumbs showing block/attribute/object key hierarchy in the editor
+- Quick-fix: Remove extra label (Alt+Enter on unexpected labels)
+- Quick-fix: Rename duplicate block label (Alt+Enter on duplicates)
+- Quick-fix: Remove duplicate block (Alt+Enter on duplicates)
+- Quick-fix: Suggest closest name for typos in block types, attributes, and variable references
 
 ## [0.3.0] - 2026-06-02
 

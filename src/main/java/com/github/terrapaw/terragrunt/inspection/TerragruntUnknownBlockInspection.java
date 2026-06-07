@@ -22,9 +22,17 @@ public class TerragruntUnknownBlockInspection extends TerragruntBaseInspection {
 
                 String name = block.getIdentifier().getText();
                 if (!TerragruntSchema.isKnownBlock(name)) {
-                    holder.registerProblem(block.getIdentifier(),
-                            "Unknown Terragrunt block '" + name + "'",
-                            ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
+                    String closest = ReplaceIdentifierQuickFix.findClosest(name, TerragruntSchema.getAllBlocks().keySet());
+                    if (closest != null) {
+                        holder.registerProblem(block.getIdentifier(),
+                                "Unknown Terragrunt block '" + name + "'",
+                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
+                                new ReplaceIdentifierQuickFix(closest));
+                    } else {
+                        holder.registerProblem(block.getIdentifier(),
+                                "Unknown Terragrunt block '" + name + "'",
+                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
+                    }
                 }
             }
         };
