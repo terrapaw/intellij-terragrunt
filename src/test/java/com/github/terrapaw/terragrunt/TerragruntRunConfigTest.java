@@ -95,4 +95,13 @@ public class TerragruntRunConfigTest extends BasePlatformTestCase {
         LineMarkerInfo<?> marker = provider.getLineMarkerInfo(block.getIdentifier());
         assertNull("Should NOT have gutter marker on root.hcl", marker);
     }
+
+    public void testParametersListUtilParsesQuotedArgs() {
+        // Verifies the library we use for arg parsing handles quotes correctly
+        var parsed = com.intellij.util.execution.ParametersListUtil.parse(
+                "--var=\"name=hello world\" --no-color");
+        assertEquals(2, parsed.size());
+        assertEquals("--var=name=hello world", parsed.get(0));
+        assertEquals("--no-color", parsed.get(1));
+    }
 }
