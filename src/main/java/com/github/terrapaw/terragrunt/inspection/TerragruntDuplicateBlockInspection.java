@@ -37,7 +37,9 @@ public class TerragruntDuplicateBlockInspection extends TerragruntBaseInspection
                         holder.registerProblem(
                                 labels.getFirst(),
                                 "Duplicate " + type + " block '" + label + "'",
-                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING
+                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
+                                new RenameDuplicateBlockQuickFix(),
+                                new RemoveDuplicateBlockQuickFix()
                         );
                     } else {
                         seen.put(key, block);

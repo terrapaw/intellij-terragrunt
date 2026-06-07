@@ -50,7 +50,8 @@ public class TerragruntLabelCountInspection extends TerragruntBaseInspection {
                             holder.registerProblem(
                                     labels.get(1),
                                     "'" + type + "' block expects 1 label, found " + labels.size(),
-                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING
+                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
+                                    new RemoveExtraLabelQuickFix()
                             );
                         }
                     } else {
@@ -59,7 +60,8 @@ public class TerragruntLabelCountInspection extends TerragruntBaseInspection {
                             holder.registerProblem(
                                     label,
                                     "'" + type + "' block does not take a label",
-                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING
+                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
+                                    new RemoveExtraLabelQuickFix()
                             );
                         }
                     }
