@@ -50,4 +50,39 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         assertTrue("Placeholder should contain block name", placeholder.contains("include"));
         assertTrue("Placeholder should contain label", placeholder.contains("root"));
     }
+
+    public void testFileTemplateUnitExists() {
+        var template = com.intellij.ide.fileTemplates.FileTemplateManager.getInstance(getProject())
+                .getTemplate("Terragrunt Unit");
+        assertNotNull("Terragrunt Unit template should exist", template);
+        assertTrue(template.getText().contains("include"));
+        assertTrue(template.getText().contains("inputs"));
+    }
+
+    public void testFileTemplateRootExists() {
+        var template = com.intellij.ide.fileTemplates.FileTemplateManager.getInstance(getProject())
+                .getTemplate("Terragrunt Root");
+        assertNotNull("Terragrunt Root template should exist", template);
+        assertTrue(template.getText().contains("remote_state"));
+    }
+
+    public void testFileTemplateStackExists() {
+        var template = com.intellij.ide.fileTemplates.FileTemplateManager.getInstance(getProject())
+                .getTemplate("Terragrunt Stack");
+        assertNotNull("Terragrunt Stack template should exist", template);
+        assertTrue(template.getText().contains("unit"));
+    }
+
+    public void testFileTemplatesRenderWithoutVelocityErrors() throws Exception {
+        var manager = com.intellij.ide.fileTemplates.FileTemplateManager.getInstance(getProject());
+        var props = manager.getDefaultProperties();
+        for (String name : new String[]{"Terragrunt Unit", "Terragrunt Root", "Terragrunt Stack"}) {
+            var template = manager.getTemplate(name);
+            assertNotNull(name + " template should exist", template);
+            // This will throw if Velocity can't parse the template
+            String result = template.getText(props);
+            assertNotNull(name + " should render without error", result);
+            assertFalse(name + " should not be empty", result.isBlank());
+        }
+    }
 }

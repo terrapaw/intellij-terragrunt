@@ -1,0 +1,14 @@
+locals {
+  
+}
+
+remote_state {
+  backend = "s3"
+  config = {
+    bucket         = ""
+    key            = "#[[${path_relative_to_include()}/terraform.tfstate]]#"
+    region         = ""
+    encrypt        = true
+    dynamodb_table = ""
+  }
+}
