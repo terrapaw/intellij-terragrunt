@@ -23,9 +23,14 @@ public class RenameDuplicateBlockQuickFix implements LocalQuickFix {
                         .getSelectedTextEditor();
         if (editor == null) return;
 
-        // Select the label text so user can type a new name
+        // Select the label text (inside quotes) so user can type a new name
         int start = label.getTextRange().getStartOffset();
         int end = label.getTextRange().getEndOffset();
+        String text = label.getText();
+        if (text.startsWith("\"") && text.endsWith("\"")) {
+            start++;
+            end--;
+        }
         editor.getCaretModel().moveToOffset(start);
         editor.getSelectionModel().setSelection(start, end);
     }
