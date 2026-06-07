@@ -8,3 +8,4 @@ out/
 # Terragrunt stack generated files
 .terragrunt-stack-manifest
 terragrunt.values.hcl
+dependency-graph.dot
