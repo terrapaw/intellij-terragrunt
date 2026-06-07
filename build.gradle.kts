@@ -67,6 +67,15 @@ intellijPlatform {
               <li>String interpolation support (<code>${'$'}{...}</code> in strings and heredocs)</li>
               <li>Rename refactoring (Shift+F6)</li>
               <li>Documentation popup (Ctrl+Q) for functions</li>
+              <li>Structure view (Alt+7) and breadcrumbs</li>
+              <li>File templates: New &rarr; Terragrunt File (Unit, Root, Stack)</li>
+            </ul>
+
+            <h3>Run &amp; Dependency Tools</h3>
+            <ul>
+              <li>Run configurations: execute terragrunt commands with output in the Run tool window</li>
+              <li>Gutter run markers with command popup (init, plan, apply, stack generate)</li>
+              <li>Dependency tree tool window: DAG visualization, search, context menu, DOT export</li>
             </ul>
 
             <h3>Supported Blocks</h3>
