@@ -2,50 +2,6 @@
     <id>com.github.terrapaw.terragrunt</id>
     <name>Terragrunt HCL</name>
     <vendor>terrapaw</vendor>
-    <description><![CDATA[
-<p>Full-featured Terragrunt HCL language support for IntelliJ-based IDEs. Standalone parser — no dependency on the Terraform plugin.</p>
-
-<h3>Code Completion</h3>
-<ul>
-  <li>Context-aware block and attribute suggestions</li>
-  <li>60+ built-in functions with signatures</li>
-  <li>Dot-completion: <code>local.</code>, <code>dependency.vpc.outputs.</code>, <code>include.root.locals.</code></li>
-  <li>Cross-file resolution through <code>include</code>, <code>read_terragrunt_config</code>, and aliases</li>
-  <li>Nested object keys at any depth, including across files</li>
-</ul>
-
-<h3>Navigation</h3>
-<ul>
-  <li>Ctrl+Click on variables, paths, and object keys — jumps to definition</li>
-  <li>Resolves 10 Terragrunt functions in paths (<code>find_in_parent_folders</code>, <code>get_repo_root</code>, etc.)</li>
-  <li>Arbitrary-depth chain navigation across multiple config files</li>
-  <li>Find usages from definitions (locals, inputs, block labels, object keys)</li>
-</ul>
-
-<h3>Inspections &amp; Quick-Fixes</h3>
-<ul>
-  <li>Unknown blocks/attributes, duplicate blocks, missing required attributes</li>
-  <li>Unresolved file paths and variable references</li>
-  <li>Alt+Enter quick-fixes to insert missing attributes or suppress warnings</li>
-  <li>Suppressible with <code># noinspection</code> comments (committable to source control)</li>
-</ul>
-
-<h3>Editor Support</h3>
-<ul>
-  <li>Syntax highlighting, code folding, brace matching, formatter</li>
-  <li>Live templates (<code>dep</code>, <code>inc</code>, <code>gen</code>, <code>feat</code>, <code>loc</code>, <code>inp</code>)</li>
-  <li>String interpolation support (<code>${...}</code> in strings and heredocs)</li>
-  <li>Rename refactoring (Shift+F6)</li>
-  <li>Documentation popup (Ctrl+Q) for functions</li>
-</ul>
-
-<h3>Supported Blocks</h3>
-<p><code>terraform</code>, <code>remote_state</code>, <code>include</code>, <code>locals</code>, <code>dependency</code>, <code>dependencies</code>, <code>generate</code>, <code>catalog</code>, <code>engine</code>, <code>feature</code>, <code>exclude</code>, <code>errors</code>, <code>unit</code>, <code>stack</code></p>
-
-<h3>Requirements</h3>
-<p>IntelliJ IDEA 2025.1+ &bull; Java 21</p>
-]]></description>
-
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
