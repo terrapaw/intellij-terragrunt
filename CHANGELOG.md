@@ -18,6 +18,9 @@
 - Binary path setting in Settings → Languages & Frameworks → Terragrunt (auto-detects from PATH)
 - Dependency tree tool window (View → Tool Windows → Terragrunt Dependencies) showing DAG of dependency blocks across the project
 
+### Fixed
+- `feature.X.value` and `dependency.X.outputs.Y` navigation incorrectly matched the first block instead of the named one when multiple blocks existed
+
 ## [0.3.0] - 2026-06-02
 
 ### Added
