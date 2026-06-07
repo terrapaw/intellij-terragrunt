@@ -43,9 +43,18 @@ public class TerragruntUnknownAttributeInspection extends TerragruntBaseInspecti
                 Set<String> validNestedBlocks = Set.copyOf(def.nestedBlocks());
 
                 if (!validAttrs.contains(attrName) && !validNestedBlocks.contains(attrName)) {
-                    holder.registerProblem(attr.getIdentifier(),
-                            "Unknown attribute '" + attrName + "' in '" + blockType + "' block",
-                            ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
+                    String closest = ReplaceIdentifierQuickFix.findClosest(attrName,
+                            Stream.concat(validAttrs.stream(), validNestedBlocks.stream()).toList());
+                    if (closest != null) {
+                        holder.registerProblem(attr.getIdentifier(),
+                                "Unknown attribute '" + attrName + "' in '" + blockType + "' block",
+                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
+                                new ReplaceIdentifierQuickFix(closest));
+                    } else {
+                        holder.registerProblem(attr.getIdentifier(),
+                                "Unknown attribute '" + attrName + "' in '" + blockType + "' block",
+                                ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
+                    }
                 }
             }
         };

@@ -11,6 +11,7 @@
 - Quick-fix: Remove extra label (Alt+Enter on unexpected labels)
 - Quick-fix: Rename duplicate block label (Alt+Enter on duplicates)
 - Quick-fix: Remove duplicate block (Alt+Enter on duplicates)
+- Quick-fix: Suggest closest name for typos in block types, attributes, and variable references
 
 ## [0.3.0] - 2026-06-02
 

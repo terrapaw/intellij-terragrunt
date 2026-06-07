@@ -260,4 +260,82 @@ public class TerragruntCoreUxTest extends BasePlatformTestCase {
         }
         assertTrue("Rename should appear before Remove in IDE", renameIdx < removeIdx);
     }
+
+    public void testQuickFixSuggestsClosestBlockName() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnknownBlockInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                depdency "vpc" {
+                  config_path = "../vpc"
+                }
+                """);
+        myFixture.doHighlighting();
+        var intentions = myFixture.getAllQuickFixes();
+        var fix = intentions.stream()
+                .filter(i -> i.getText().contains("Change to"))
+                .findFirst().orElse(null);
+        assertNotNull("Should suggest closest block name", fix);
+        assertTrue(fix.getText().contains("dependency"));
+        myFixture.launchAction(fix);
+        String text = myFixture.getEditor().getDocument().getText();
+        assertTrue("Should have replaced with 'dependency'", text.contains("dependency"));
+    }
+
+    public void testQuickFixSuggestsClosestAttributeName() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnknownAttributeInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  confg_path = "../vpc"
+                }
+                """);
+        myFixture.doHighlighting();
+        var intentions = myFixture.getAllQuickFixes();
+        var fix = intentions.stream()
+                .filter(i -> i.getText().contains("Change to"))
+                .findFirst().orElse(null);
+        assertNotNull("Should suggest closest attribute name", fix);
+        assertTrue(fix.getText().contains("config_path"));
+        myFixture.launchAction(fix);
+        String text = myFixture.getEditor().getDocument().getText();
+        assertTrue("Should have replaced with 'config_path'", text.contains("config_path"));
+    }
+
+    public void testQuickFixSuggestsClosestLocalVariable() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnresolvedVariableInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  region = "us-east-1"
+                }
+
+                inputs = {
+                  r = local.regin
+                }
+                """);
+        myFixture.doHighlighting();
+        var intentions = myFixture.getAllQuickFixes();
+        var fix = intentions.stream()
+                .filter(i -> i.getText().contains("Change to"))
+                .findFirst().orElse(null);
+        assertNotNull("Should suggest closest local name", fix);
+        assertTrue(fix.getText().contains("region"));
+    }
+
+    public void testQuickFixSuggestsClosestDependency() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnresolvedVariableInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+
+                inputs = {
+                  id = dependency.vp.outputs.id
+                }
+                """);
+        myFixture.doHighlighting();
+        var intentions = myFixture.getAllQuickFixes();
+        var fix = intentions.stream()
+                .filter(i -> i.getText().contains("Change to"))
+                .findFirst().orElse(null);
+        assertNotNull("Should suggest closest dependency name", fix);
+        assertTrue(fix.getText().contains("vpc"));
+    }
 }
