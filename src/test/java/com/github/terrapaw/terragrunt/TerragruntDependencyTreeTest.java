@@ -54,4 +54,40 @@ public class TerragruntDependencyTreeTest extends BasePlatformTestCase {
         assertNotNull(app);
         assertEquals("app should have 2 dependencies", 2, app.dependencyPaths().size());
     }
+
+    public void testEntryPointDetection() {
+        myFixture.addFileToProject("root.hcl", "");
+        myFixture.addFileToProject("vpc/terragrunt.hcl", "locals {}");
+        myFixture.addFileToProject("app/terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                """);
+        var nodes = TerragruntDependencyScanner.scanProject(getProject());
+
+        // Collect all dependency paths to find entry points
+        java.util.Set<String> allDepPaths = new java.util.HashSet<>();
+        for (var node : nodes) allDepPaths.addAll(node.dependencyPaths());
+
+        // app depends on vpc, so vpc is NOT an entry point. app IS an entry point.
+        var app = nodes.stream().filter(n -> n.displayName().contains("app")).findFirst().orElse(null);
+        var vpc = nodes.stream().filter(n -> n.displayName().contains("vpc")).findFirst().orElse(null);
+        assertNotNull(app);
+        assertNotNull(vpc);
+        assertFalse("app should be entry point (nothing depends on it)", allDepPaths.contains(app.file().getPath()));
+        assertTrue("vpc should NOT be entry point (app depends on it)", allDepPaths.contains(vpc.file().getPath()));
+    }
+
+    public void testUnresolvedDependencyPathDoesNotCrash() {
+        myFixture.addFileToProject("root.hcl", "");
+        myFixture.addFileToProject("app/terragrunt.hcl", """
+                dependency "missing" {
+                  config_path = "../nonexistent"
+                }
+                """);
+        var nodes = TerragruntDependencyScanner.scanProject(getProject());
+        var app = nodes.stream().filter(n -> n.displayName().contains("app")).findFirst().orElse(null);
+        assertNotNull(app);
+        assertTrue("Unresolved paths should not appear in dependency list", app.dependencyPaths().isEmpty());
+    }
 }
