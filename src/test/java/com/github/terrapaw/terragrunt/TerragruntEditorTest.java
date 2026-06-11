@@ -403,4 +403,53 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         assertTrue("Unquoted key inside merge() should be highlighted",
                 highlights.stream().anyMatch(h -> h.getStartOffset() == offset && h.getEndOffset() == offset + "unquoted_key".length()));
     }
+
+    public void testLiveTemplateContextBetweenBlocks() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                feature "x" {
+                  default = false
+                }
+
+                terraform {
+                  source = "test"
+                }
+                """);
+        String text = file.getText();
+        var ctx = new com.github.terrapaw.terragrunt.editor.TerragruntLiveTemplateContext();
+
+        // Blank line between blocks
+        int offset = text.indexOf("\n\nterraform") + 1;
+        var tac = com.intellij.codeInsight.template.TemplateActionContext.expanding(file, offset);
+        assertTrue("Should allow templates between blocks", ctx.isInContext(tac));
+    }
+
+    public void testLiveTemplateContextRejectedInsideInputs() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                inputs = {
+                  name = "test"
+                }
+                """);
+        String text = file.getText();
+        var ctx = new com.github.terrapaw.terragrunt.editor.TerragruntLiveTemplateContext();
+
+        // Inside inputs = { ... }
+        int offset = text.indexOf("name") - 1;
+        var tac = com.intellij.codeInsight.template.TemplateActionContext.expanding(file, offset);
+        assertFalse("Should reject templates inside attribute value", ctx.isInContext(tac));
+    }
+
+    public void testLiveTemplateContextRejectedInsideBlock() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                """);
+        String text = file.getText();
+        var ctx = new com.github.terrapaw.terragrunt.editor.TerragruntLiveTemplateContext();
+
+        // Inside the dependency block
+        int offset = text.indexOf("config_path") - 1;
+        var tac = com.intellij.codeInsight.template.TemplateActionContext.expanding(file, offset);
+        assertFalse("Should reject templates inside block body", ctx.isInContext(tac));
+    }
 }
