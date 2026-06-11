@@ -91,7 +91,13 @@ intellijPlatform {
             sinceBuild = "251"
         }
         changeNotes = providers.provider {
-            changelog.renderItem(changelog.get(project.version.toString()), org.jetbrains.changelog.Changelog.OutputType.HTML)
+            val ver = project.version.toString()
+            val item = if (ver.contains("-beta") || ver.contains("-rc")) {
+                changelog.getUnreleased()
+            } else {
+                changelog.get(ver)
+            }
+            changelog.renderItem(item, org.jetbrains.changelog.Changelog.OutputType.HTML)
         }
     }
     pluginVerification {
