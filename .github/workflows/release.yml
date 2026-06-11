@@ -24,6 +24,18 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: Determine release channel
+        id: channel
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ "$TAG" == *"-beta"* ]] || [[ "$TAG" == *"-rc"* ]]; then
+            echo "channel=beta" >> $GITHUB_OUTPUT
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "channel=default" >> $GITHUB_OUTPUT
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and Test
         run: ./gradlew buildPlugin test
 
@@ -43,9 +55,14 @@ jobs:
         id: changelog
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d')
+          # For beta/rc tags, use [Unreleased] section
+          if [[ "$VERSION" == *"-beta"* ]] || [[ "$VERSION" == *"-rc"* ]]; then
+            NOTES=$(sed -n '/^## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | sed '1d;$d')
+          else
+            NOTES=$(sed -n "/^## \[${VERSION}\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d')
+          fi
           if [ -z "$NOTES" ]; then
-            echo "::error::No release notes found for version $VERSION in CHANGELOG.md. Rename [Unreleased] to [$VERSION] before tagging."
+            echo "::error::No release notes found. For stable: rename [Unreleased] to [$VERSION]. For beta: ensure [Unreleased] has content."
             exit 1
           fi
           echo "$NOTES" > /tmp/release-notes.md
@@ -55,8 +72,10 @@ jobs:
         with:
           files: build/distributions/*.zip
           body_path: /tmp/release-notes.md
+          prerelease: ${{ steps.channel.outputs.prerelease == 'true' }}
 
       - name: Publish to JetBrains Marketplace
         run: ./gradlew publishPlugin
         env:
           PUBLISH_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+          PUBLISH_CHANNEL: ${{ steps.channel.outputs.channel }}

@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "com.github.terrapaw"
-version = "0.3.0"
+version = "0.4.0-beta.1"
 
 repositories {
     mavenCentral()
@@ -91,7 +91,13 @@ intellijPlatform {
             sinceBuild = "251"
         }
         changeNotes = providers.provider {
-            changelog.renderItem(changelog.get(project.version.toString()), org.jetbrains.changelog.Changelog.OutputType.HTML)
+            val ver = project.version.toString()
+            val item = if (ver.contains("-beta") || ver.contains("-rc")) {
+                changelog.getUnreleased()
+            } else {
+                changelog.get(ver)
+            }
+            changelog.renderItem(item, org.jetbrains.changelog.Changelog.OutputType.HTML)
         }
     }
     pluginVerification {
@@ -101,6 +107,9 @@ intellijPlatform {
     }
     publishing {
         token = providers.environmentVariable("PUBLISH_TOKEN")
+        channels = providers.environmentVariable("PUBLISH_CHANNEL").map { ch ->
+            if (ch == "default" || ch.isBlank()) listOf() else listOf(ch)
+        }.orElse(listOf())
     }
 }
 
