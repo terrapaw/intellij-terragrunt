@@ -224,4 +224,183 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
             assertFalse("Should not show '?'", info.equals("?"));
         }
     }
+
+    public void testBlockTypeHighlightedAsKeyword() {
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                """);
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+        int depOffset = text.indexOf("dependency");
+        var blockHighlight = highlights.stream()
+                .filter(h -> h.getStartOffset() == depOffset && h.getEndOffset() == depOffset + "dependency".length())
+                .findFirst().orElse(null);
+        assertNotNull("Block type 'dependency' should be highlighted as keyword", blockHighlight);
+    }
+
+    public void testAttributeHighlightedAsProperty() {
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                """);
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+        int attrOffset = text.indexOf("config_path");
+        var attrHighlight = highlights.stream()
+                .filter(h -> h.getStartOffset() == attrOffset && h.getEndOffset() == attrOffset + "config_path".length())
+                .findFirst().orElse(null);
+        assertNotNull("Attribute 'config_path' should be highlighted as property", attrHighlight);
+    }
+
+    public void testObjectKeyHighlightedAsProperty() {
+        myFixture.configureByText("terragrunt.hcl", """
+                inputs = {
+                  environment = "prod"
+                }
+                """);
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+        int keyOffset = text.indexOf("environment");
+        var keyHighlight = highlights.stream()
+                .filter(h -> h.getStartOffset() == keyOffset && h.getEndOffset() == keyOffset + "environment".length())
+                .findFirst().orElse(null);
+        assertNotNull("Object key 'environment' should be highlighted as property", keyHighlight);
+    }
+
+    public void testNestedObjectKeyHighlighted() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  config = {
+                    region = "us-east-1"
+                  }
+                }
+                """);
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+        int regionOffset = text.indexOf("region");
+        var regionHighlight = highlights.stream()
+                .filter(h -> h.getStartOffset() == regionOffset && h.getEndOffset() == regionOffset + "region".length())
+                .findFirst().orElse(null);
+        assertNotNull("Nested object key 'region' should be highlighted", regionHighlight);
+    }
+
+    public void testAllBlockTypesHighlighted() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  x = 1
+                }
+                include "root" {
+                  path = "root.hcl"
+                }
+                """);
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+
+        int localsOffset = text.indexOf("locals");
+        int includeOffset = text.indexOf("include");
+        assertTrue("'locals' should be highlighted",
+                highlights.stream().anyMatch(h -> h.getStartOffset() == localsOffset && h.getEndOffset() == localsOffset + "locals".length()));
+        assertTrue("'include' should be highlighted",
+                highlights.stream().anyMatch(h -> h.getStartOffset() == includeOffset && h.getEndOffset() == includeOffset + "include".length()));
+    }
+
+    public void testStringValuesNotHighlightedByAnnotator() {
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                """);
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+        int stringOffset = text.indexOf("../vpc");
+        var stringHighlight = highlights.stream()
+                .filter(h -> h.getStartOffset() == stringOffset && h.getEndOffset() == stringOffset + "../vpc".length())
+                .findFirst().orElse(null);
+        assertNull("String value '../vpc' should NOT have semantic annotation", stringHighlight);
+    }
+
+    public void testBlockLabelNotHighlightedByAnnotator() {
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                """);
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+        // "vpc" label — the quotes are STRING tokens, content is STRING_LITERAL
+        // The annotator should not add an extra highlight on the label
+        int labelOffset = text.indexOf("\"vpc\"");
+        var labelHighlight = highlights.stream()
+                .filter(h -> h.getStartOffset() == labelOffset + 1 && h.getEndOffset() == labelOffset + 4)
+                .findFirst().orElse(null);
+        assertNull("Block label content 'vpc' should NOT have semantic annotation (already colored by lexer)", labelHighlight);
+    }
+
+    public void testVariableReferenceNotHighlighted() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  env = "prod"
+                }
+                inputs = {
+                  val = local.env
+                }
+                """);
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+        // "local" in "local.env" is a variable reference, not a block type
+        int localRefOffset = text.indexOf("local.env");
+        var refHighlight = highlights.stream()
+                .filter(h -> h.getStartOffset() == localRefOffset && h.getEndOffset() == localRefOffset + "local".length())
+                .findFirst().orElse(null);
+        assertNull("Variable reference 'local' should NOT be highlighted as keyword", refHighlight);
+    }
+
+    public void testEmptyBlockTypeStillHighlighted() {
+        myFixture.configureByText("terragrunt.hcl", "locals {}\n");
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("locals");
+        assertTrue("Empty block 'locals' should still be highlighted",
+                highlights.stream().anyMatch(h -> h.getStartOffset() == offset && h.getEndOffset() == offset + "locals".length()));
+    }
+
+    public void testTopLevelAttributeHighlighted() {
+        myFixture.configureByText("terragrunt.hcl", """
+                inputs = {
+                  name = "app"
+                }
+                """);
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("inputs");
+        assertTrue("Top-level attribute 'inputs' should be highlighted",
+                highlights.stream().anyMatch(h -> h.getStartOffset() == offset && h.getEndOffset() == offset + "inputs".length()));
+    }
+
+    public void testQuotedObjectKeyDoesNotCrash() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  data = merge({"quoted_key" = "value"})
+                }
+                """);
+        // Should not crash — quoted keys have null getIdentifier()
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        assertNotNull("Should complete highlighting without crash", highlights);
+    }
+
+    public void testNestedMergeObjectKeyHighlighted() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  data = merge({unquoted_key = "value"})
+                }
+                """);
+        var highlights = myFixture.doHighlighting(com.intellij.lang.annotation.HighlightSeverity.INFORMATION);
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("unquoted_key");
+        assertTrue("Unquoted key inside merge() should be highlighted",
+                highlights.stream().anyMatch(h -> h.getStartOffset() == offset && h.getEndOffset() == offset + "unquoted_key".length()));
+    }
 }

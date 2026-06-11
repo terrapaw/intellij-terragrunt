@@ -14,6 +14,7 @@ import static com.intellij.openapi.editor.colors.TextAttributesKey.createTextAtt
 
 public class TerragruntSyntaxHighlighter extends SyntaxHighlighterBase {
     public static final TextAttributesKey KEYWORD = createTextAttributesKey("TG_KEYWORD", DefaultLanguageHighlighterColors.KEYWORD);
+    public static final TextAttributesKey COMMA = createTextAttributesKey("TG_COMMA", DefaultLanguageHighlighterColors.COMMA);
     public static final TextAttributesKey STRING = createTextAttributesKey("TG_STRING", DefaultLanguageHighlighterColors.STRING);
     public static final TextAttributesKey NUMBER = createTextAttributesKey("TG_NUMBER", DefaultLanguageHighlighterColors.NUMBER);
     public static final TextAttributesKey LINE_COMMENT = createTextAttributesKey("TG_LINE_COMMENT", DefaultLanguageHighlighterColors.LINE_COMMENT);
@@ -48,7 +49,7 @@ public class TerragruntSyntaxHighlighter extends SyntaxHighlighterBase {
     @Override
     public TextAttributesKey @NotNull [] getTokenHighlights(IElementType tokenType) {
         if (TerragruntTokenTypes.KEYWORDS.contains(tokenType)) return KEYWORD_KEYS;
-        if (tokenType == TerragruntTypes.STRING_LITERAL || tokenType == TerragruntTypes.HEREDOC_CONTENT || tokenType == TerragruntTypes.QUOTE) return STRING_KEYS;
+        if (tokenType == TerragruntTypes.STRING_LITERAL || tokenType == TerragruntTypes.QUOTE) return STRING_KEYS;
         if (tokenType == TerragruntTypes.INTERPOLATION_START || tokenType == TerragruntTypes.INTERPOLATION_END || tokenType == TerragruntTypes.DIRECTIVE_START) return IDENTIFIER_KEYS;
         if (tokenType == TerragruntTypes.NUMBER) return NUMBER_KEYS;
         if (tokenType == TerragruntTypes.LINE_COMMENT) return LINE_COMMENT_KEYS;
@@ -64,6 +65,7 @@ public class TerragruntSyntaxHighlighter extends SyntaxHighlighterBase {
             tokenType == TerragruntTypes.PLUS || tokenType == TerragruntTypes.MINUS ||
             tokenType == TerragruntTypes.STAR || tokenType == TerragruntTypes.SLASH ||
             tokenType == TerragruntTypes.PERCENT || tokenType == TerragruntTypes.NOT) return OPERATOR_KEYS;
+        if (tokenType == TerragruntTypes.COMMA) return new TextAttributesKey[]{COMMA};
         return EMPTY;
     }
 }
