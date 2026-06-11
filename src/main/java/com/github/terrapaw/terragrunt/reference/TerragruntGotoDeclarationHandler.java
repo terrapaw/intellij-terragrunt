@@ -382,7 +382,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                                         PsiFile sourceFile, String name, List<PsiElement> usages) {
         for (com.intellij.openapi.vfs.VirtualFile child : dir.getChildren()) {
             if (child.isDirectory()) {
-                if (child.getName().startsWith(".") || child.getName().equals("node_modules")) continue;
+                if ((child.getName().startsWith(".") && !child.getName().equals(".terragrunt-stack")) || child.getName().equals("node_modules")) continue;
                 findHclFilesRecursive(child, project, sourceFile, name, usages);
             } else if (child.getName().endsWith(".hcl")) {
                 PsiFile psiFile = PsiManager.getInstance(project).findFile(child);
@@ -680,7 +680,7 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                                                         java.util.List<String> keyPath, List<PsiElement> usages) {
         for (com.intellij.openapi.vfs.VirtualFile child : dir.getChildren()) {
             if (child.isDirectory()) {
-                if (child.getName().startsWith(".") || child.getName().equals("node_modules")) continue;
+                if ((child.getName().startsWith(".") && !child.getName().equals(".terragrunt-stack")) || child.getName().equals("node_modules")) continue;
                 findCrossFileObjectKeyUsagesRecursive(child, project, sourceFile, attrName, keyPath, usages);
             } else if (child.getName().endsWith(".hcl")) {
                 PsiFile psiFile = PsiManager.getInstance(project).findFile(child);

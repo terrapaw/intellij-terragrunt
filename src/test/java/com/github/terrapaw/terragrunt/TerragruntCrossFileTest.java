@@ -1115,4 +1115,37 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertNotNull("Should find cross-file usages of object key", targets);
         assertTrue("Should find at least one usage", targets.length > 0);
     }
+
+    public void testStackContextResolutionFromDotTerragruntStackDir() {
+        // Regression: .terragrunt-stack was skipped by recursive scanner after audit fix
+        myFixture.addFileToProject("root.hcl", "");
+        myFixture.addFileToProject("tgs-env.hcl", """
+                locals {
+                  environment = "prod"
+                }
+                """);
+
+        PsiFile sharedConfig = myFixture.addFileToProject("tgs-proj/tgs-shared.hcl", """
+                locals {
+                  env_config = read_terragrunt_config(find_in_parent_folders("tgs-env.hcl"))
+                  deploy_env = local.env_config.locals.environment
+                }
+                """);
+
+        // Includer is inside .terragrunt-stack (dot-prefixed dir)
+        myFixture.addFileToProject("tgs-proj/.terragrunt-stack/app/terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("tgs-shared.hcl")
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(sharedConfig.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("locals.environment") + "locals.".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve via includer in .terragrunt-stack", targets);
+        assertTrue("Should find target", targets.length > 0);
+    }
 }
