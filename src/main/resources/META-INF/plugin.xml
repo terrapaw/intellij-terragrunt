@@ -17,6 +17,8 @@
                                implementationClass="com.github.terrapaw.terragrunt.lang.TerragruntParserDefinition"/>
         <lang.syntaxHighlighterFactory language="Terragrunt"
                                        implementationClass="com.github.terrapaw.terragrunt.highlight.TerragruntSyntaxHighlighterFactory"/>
+        <annotator language="Terragrunt"
+                   implementationClass="com.github.terrapaw.terragrunt.highlight.TerragruntSemanticAnnotator"/>
         <colorSettingsPage implementationClass="com.github.terrapaw.terragrunt.highlight.TerragruntColorSettingsPage"/>
         <lang.documentationProvider language="Terragrunt"
                                     implementationClass="com.github.terrapaw.terragrunt.editor.TerragruntDocumentationProvider"/>
