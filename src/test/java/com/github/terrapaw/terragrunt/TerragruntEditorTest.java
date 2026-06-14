@@ -466,4 +466,24 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         var tac = com.intellij.codeInsight.template.TemplateActionContext.expanding(file, offset);
         assertFalse("Should reject templates inside block body", ctx.isInContext(tac));
     }
+
+    public void testLiveTemplateContextAllowedAfterBlockWithTypedPrefix() {
+        // Simulates typing "dep" on blank line after a block — parser creates malformed block
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                terraform {
+                  source = "test"
+                }
+                dep
+                locals {
+                  name = "test"
+                }
+                """);
+        String text = file.getText();
+        var ctx = new com.github.terrapaw.terragrunt.editor.TerragruntLiveTemplateContext();
+
+        // Offset at end of "dep" — parser sees it as a block identifier
+        int offset = text.indexOf("dep") + 3;
+        var tac = com.intellij.codeInsight.template.TemplateActionContext.expanding(file, offset);
+        assertTrue("Should allow templates when offset is at block identifier (typing new block name)", ctx.isInContext(tac));
+    }
 }

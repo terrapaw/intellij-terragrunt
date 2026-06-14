@@ -23,22 +23,25 @@ public class TerragruntLiveTemplateContext extends TemplateContextType {
 
         int offset = context.getStartOffset();
 
-        // Use the original file (before dummy identifier insertion) if available
-        PsiFile file = context.getFile();
-        PsiFile original = file.getOriginalFile();
-        if (original != file) file = original;
+        // Use the original file (before any modifications) to avoid dummy identifier issues
+        PsiFile file = context.getFile().getOriginalFile();
 
         // Check if offset falls inside any top-level block or top-level attribute value
-        TerragruntBody body = com.intellij.psi.util.PsiTreeUtil.getChildOfType(file, TerragruntBody.class);
+        TerragruntBody body = PsiTreeUtil.getChildOfType(file, TerragruntBody.class);
         if (body == null) return true;
 
         for (PsiElement child : body.getChildren()) {
-            if (child instanceof TerragruntBlock && child.getTextRange().contains(offset)) {
-                return false;
+            if (child instanceof TerragruntBlock block) {
+                if (offset > child.getTextRange().getStartOffset() && offset < child.getTextRange().getEndOffset()) {
+                    // If the offset is at/near the block's identifier (typing a new block name), allow it
+                    PsiElement id = block.getIdentifier();
+                    if (id != null && offset <= id.getTextRange().getEndOffset()) {
+                        continue;
+                    }
+                    return false;
+                }
             }
             if (child instanceof com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute attr) {
-                // Allow template at the attribute name position (typing a new block name)
-                // but reject inside the value (after =)
                 int eqOffset = attr.getText().indexOf('=');
                 if (eqOffset >= 0 && offset > attr.getTextOffset() + eqOffset) {
                     return false;
