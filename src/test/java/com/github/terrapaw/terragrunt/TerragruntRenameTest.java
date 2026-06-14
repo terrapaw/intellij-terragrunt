@@ -79,4 +79,136 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         };
         assertFalse("Rename should NOT be available on non-local identifier", handler.isAvailableOnDataContext(ctx));
     }
+
+    public void testCrossFileRenameUpdatesIncludeLocalsUsage() {
+        // root.hcl defines the local
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  region = "us-east-1"
+                }
+                """);
+
+        // child references it via include.root.locals.region
+        myFixture.addFileToProject("child/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                  expose = true
+                }
+                
+                inputs = {
+                  r = include.root.locals.region
+                }
+                """);
+
+        // Configure on root.hcl definition
+        myFixture.configureFromExistingVirtualFile(rootFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("region");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available on local definition", handler.isAvailableOnDataContext(ctx));
+
+        // Perform the rename
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "region", "aws_region");
+
+        // Verify the child file was updated
+        var updatedChild = myFixture.findFileInTempDir("child/terragrunt.hcl");
+        assertNotNull("Child file should exist", updatedChild);
+        var psiChild = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedChild);
+        assertNotNull(psiChild);
+        var childDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiChild);
+        assertNotNull(childDoc);
+        String childText = childDoc.getText();
+        assertTrue("Child should reference aws_region, got: " + childText,
+                childText.contains("include.root.locals.aws_region"));
+        assertFalse("Child should NOT still reference region",
+                childText.contains("include.root.locals.region"));
+    }
+
+    public void testCrossFileRenameUpdatesAliasUsage() {
+        // root.hcl defines the local
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  environment = "prod"
+                }
+                """);
+
+        // child uses an alias: local.config.environment
+        myFixture.addFileToProject("child/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                  expose = true
+                }
+                
+                locals {
+                  config = include.root.locals
+                }
+                
+                inputs = {
+                  env = local.config.environment
+                }
+                """);
+
+        // Configure on root.hcl definition
+        myFixture.configureFromExistingVirtualFile(rootFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("environment");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "environment", "env_name");
+
+        var updatedChild = myFixture.findFileInTempDir("child/terragrunt.hcl");
+        var psiChild = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedChild);
+        assertNotNull(psiChild);
+        var childDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiChild);
+        assertNotNull(childDoc);
+        String childText = childDoc.getText();
+        assertTrue("Child should reference env_name, got: " + childText,
+                childText.contains("local.config.env_name"));
+    }
+
+    public void testCrossFileRenameUpdatesReadTerragruntConfigUsage() {
+        // common.hcl defines locals
+        var commonFile = myFixture.addFileToProject("common.hcl", """
+                locals {
+                  project_name = "my-app"
+                }
+                """);
+
+        // child uses read_terragrunt_config: local.common.locals.project_name
+        myFixture.addFileToProject("child/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common.hcl")
+                }
+                
+                inputs = {
+                  name = local.common.locals.project_name
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(commonFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("project_name");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "project_name", "app_name");
+
+        var updatedChild = myFixture.findFileInTempDir("child/terragrunt.hcl");
+        var psiChild = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedChild);
+        assertNotNull(psiChild);
+        var childDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiChild);
+        assertNotNull(childDoc);
+        String childText = childDoc.getText();
+        assertTrue("Child should reference app_name, got: " + childText,
+                childText.contains("local.common.locals.app_name"));
+    }
 }
