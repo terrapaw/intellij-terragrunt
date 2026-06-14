@@ -28,6 +28,12 @@ The alternative (used by the JetBrains Terraform/HCL plugin) is to emit the enti
 - Grammar: `string_lit ::= QUOTE (STRING_LITERAL | interpolation)* QUOTE`
 - Grammar: `label ::= QUOTE STRING_LITERAL* QUOTE | IDENTIFIER`
 - `"vpc" "extra"` (two HCL labels) produces two separate label nodes. The `TerragruntLabelCountInspection` simply checks `getLabelList().size()`.
+
+## PSI Mixin: TerragruntStringLitMixin
+
+The `string_lit` rule uses a Grammar-Kit mixin (`TerragruntStringLitMixin`) that overrides `getReferences()` on interpolated path strings. This provides unified Ctrl+hover highlighting across the full string content — without it, each token inside the string would get its own fragmented underline.
+
+The mixin only activates for strings containing `${...}` that are inside path attributes (`path`, `config_path`, `source`) or `read_terragrunt_config()` arguments. Regular strings return an empty reference array.
 - String value extraction always needs a helper (`extractStringContent()`) to strip quotes.
 
 ### Lexer States

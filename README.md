@@ -28,7 +28,9 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - All inspections suppressible with `# noinspection ShortName` comments (committable to source control)
 - **Navigation (Ctrl+Click / Ctrl+B)**
   - `include` paths and `dependency` config_paths → jump to referenced files
+  - Path strings resolving to directories → navigate to directory
   - Function-aware: resolves `get_parent_terragrunt_dir()`, `get_terragrunt_dir()`, `get_root_terragrunt_dir()`, `get_repo_root()`, `find_in_parent_folders()`, `dirname()`, `basename()` in paths
+  - Ctrl+B on function names (`read_terragrunt_config`, `find_in_parent_folders`) → navigates to resolved target
   - `get_parent_terragrunt_dir()` uses include semantics (returns own dir for parent configs, supports named includes)
   - Stack context: resolves `read_terragrunt_config(find_in_parent_folders(...))` from includer directories (e.g. `.terragrunt-stack/` generated units)
   - `local.app_name` → jump to definition in `locals` block
@@ -52,7 +54,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
 - **Live templates** — `dep`, `inc`, `gen`, `feat`, `loc`, `inp` (type + Tab to expand)
 - **Formatter (Ctrl+Alt+L)** — auto-indents with 2 spaces (configurable in Settings → Code Style)
 - **String interpolation** — full support for `${...}` in strings and heredocs (highlighting, navigation, completion)
-- **Editor support** — code folding, brace matching, auto-close quotes/brackets, comment/uncomment, color settings
+- **Editor support** — code folding (blocks and attributes with object values), brace matching, auto-close quotes/brackets, comment/uncomment, color settings
 - **Structure view (Alt+7)** — shows blocks, attributes, and nested object keys in the Structure tool window
 - **Breadcrumbs** — editor breadcrumb bar showing block/attribute hierarchy
 - **File templates** — New → Terragrunt File (Unit, Root, Stack templates)
@@ -94,7 +96,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-345 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+346 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
