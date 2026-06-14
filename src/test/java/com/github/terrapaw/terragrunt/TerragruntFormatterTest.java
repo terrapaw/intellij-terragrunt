@@ -13,8 +13,9 @@ public class TerragruntFormatterTest extends BasePlatformTestCase {
                 """);
         myFixture.performEditorAction("ReformatCode");
         String result = myFixture.getEditor().getDocument().getText();
-        assertTrue("Should indent attributes inside block", result.contains("  name = \"test\""));
-        assertTrue("Should indent attributes inside block", result.contains("  region = \"us-east-1\""));
+        // Alignment pads shorter names to align = signs
+        assertTrue("Should indent and align attributes inside block",
+                result.contains("  name") && result.contains("  region") && result.contains("= \"test\"") && result.contains("= \"us-east-1\""));
     }
 
     public void testIndentsNestedBlock() {
@@ -40,7 +41,13 @@ public class TerragruntFormatterTest extends BasePlatformTestCase {
                 """);
         myFixture.performEditorAction("ReformatCode");
         String result = myFixture.getEditor().getDocument().getText();
-        assertTrue("Should indent object contents", result.contains("  name = \"test\""));
+        assertTrue("Should indent object contents", result.contains("  name") && result.contains("  count"));
+        // Alignment means = signs are at same column
+        int eq1 = result.indexOf("= \"test\"");
+        int eq2 = result.indexOf("= 3");
+        int col1 = eq1 - result.lastIndexOf('\n', eq1) - 1;
+        int col2 = eq2 - result.lastIndexOf('\n', eq2) - 1;
+        assertEquals("= should be aligned in object", col1, col2);
     }
 
     public void testPreservesSpacingInsideAttributes() {
@@ -85,5 +92,140 @@ public class TerragruntFormatterTest extends BasePlatformTestCase {
         assertTrue("dependency should start at column 0", result.contains("\ndependency \"vpc\" {"));
         assertFalse("Top-level blocks should NOT be indented", result.contains("  locals {"));
         assertFalse("Top-level blocks should NOT be indented", result.contains("  dependency"));
+    }
+
+    public void testAlignmentOfEqualsInBlock() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                app_name="my-app"
+                app_port=8080
+                environment="prod"
+                }
+                """);
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // All = signs should be aligned
+        int eq1 = result.indexOf("= \"my-app\"");
+        int eq2 = result.indexOf("= 8080");
+        int eq3 = result.indexOf("= \"prod\"");
+        // They should all be at the same column (aligned)
+        int col1 = eq1 - result.lastIndexOf('\n', eq1) - 1;
+        int col2 = eq2 - result.lastIndexOf('\n', eq2) - 1;
+        int col3 = eq3 - result.lastIndexOf('\n', eq3) - 1;
+        assertEquals("= signs should be aligned", col1, col2);
+        assertEquals("= signs should be aligned", col2, col3);
+    }
+
+    public void testAlignmentResetsAfterBlankLine() {
+        // After a blank line, alignment groups reset
+        myFixture.configureByText("terragrunt.hcl",
+                "inputs = {\n  test_long = \"abc\"\n  a = \"b\"\n\n  test = \"a\"\n  z = \"b\"\n}\n");
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // Group 1: test_long and a aligned together
+        assertTrue("Group 1: 'a' should be padded to match 'test_long': " + result,
+                result.contains("  a         = \"b\""));
+        // Group 2 (after blank line): test and z aligned together, NOT with test_long
+        assertTrue("Group 2: 'test' should only align with 'z', not 'test_long': " + result,
+                result.contains("  test = \"a\""));
+        assertTrue("Group 2: 'z' should be padded to match 'test': " + result,
+                result.contains("  z    = \"b\""));
+    }
+
+    public void testObjectValueAttrExcludedFromAlignment() {
+        // config has object value — should NOT be aligned with app_name/environment
+        myFixture.configureByText("terragrunt.hcl",
+                "locals {\n  app_name = \"my-app\"\n  environment = \"prod\"\n\n  config = {\n    x = 1\n  }\n}\n");
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // config should have "config = {" with just 1 space before =
+        assertTrue("config should not be padded to match environment: " + result,
+                result.contains("  config = {"));
+    }
+
+    public void testAttrBeforeObjectValueAttrNotAligned() {
+        // config_path should NOT be aligned with mock_outputs (which has object value)
+        myFixture.configureByText("terragrunt.hcl",
+                "dependency \"vpc\" {\n  config_path = \"../vpc\"\n  mock_outputs = {\n    vpc_id = \"test\"\n  }\n}\n");
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // config_path should have just 1 space before = (not padded to match mock_outputs)
+        assertTrue("config_path should not be padded: " + result,
+                result.contains("  config_path = \"../vpc\""));
+    }
+
+    public void testSpaceAfterCommaInList() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  list = ["a","b","c"]
+                }
+                """);
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        assertTrue("Should have space after commas", result.contains("\"a\", \"b\", \"c\""));
+    }
+
+    public void testSpaceInsideInlineObject() {
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  x = merge({Name=local.app},{Env=local.env})
+                }
+                """);
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        assertTrue("Should have space after { in inline object", result.contains("{ Name"));
+        assertTrue("Should have space before } in inline object", result.contains("app }"));
+    }
+
+    public void testFormatterMatchesTerragruntFmt() {
+        // Comprehensive test matching terragrunt hcl format output
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                config_path="../vpc"
+                mock_outputs={
+                vpc_id="vpc-123"
+                private_subnets=["a","b","c"]
+                }
+                }
+                """);
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // Indentation
+        assertTrue("Should indent config_path", result.contains("  config_path"));
+        assertTrue("Should indent mock_outputs", result.contains("  mock_outputs"));
+        assertTrue("Should indent vpc_id", result.contains("    vpc_id"));
+        // Commas
+        assertTrue("Should space after commas", result.contains("\"a\", \"b\", \"c\""));
+        // Alignment within mock_outputs
+        int vpcEq = result.indexOf("= \"vpc-123\"");
+        int subEq = result.indexOf("= [\"a\"");
+        if (vpcEq > 0 && subEq > 0) {
+            int vpcCol = vpcEq - result.lastIndexOf('\n', vpcEq) - 1;
+            int subCol = subEq - result.lastIndexOf('\n', subEq) - 1;
+            assertEquals("= should be aligned in mock_outputs", vpcCol, subCol);
+        }
+    }
+
+    public void testAlignmentResetsAfterComment() {
+        // Comments reset alignment groups (matches terragrunt fmt)
+        myFixture.configureByText("terragrunt.hcl",
+                "locals {\n  short = \"a\"\n  # comment\n  very_long_name = \"b\"\n}\n");
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // short should NOT be padded to match very_long_name
+        assertTrue("short should not be aligned with very_long_name: " + result,
+                result.contains("  short = \"a\""));
+        assertTrue("very_long_name should have single space: " + result,
+                result.contains("  very_long_name = \"b\""));
+    }
+
+    public void testHeredocContentPreserved() {
+        myFixture.configureByText("terragrunt.hcl",
+                "generate \"p\" {\n  path = \"p.tf\"\n  contents = <<EOF\nprovider \"aws\" {\n    region=\"us-east-1\"\n}\nEOF\n}\n");
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // Heredoc content should not be reformatted (keep original indentation and spacing)
+        assertTrue("Heredoc content should be preserved: " + result,
+                result.contains("    region=\"us-east-1\""));
     }
 }

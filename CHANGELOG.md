@@ -24,6 +24,7 @@
 - Potential crash during live editing when parser produces incomplete block nodes (null identifier guard)
 - Syntax highlighting colours missing compared to Terraform/HCL plugin (#62)
 - Live templates not appearing between blocks when next line starts with a block (e.g. `dep` before `terraform {`)
+- Formatter now matches `terragrunt hcl format` output (= alignment, spacing, comment/blank-line group resets)
 - StackOverflow crash on projects with `.terragrunt-cache` symlinks during find-usages (now skips hidden dirs)
 - Chain resolver reading past cursor boundary causing incorrect completion in deep chains
 
