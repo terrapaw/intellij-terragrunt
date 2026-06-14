@@ -6,6 +6,8 @@
 - Plugin logo for Marketplace listing
 - Navigate to `locals` block / `inputs` attribute from chain keywords (Ctrl+B on `locals` in `local.config.locals` or `include.root.inputs`)
 - Navigate to directories from path strings and interpolated paths (e.g. `"../modules/vpc"`, `"${get_terragrunt_dir()}/modules"`)
+- Navigate from function names in path expressions (Ctrl+B on `read_terragrunt_config` or `find_in_parent_folders` navigates to the resolved file)
+- Unified Ctrl+hover highlight for interpolated path strings (full string underlines as one unit)
 - Code folding for attributes with object values (`inputs = {...}`, `mock_outputs = {...}`)
 - Rich HTML description on Marketplace plugin page
 - File templates: New → Terragrunt File (Unit, Root, Stack)
@@ -32,6 +34,7 @@
 - Potential crash during live editing when parser produces incomplete block nodes (null identifier guard)
 - Syntax highlighting colours missing compared to Terraform/HCL plugin (#62)
 - Live templates not appearing between blocks when next line starts with a block (e.g. `dep` before `terraform {`)
+- Live templates not expanding on blank lines between blocks when parser creates malformed block from typed prefix
 - Formatter now matches `terragrunt hcl format` output (= alignment, spacing, comment/blank-line group resets)
 - StackOverflow crash on projects with `.terragrunt-cache` symlinks during find-usages (now skips hidden dirs)
 - Chain resolver reading past cursor boundary causing incorrect completion in deep chains
