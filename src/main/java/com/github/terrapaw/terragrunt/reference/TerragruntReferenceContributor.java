@@ -17,17 +17,27 @@ import java.util.Collection;
 import java.util.Set;
 
 public class TerragruntReferenceContributor extends PsiReferenceContributor {
-    private static final Set<String> PATH_ATTRS = Set.of("config_path", "path");
+    private static final Set<String> PATH_ATTRS = Set.of("config_path", "path", "source");
 
     @Override
     public void registerReferenceProviders(@NotNull PsiReferenceRegistrar registrar) {
-        // File path references in include/dependency blocks
+        // File path references in include/dependency/terraform blocks
         registrar.registerReferenceProvider(
                 PlatformPatterns.psiElement(TerragruntStringLit.class),
                 new PsiReferenceProvider() {
                     @NotNull
                     @Override
                     public PsiReference @NotNull [] getReferencesByElement(@NotNull PsiElement element, @NotNull ProcessingContext context) {
+                        String text = element.getText();
+                        if (text.length() < 3 || text.contains("${")) return PsiReference.EMPTY_ARRAY;
+                        String path = text.substring(1, text.length() - 1);
+
+                        // read_terragrunt_config("...") argument
+                        TerragruntFunctionCall funcCall = PsiTreeUtil.getParentOfType(element, TerragruntFunctionCall.class);
+                        if (funcCall != null && "read_terragrunt_config".equals(funcCall.getIdentifier().getText())) {
+                            return new PsiReference[]{new TerragruntPathReference(element)};
+                        }
+
                         TerragruntAttribute attr = PsiTreeUtil.getParentOfType(element, TerragruntAttribute.class);
                         if (attr == null) return PsiReference.EMPTY_ARRAY;
                         String attrName = attr.getIdentifier().getText();
@@ -36,11 +46,11 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
                         TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
                         if (block == null) return PsiReference.EMPTY_ARRAY;
                         String blockType = TerragruntPsiUtil.getBlockType(block);
-                        if (!"include".equals(blockType) && !"dependency".equals(blockType)) return PsiReference.EMPTY_ARRAY;
+                        if (!"include".equals(blockType) && !"dependency".equals(blockType) && !"terraform".equals(blockType)) return PsiReference.EMPTY_ARRAY;
 
-                        String text = element.getText();
-                        if (text.length() < 3 || text.contains("${")) return PsiReference.EMPTY_ARRAY;
-                        String path = text.substring(1, text.length() - 1);
+                        if ("source".equals(attrName)) {
+                            return new PsiReference[]{new TerragruntPathReference(element)};
+                        }
 
                         return new PsiReference[]{new TerragruntFileReference(element, path, blockType.equals("dependency"))};
                     }
@@ -194,6 +204,59 @@ public class TerragruntReferenceContributor extends PsiReferenceContributor {
             VirtualFile resolved = LocalFileSystem.getInstance().findFileByIoFile(target);
             if (resolved == null) return null;
             return PsiManager.getInstance(myElement.getProject()).findFile(resolved);
+        }
+    }
+
+    /**
+     * Reference for path strings that may contain interpolations.
+     * Resolves using the same logic as the GotoDeclarationHandler.
+     */
+    private static class TerragruntPathReference extends PsiReferenceBase<PsiElement> {
+        TerragruntPathReference(@NotNull PsiElement element) {
+            super(element, new TextRange(1, element.getTextLength() - 1));
+        }
+
+        @Nullable
+        @Override
+        public PsiElement resolve() {
+            PsiFile file = myElement.getContainingFile();
+            VirtualFile vFile = file.getVirtualFile();
+            if (vFile == null || vFile.getParent() == null) return null;
+
+            String text = myElement.getText();
+            if (text.length() < 3) return null;
+            String content = text.substring(1, text.length() - 1);
+
+            String path = content;
+            if (content.contains("${")) {
+                path = TerragruntFileResolver.evaluateInterpolatedPathPublic(content, file);
+                if (path == null) return null;
+            }
+
+            // Resolve the path
+            VirtualFile dir = vFile.getParent();
+            VirtualFile current;
+            if (path.startsWith("/")) {
+                VirtualFile root = vFile;
+                while (root.getParent() != null) root = root.getParent();
+                current = root;
+                for (String part : path.substring(1).split("/")) {
+                    if (current == null || part.isEmpty()) continue;
+                    current = current.findChild(part);
+                }
+            } else {
+                current = dir;
+                for (String part : path.split("/")) {
+                    if (current == null) break;
+                    if ("..".equals(part)) current = current.getParent();
+                    else if (!".".equals(part) && !part.isEmpty()) current = current.findChild(part);
+                }
+            }
+            if (current == null) return null;
+
+            PsiManager psiManager = PsiManager.getInstance(myElement.getProject());
+            if (current.isDirectory()) return psiManager.findDirectory(current);
+            return psiManager.findFile(current);
         }
     }
 }

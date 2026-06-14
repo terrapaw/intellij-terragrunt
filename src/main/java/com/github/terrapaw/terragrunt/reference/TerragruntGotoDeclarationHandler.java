@@ -85,13 +85,20 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         }
 
         // Case 5: On a STRING_LITERAL that is part of a path — navigate to directory or file
-        if (parent instanceof TerragruntStringLit stringLit) {
+        // Skip quote delimiters
+        if (parent instanceof TerragruntStringLit stringLit && !"\"".equals(sourceElement.getText())) {
             PsiElement[] result = handlePathNavigation(stringLit, sourceElement);
             if (result != null) return result;
         }
 
-        // Case 6: On a function name or any element inside a path expression — resolve to target
-        return handlePathExpressionNavigation(sourceElement);
+        // Case 6: On a function name (IDENTIFIER) inside a path expression — resolve to target
+        // Skip punctuation tokens (quotes, parens, braces) to avoid ugly micro-highlights
+        String tokenText = sourceElement.getText();
+        if (tokenText.length() > 1 || Character.isLetterOrDigit(tokenText.charAt(0)) || tokenText.charAt(0) == '_') {
+            return handlePathExpressionNavigation(sourceElement);
+        }
+
+        return null;
     }
 
     @Nullable
