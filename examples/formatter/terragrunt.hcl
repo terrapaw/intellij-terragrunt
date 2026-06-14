@@ -1,5 +1,4 @@
-# Formatter demo — run Ctrl+Alt+L then compare with: terragrunt hcl format --file examples/formatter-demo.hcl
-# This file is intentionally badly formatted
+# Formatter demo — Ctrl+Alt+L should produce same output as: terragrunt hcl format --file <this-file>
 
 locals {
 app_name="my-app"
@@ -26,4 +25,23 @@ port=local.app_port
 vpc_id=dependency.vpc.outputs.vpc_id
 tags=merge({Name=local.app_name},{Env=local.environment})
 subnet_list=["subnet-1","subnet-2","subnet-3"]
+
+# Comment resets alignment group
+short="a"
+very_long_name="b"
+
+# Another group
+x=1
+y=2
+}
+
+# Heredoc content should not be reformatted
+generate "provider" {
+path="provider.tf"
+if_exists="overwrite_terragrunt"
+contents=<<EOF
+provider "aws" {
+  region = "us-east-1"
+}
+EOF
 }
