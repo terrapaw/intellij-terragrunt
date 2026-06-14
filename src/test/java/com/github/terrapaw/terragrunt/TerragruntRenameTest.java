@@ -4,6 +4,7 @@ import com.github.terrapaw.terragrunt.refactor.TerragruntNamesValidator;
 import com.github.terrapaw.terragrunt.refactor.TerragruntRenameHandler;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
+import com.intellij.psi.PsiElement;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -339,5 +340,196 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         String childText = childDoc.getText();
         assertTrue("Child should reference cidr_block, got: " + childText,
                 childText.contains("local.common.locals.network.cidr_block"));
+    }
+
+    public void testDeepKeyRenameQuotedKey() {
+        // Rename quoted key "vpc_cidr" inside locals object
+        var file = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  network = {
+                    "vpc_cidr" = "10.0.0.0/16"
+                    az_count = 3
+                  }
+                }
+                
+                inputs = {
+                  cidr = local.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        // Place caret inside the quoted key content (on the STRING_LITERAL "vpc_cidr")
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("vpc_cidr") + 1; // inside the STRING_LITERAL
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available on quoted object key", handler.isAvailableOnDataContext(ctx));
+
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "vpc_cidr", "cidr_block");
+
+        var doc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(doc);
+        String result = doc.getText();
+        assertTrue("Definition should be renamed, got: " + result, result.contains("\"cidr_block\""));
+        assertTrue("Usage should be renamed, got: " + result, result.contains("local.network.cidr_block"));
+    }
+
+    public void testDeepKeyRenameNestedAlias() {
+        // Playground scenario: root.hcl has a = { b = { c = "abc" } }
+        // test.hcl: a = local.abc.locals.a (alias chain)
+        // top.hcl: d = local.read.locals.a.b.c
+        // Renaming "c" in root.hcl should update top.hcl
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  a = {
+                    b = {
+                      c = "abc"
+                    }
+                  }
+                }
+                """);
+        myFixture.addFileToProject("mid/root.hcl", """
+                locals {
+                  abc = read_terragrunt_config("../root.hcl")
+                  a = local.abc.locals.a
+                }
+                """);
+        myFixture.addFileToProject("top/terragrunt.hcl", """
+                locals {
+                  read = read_terragrunt_config("../mid/root.hcl")
+                  d = local.read.locals.a.b.c
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(rootFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("c = \"abc\"");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available on nested object key", handler.isAvailableOnDataContext(ctx));
+
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "c", "renamed_c");
+
+        // Verify top.hcl was updated
+        var updatedTop = myFixture.findFileInTempDir("top/terragrunt.hcl");
+        var psiTop = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedTop);
+        assertNotNull(psiTop);
+        var topDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiTop);
+        assertNotNull(topDoc);
+        String topText = topDoc.getText();
+        assertTrue("Top should reference renamed_c, got: " + topText,
+                topText.contains("local.read.locals.a.b.renamed_c"));
+    }
+
+    public void testDeepKeyRenameFromUsageSameFile() {
+        // Rename from the usage side: cursor on "vpc_cidr" in local.network.vpc_cidr
+        var file = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  network = {
+                    vpc_cidr = "10.0.0.0/16"
+                  }
+                }
+                
+                inputs = {
+                  cidr = local.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        // Place cursor on vpc_cidr in the usage (local.network.vpc_cidr)
+        int offset = text.indexOf("local.network.vpc_cidr") + "local.network.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available from usage", handler.isAvailableOnDataContext(ctx));
+
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "vpc_cidr", "cidr_block");
+
+        var doc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(doc);
+        String result = doc.getText();
+        assertTrue("Definition should be renamed, got: " + result, result.contains("cidr_block = \"10.0.0.0/16\""));
+        assertTrue("Usage should be renamed, got: " + result, result.contains("local.network.cidr_block"));
+    }
+
+    public void testDeepKeyRenameFromUsageCrossFile() {
+        // Rename from top.hcl (usage side) should update root.hcl (definition)
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  a = {
+                    b = {
+                      c = "abc"
+                    }
+                  }
+                }
+                """);
+        myFixture.addFileToProject("mid/root.hcl", """
+                locals {
+                  abc = read_terragrunt_config("../root.hcl")
+                  a = local.abc.locals.a
+                }
+                """);
+        var topFile = myFixture.addFileToProject("top/terragrunt.hcl", """
+                locals {
+                  read = read_terragrunt_config("../mid/root.hcl")
+                  d = local.read.locals.a.b.c
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(topFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        // Place cursor on "c" in local.read.locals.a.b.c
+        int offset = text.indexOf("a.b.c") + 4; // on "c"
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available from cross-file usage", handler.isAvailableOnDataContext(ctx));
+
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "c", "renamed_c");
+
+        // Verify usage in top.hcl was updated
+        var topDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(topDoc);
+        assertTrue("Top should use renamed_c", topDoc.getText().contains("local.read.locals.a.b.renamed_c"));
+
+        // Verify definition in root.hcl was updated
+        var updatedRoot = myFixture.findFileInTempDir("root.hcl");
+        var psiRoot = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedRoot);
+        assertNotNull(psiRoot);
+        var rootDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiRoot);
+        assertNotNull(rootDoc);
+        assertTrue("Root should have renamed_c, got: " + rootDoc.getText(),
+                rootDoc.getText().contains("renamed_c = \"abc\""));
     }
 }
