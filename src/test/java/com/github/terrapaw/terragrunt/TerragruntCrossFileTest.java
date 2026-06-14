@@ -1355,4 +1355,40 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue(targets.length > 0);
         assertEquals("root.hcl", targets[0].getContainingFile().getName());
     }
+
+    public void testNavigateToDirectoryFromPath() {
+        // Ctrl+B on a path that points to a directory
+        myFixture.addFileToProject("modules/vpc/terragrunt.hcl", "locals { x = 1 }");
+        var childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                terraform {
+                  source = "../modules/vpc"
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("../modules/vpc") + 3; // inside the string
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve directory path", targets);
+        assertTrue("Should have a target", targets.length > 0);
+    }
+
+    public void testNavigateToDirectoryFromInterpolatedPath() {
+        // "${get_terragrunt_dir()}/modules" should resolve to the modules directory
+        myFixture.addFileToProject("modules/terragrunt.hcl", "locals { x = 1 }");
+        var childFile = myFixture.addFileToProject("terragrunt.hcl", """
+                terraform {
+                  source = "${get_terragrunt_dir()}/modules"
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("get_terragrunt_dir()}/modules") + "get_terragrunt_dir()}/".length();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve interpolated directory path", targets);
+        assertTrue("Should have a target", targets.length > 0);
+    }
 }

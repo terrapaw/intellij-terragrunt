@@ -9,6 +9,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -83,6 +84,63 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             }
         }
 
+        // Case 5: On a STRING_LITERAL that is part of a path — navigate to directory or file
+        if (parent instanceof TerragruntStringLit stringLit) {
+            return handlePathNavigation(stringLit, sourceElement);
+        }
+
+        return null;
+    }
+
+    @Nullable
+    private PsiElement[] handlePathNavigation(TerragruntStringLit stringLit, PsiElement sourceElement) {
+        // Get the full string content (without quotes)
+        String fullText = stringLit.getText();
+        if (fullText.length() < 2) return null;
+        String content = fullText.substring(1, fullText.length() - 1);
+        if (content.isEmpty()) return null;
+
+        PsiFile file = sourceElement.getContainingFile();
+        VirtualFile vFile = file.getVirtualFile();
+        if (vFile == null || vFile.getParent() == null) return null;
+
+        // Evaluate interpolated paths (handles ${get_terragrunt_dir()}, etc.)
+        String path = content;
+        if (content.contains("${")) {
+            path = TerragruntFileResolver.evaluateInterpolatedPathPublic(content, file);
+            if (path == null) return null;
+        }
+
+        // Resolve relative to the file's directory, or absolute from root
+        VirtualFile dir = vFile.getParent();
+        VirtualFile current;
+        if (path.startsWith("/")) {
+            // Absolute path — navigate from filesystem root
+            VirtualFile root = vFile;
+            while (root.getParent() != null) root = root.getParent();
+            current = root;
+            for (String part : path.substring(1).split("/")) {
+                if (current == null || part.isEmpty()) continue;
+                current = current.findChild(part);
+            }
+        } else {
+            current = dir;
+            for (String part : path.split("/")) {
+                if (current == null) break;
+                if ("..".equals(part)) current = current.getParent();
+                else if (!".".equals(part) && !part.isEmpty()) current = current.findChild(part);
+            }
+        }
+        if (current == null) return null;
+
+        PsiManager psiManager = PsiManager.getInstance(file.getProject());
+        if (current.isDirectory()) {
+            var psiDir = psiManager.findDirectory(current);
+            if (psiDir != null) return new PsiElement[]{psiDir};
+        } else {
+            var psiFile = psiManager.findFile(current);
+            if (psiFile != null) return new PsiElement[]{psiFile};
+        }
         return null;
     }
 
