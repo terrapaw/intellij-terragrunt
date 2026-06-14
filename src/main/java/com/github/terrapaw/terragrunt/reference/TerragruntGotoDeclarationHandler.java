@@ -236,6 +236,9 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                         if (attr != null) {
                             PsiElement key = findNestedObjectKey(attr, chain, 3, cursorIndex);
                             if (key != null) return new PsiElement[]{key};
+                            // If attr value is a reference (not object literal), resolve through the alias chain
+                            PsiElement resolved = resolveAttributeValueChain(attr, resolvedFile, chain, 3, cursorIndex);
+                            if (resolved != null) return new PsiElement[]{resolved};
                         }
                     }
                 }
@@ -755,6 +758,46 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             if (key != null && keyName.equals(key.getText().replace("\"", ""))) {
                 return key;
             }
+        }
+        return null;
+    }
+
+    /**
+     * Resolves an attribute whose value is a reference expression (e.g. local.abc.locals.a)
+     * to find the actual object, then walks remaining keys into it.
+     */
+    @Nullable
+    private PsiElement resolveAttributeValueChain(TerragruntAttribute attr, PsiFile attrFile, String[] chain, int startIndex, int targetIndex) {
+        // Check if the attribute value is a postfix expression (local.X.locals.Y pattern)
+        TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
+        if (postfix == null) return null;
+        TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+        if (primary == null) return null;
+        TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+        if (varExpr == null || !"local".equals(varExpr.getIdentifier().getText())) return null;
+
+        PsiElement[] valueGetAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+        if (valueGetAttrs == null || valueGetAttrs.length < 2) return null;
+
+        // Resolve the alias chain in the value expression
+        String valueAlias = ((TerragruntGetAttr) valueGetAttrs[0]).getIdentifier().getText();
+        String valueSection = ((TerragruntGetAttr) valueGetAttrs[1]).getIdentifier().getText();
+        if (!"locals".equals(valueSection) && !"inputs".equals(valueSection)) return null;
+
+        PsiFile targetFile = TerragruntChainResolver.resolveLocalAlias(attrFile, valueAlias);
+        if (targetFile == null) return null;
+
+        // Find the referenced attribute in the target file
+        if (valueGetAttrs.length >= 3) {
+            String targetAttrName = ((TerragruntGetAttr) valueGetAttrs[2]).getIdentifier().getText();
+            TerragruntAttribute targetAttr = TerragruntFileResolver.findLocalAttribute(targetFile, targetAttrName);
+            if (targetAttr == null) return null;
+
+            // Now walk the remaining keys from chain[startIndex..targetIndex] into this attribute's object
+            PsiElement key = findNestedObjectKey(targetAttr, chain, startIndex, targetIndex);
+            if (key != null) return key;
+            // Recurse if this attribute is also a reference
+            return resolveAttributeValueChain(targetAttr, targetFile, chain, startIndex, targetIndex);
         }
         return null;
     }

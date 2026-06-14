@@ -1148,4 +1148,84 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertNotNull("Should resolve via includer in .terragrunt-stack", targets);
         assertTrue("Should find target", targets.length > 0);
     }
+
+    /**
+     * Tests nested alias chain: local.read.locals.a.b.c where a's value is itself
+     * a cross-file alias (local.abc.locals.a) pointing to an object in another file.
+     */
+    public void testNestedAliasNavigationThroughChain() {
+        // root.hcl: a = { b = { c = "abc" } }
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  a = {
+                    b = {
+                      c = "abc"
+                    }
+                  }
+                }
+                """);
+
+        // test.hcl: a = local.abc.locals.a (alias to root.hcl's a)
+        myFixture.addFileToProject("test.hcl", """
+                locals {
+                  abc = read_terragrunt_config("./root.hcl")
+                  a = local.abc.locals.a
+                }
+                """);
+
+        // top.hcl: local.read.locals.a.b.c
+        var topFile = myFixture.addFileToProject("top.hcl", """
+                locals {
+                  read = read_terragrunt_config("./test.hcl")
+                  d = local.read.locals.a.b.c
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(topFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+
+        // Navigate on "b" — should resolve to key "b" in root.hcl's object
+        int offset = text.indexOf("a.b.c") + 2; // on "b"
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve 'b' through nested alias chain", targets);
+        assertTrue("Should find target for 'b'", targets.length > 0);
+        // Target should be in root.hcl
+        assertEquals("root.hcl", targets[0].getContainingFile().getName());
+    }
+
+    public void testNestedAliasCompletionThroughChain() {
+        // root.hcl: a = { b = { c = "abc" } }
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  a = {
+                    b = {
+                      c = "abc"
+                    }
+                  }
+                }
+                """);
+
+        // test.hcl: a = local.abc.locals.a (alias to root.hcl's a)
+        myFixture.addFileToProject("test.hcl", """
+                locals {
+                  abc = read_terragrunt_config("./root.hcl")
+                  a = local.abc.locals.a
+                }
+                """);
+
+        // top.hcl: local.read.locals.a. → should suggest "b"
+        var topFile = myFixture.addFileToProject("top.hcl", """
+                locals {
+                  read = read_terragrunt_config("./test.hcl")
+                  d = local.read.locals.a.<caret>
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(topFile.getVirtualFile());
+        myFixture.completeBasic();
+        var lookups = myFixture.getLookupElementStrings();
+        assertNotNull("Should have completions", lookups);
+        assertTrue("Should suggest 'b' from nested alias, got: " + lookups, lookups.contains("b"));
+    }
 }
