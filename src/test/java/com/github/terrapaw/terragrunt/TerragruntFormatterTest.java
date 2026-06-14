@@ -13,8 +13,9 @@ public class TerragruntFormatterTest extends BasePlatformTestCase {
                 """);
         myFixture.performEditorAction("ReformatCode");
         String result = myFixture.getEditor().getDocument().getText();
-        assertTrue("Should indent attributes inside block", result.contains("  name = \"test\""));
-        assertTrue("Should indent attributes inside block", result.contains("  region = \"us-east-1\""));
+        // Alignment pads shorter names to align = signs
+        assertTrue("Should indent and align attributes inside block",
+                result.contains("  name") && result.contains("  region") && result.contains("= \"test\"") && result.contains("= \"us-east-1\""));
     }
 
     public void testIndentsNestedBlock() {

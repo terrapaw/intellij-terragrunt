@@ -14,24 +14,61 @@ import java.util.List;
 
 public class TerragruntFormattingBlock extends AbstractBlock {
     private final SpacingBuilder spacingBuilder;
+    private final Alignment valueAlignment;
+
+    protected TerragruntFormattingBlock(@NotNull ASTNode node, @Nullable Wrap wrap,
+                                        @Nullable Alignment alignment, SpacingBuilder spacingBuilder,
+                                        @Nullable Alignment valueAlignment) {
+        super(node, wrap, alignment);
+        this.spacingBuilder = spacingBuilder;
+        this.valueAlignment = valueAlignment;
+    }
 
     protected TerragruntFormattingBlock(@NotNull ASTNode node, @Nullable Wrap wrap,
                                         @Nullable Alignment alignment, SpacingBuilder spacingBuilder) {
-        super(node, wrap, alignment);
-        this.spacingBuilder = spacingBuilder;
+        this(node, wrap, alignment, spacingBuilder, null);
     }
 
     @Override
     protected List<Block> buildChildren() {
         List<Block> blocks = new ArrayList<>();
+        IElementType myType = myNode.getElementType();
+
+        // Create shared alignment for = signs within body/object
+        Alignment equalsAlign = null;
+        if (myType == TerragruntTypes.BODY || myType == TerragruntTypes.OBJECT_EXPR) {
+            equalsAlign = Alignment.createAlignment(true);
+        }
+
         ASTNode child = myNode.getFirstChildNode();
         while (child != null) {
             if (child.getElementType() != TokenType.WHITE_SPACE) {
-                blocks.add(new TerragruntFormattingBlock(child, null, null, spacingBuilder));
+                blocks.add(makeSubBlock(child, equalsAlign));
+            } else if (equalsAlign != null && hasTwoNewlines(child.getText())) {
+                // Reset alignment after blank lines (same as terragrunt fmt)
+                equalsAlign = Alignment.createAlignment(true);
             }
             child = child.getTreeNext();
         }
         return blocks;
+    }
+
+    private TerragruntFormattingBlock makeSubBlock(ASTNode child, @Nullable Alignment equalsAlign) {
+        IElementType myType = myNode.getElementType();
+        IElementType childType = child.getElementType();
+
+        // Inside an attribute: align the = sign
+        if (myType == TerragruntTypes.ATTRIBUTE && childType == TerragruntTypes.EQUALS && valueAlignment != null) {
+            return new TerragruntFormattingBlock(child, null, valueAlignment, spacingBuilder, null);
+        }
+
+        // Pass alignment to attribute/object_elem children
+        Alignment childValueAlign = null;
+        if ((childType == TerragruntTypes.ATTRIBUTE || childType == TerragruntTypes.OBJECT_ELEM) && equalsAlign != null) {
+            childValueAlign = equalsAlign;
+        }
+
+        return new TerragruntFormattingBlock(child, null, null, spacingBuilder, childValueAlign);
     }
 
     @Override
@@ -75,7 +112,6 @@ public class TerragruntFormattingBlock extends AbstractBlock {
     public ChildAttributes getChildAttributes(int newChildIndex) {
         IElementType type = myNode.getElementType();
         if (type == TerragruntTypes.BODY) {
-            // Only indent if this body is inside a block (not top-level)
             if (myNode.getTreeParent() != null && myNode.getTreeParent().getElementType() == TerragruntTypes.BLOCK) {
                 return new ChildAttributes(Indent.getNormalIndent(), null);
             }
@@ -85,5 +121,10 @@ public class TerragruntFormattingBlock extends AbstractBlock {
             return new ChildAttributes(Indent.getNormalIndent(), null);
         }
         return new ChildAttributes(Indent.getNoneIndent(), null);
+    }
+
+    private static boolean hasTwoNewlines(String text) {
+        int first = text.indexOf('\n');
+        return first != -1 && text.indexOf('\n', first + 1) != -1;
     }
 }
