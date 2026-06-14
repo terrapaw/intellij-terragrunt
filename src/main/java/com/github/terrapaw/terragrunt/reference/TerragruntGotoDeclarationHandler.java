@@ -86,7 +86,57 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
 
         // Case 5: On a STRING_LITERAL that is part of a path — navigate to directory or file
         if (parent instanceof TerragruntStringLit stringLit) {
-            return handlePathNavigation(stringLit, sourceElement);
+            PsiElement[] result = handlePathNavigation(stringLit, sourceElement);
+            if (result != null) return result;
+        }
+
+        // Case 6: On a function name or any element inside a path expression — resolve to target
+        return handlePathExpressionNavigation(sourceElement);
+    }
+
+    @Nullable
+    private PsiElement[] handlePathExpressionNavigation(PsiElement sourceElement) {
+        PsiFile file = sourceElement.getContainingFile();
+
+        // Check if we're inside a read_terragrunt_config(...) call
+        TerragruntFunctionCall funcCall = PsiTreeUtil.getParentOfType(sourceElement, TerragruntFunctionCall.class);
+        if (funcCall != null && "read_terragrunt_config".equals(funcCall.getIdentifier().getText())) {
+            PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
+            if (resolved != null) return new PsiElement[]{resolved};
+        }
+
+        // Check if we're inside a path/config_path/source attribute with a function call
+        TerragruntAttribute attr = PsiTreeUtil.getParentOfType(sourceElement, TerragruntAttribute.class);
+        if (attr != null) {
+            String attrName = attr.getIdentifier().getText();
+            if ("path".equals(attrName) || "config_path".equals(attrName) || "source".equals(attrName)) {
+                TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
+                if (block != null) {
+                    String blockType = TerragruntPsiUtil.getBlockType(block);
+                    if ("include".equals(blockType) || "dependency".equals(blockType) || "terraform".equals(blockType)) {
+                        // Try resolving as include/dependency path
+                        if ("include".equals(blockType)) {
+                            PsiFile resolved = TerragruntFileResolver.resolveInclude(block);
+                            if (resolved != null) return new PsiElement[]{resolved};
+                        }
+                        // Try resolving the string value as a path
+                        TerragruntStringLit stringLit = PsiTreeUtil.findChildOfType(attr, TerragruntStringLit.class);
+                        if (stringLit != null) {
+                            PsiElement[] result = handlePathNavigation(stringLit, sourceElement);
+                            if (result != null) return result;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check if we're inside a nested read_terragrunt_config (find parent)
+        if (funcCall != null) {
+            TerragruntFunctionCall outerFunc = PsiTreeUtil.getParentOfType(funcCall, TerragruntFunctionCall.class);
+            if (outerFunc != null && "read_terragrunt_config".equals(outerFunc.getIdentifier().getText())) {
+                PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(outerFunc, file);
+                if (resolved != null) return new PsiElement[]{resolved};
+            }
         }
 
         return null;

@@ -1391,4 +1391,42 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertNotNull("Should resolve interpolated directory path", targets);
         assertTrue("Should have a target", targets.length > 0);
     }
+
+    public void testNavigateFromFunctionNameInInclude() {
+        // Ctrl+B on find_in_parent_folders should navigate to the resolved file
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        var childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("root.hcl")
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("find_in_parent_folders");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve from function name in include path", targets);
+        assertTrue(targets.length > 0);
+        assertEquals("root.hcl", targets[0].getContainingFile().getName());
+    }
+
+    public void testNavigateFromReadTerragruntConfigFunctionName() {
+        // Ctrl+B on read_terragrunt_config should navigate to the target file
+        myFixture.addFileToProject("common.hcl", "locals { x = 1 }");
+        var childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common.hcl")
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("read_terragrunt_config");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve from read_terragrunt_config function name", targets);
+        assertTrue(targets.length > 0);
+        assertEquals("common.hcl", targets[0].getContainingFile().getName());
+    }
 }
