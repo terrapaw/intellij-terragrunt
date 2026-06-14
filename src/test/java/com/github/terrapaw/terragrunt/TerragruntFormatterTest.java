@@ -119,12 +119,17 @@ public class TerragruntFormatterTest extends BasePlatformTestCase {
     public void testAlignmentResetsAfterBlankLine() {
         // After a blank line, alignment groups reset
         myFixture.configureByText("terragrunt.hcl",
-                "locals {\n  a = \"short\"\n  long_name = \"long\"\n\n  x = 1\n}\n");
+                "inputs = {\n  test_long = \"abc\"\n  a = \"b\"\n\n  test = \"a\"\n  z = \"b\"\n}\n");
         myFixture.performEditorAction("ReformatCode");
         String result = myFixture.getEditor().getDocument().getText();
-        // Just verify it doesn't crash and produces valid output
-        assertTrue("Should contain x", result.contains("x"));
-        assertTrue("Should contain long_name", result.contains("long_name"));
+        // Group 1: test_long and a aligned together
+        assertTrue("Group 1: 'a' should be padded to match 'test_long': " + result,
+                result.contains("  a         = \"b\""));
+        // Group 2 (after blank line): test and z aligned together, NOT with test_long
+        assertTrue("Group 2: 'test' should only align with 'z', not 'test_long': " + result,
+                result.contains("  test = \"a\""));
+        assertTrue("Group 2: 'z' should be padded to match 'test': " + result,
+                result.contains("  z    = \"b\""));
     }
 
     public void testObjectValueAttrExcludedFromAlignment() {

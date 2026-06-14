@@ -42,13 +42,25 @@ public class TerragruntFormattingBlock extends AbstractBlock {
         }
 
         ASTNode child = myNode.getFirstChildNode();
+        int newlineCount = 0;
         while (child != null) {
             if (child.getElementType() == TokenType.WHITE_SPACE) {
-                // Reset alignment after blank lines (2+ newlines)
-                if (needsAlignment && hasTwoNewlines(child.getText())) {
-                    equalsAlign = Alignment.createAlignment(true);
+                // Count newlines in this whitespace node
+                String text = child.getText();
+                for (int i = 0; i < text.length(); i++) {
+                    if (text.charAt(i) == '\n') newlineCount++;
                 }
+                // Reset alignment when we've seen 2+ newlines (blank line)
+                if (needsAlignment && newlineCount >= 2) {
+                    equalsAlign = Alignment.createAlignment(true);
+                    newlineCount = 0;
+                }
+            } else if (child.getElementType() == TerragruntTypes.LINE_COMMENT || child.getElementType() == TerragruntTypes.BLOCK_COMMENT) {
+                // Comments don't reset newline counter — blank line detection continues through them
+                // But they must still be added as blocks to cover their text range
+                blocks.add(new TerragruntFormattingBlock(child, null, null, spacingBuilder, null));
             } else {
+                newlineCount = 0;
                 IElementType childType = child.getElementType();
 
                 // Reset alignment AFTER an attribute with object/array value
