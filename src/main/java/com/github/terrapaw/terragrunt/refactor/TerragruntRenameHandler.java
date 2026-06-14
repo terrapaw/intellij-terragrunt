@@ -78,15 +78,30 @@ public class TerragruntRenameHandler implements RenameHandler {
             }
         }
 
-        // Case 2: On identifier inside a get_attr after "local."
+        // Case 2: On identifier inside a get_attr after "local." or "include."
         if (element.getParent() instanceof TerragruntGetAttr getAttr) {
             PsiElement postfix = getAttr.getParent();
             if (postfix instanceof TerragruntPostfixExpr) {
                 TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
                 if (primary != null) {
                     TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
-                    if (varExpr != null && "local".equals(varExpr.getIdentifier().getText())) {
-                        return element;
+                    if (varExpr != null) {
+                        String rootVar = varExpr.getIdentifier().getText();
+                        if ("local".equals(rootVar)) return element;
+                        if ("include".equals(rootVar)) {
+                            // Allow rename on include.X.locals.Y or include.X.inputs.Y (at idx 2+)
+                            PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+                            if (getAttrs != null && getAttrs.length >= 3) {
+                                int idx = -1;
+                                for (int i = 0; i < getAttrs.length; i++) {
+                                    if (getAttrs[i] == getAttr) { idx = i; break; }
+                                }
+                                if (idx >= 2) {
+                                    String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+                                    if ("locals".equals(section) || "inputs".equals(section)) return element;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -164,7 +179,7 @@ public class TerragruntRenameHandler implements RenameHandler {
             }
         }
 
-        // Check if renaming from a usage (get_attr inside local.X.Y... chain at depth > 0)
+        // Check if renaming from a usage (get_attr inside local.X.Y... or include.X.Y... chain)
         boolean isUsageSideRename = false;
         if (!isInputsKey && !isDeepKey && source != null && source.getParent() instanceof TerragruntGetAttr getAttr) {
             PsiElement postfix = getAttr.getParent();
@@ -172,15 +187,16 @@ public class TerragruntRenameHandler implements RenameHandler {
                 TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfixExpr, TerragruntPrimaryExpr.class);
                 if (primary != null) {
                     TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
-                    if (varExpr != null && "local".equals(varExpr.getIdentifier().getText())) {
+                    if (varExpr != null) {
+                        String rootVar = varExpr.getIdentifier().getText();
                         PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfixExpr, TerragruntGetAttr.class);
                         if (getAttrs != null && getAttrs.length > 1) {
-                            // Find which index this get_attr is at
                             int idx = -1;
                             for (int i = 0; i < getAttrs.length; i++) {
                                 if (getAttrs[i] == getAttr) { idx = i; break; }
                             }
-                            if (idx > 0) isUsageSideRename = true;
+                            if ("local".equals(rootVar) && idx > 0) isUsageSideRename = true;
+                            if ("include".equals(rootVar) && idx >= 2) isUsageSideRename = true;
                         }
                     }
                 }
@@ -329,9 +345,12 @@ public class TerragruntRenameHandler implements RenameHandler {
     }
 
     private void performUsageSideRename(Project project, PsiFile file, PsiElement source, String oldName, String newName) {
-        // source is a get_attr identifier inside local.X.Y... chain
+        // source is a get_attr identifier inside local.X.Y... or include.X.Y... chain
         TerragruntGetAttr getAttr = (TerragruntGetAttr) source.getParent();
         TerragruntPostfixExpr postfix = (TerragruntPostfixExpr) getAttr.getParent();
+        TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+        TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+        String rootVar = varExpr.getIdentifier().getText();
         PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
         if (getAttrs == null || getAttrs.length < 2) return;
 
@@ -348,7 +367,38 @@ public class TerragruntRenameHandler implements RenameHandler {
         TerragruntAttribute defAttr = TerragruntFileResolver.findLocalAttribute(file, localName);
         PsiFile defFile = file;
 
-        // Case B: local.alias.locals.attrName.key... (cross-file)
+        // Case B: include.X.locals.attrName or include.X.inputs.attrName (cross-file)
+        if ("include".equals(rootVar) && getAttrs.length >= 3 && idx >= 2) {
+            String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+            String includeName = localName;
+            TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
+            if (includeBlock != null) {
+                PsiFile resolvedFile = TerragruntFileResolver.resolveInclude(includeBlock);
+                if (resolvedFile != null) {
+                    if (idx == 2) {
+                        // Renaming the attribute itself
+                        String remoteAttrName = ((TerragruntGetAttr) getAttrs[2]).getIdentifier().getText();
+                        if ("locals".equals(section)) {
+                            TerragruntAttribute remoteAttr = TerragruntFileResolver.findLocalAttribute(resolvedFile, remoteAttrName);
+                            if (remoteAttr != null) {
+                                performRenameForTest(project, resolvedFile, remoteAttr.getIdentifier(), oldName, newName);
+                            }
+                        } else if ("inputs".equals(section)) {
+                            PsiElement inputKey = TerragruntFileResolver.findInputKey(resolvedFile, remoteAttrName);
+                            if (inputKey != null) {
+                                performRenameForTest(project, resolvedFile, inputKey, oldName, newName);
+                            }
+                        }
+                        return;
+                    }
+                    String attrName = ((TerragruntGetAttr) getAttrs[2]).getIdentifier().getText();
+                    defAttr = TerragruntFileResolver.findLocalAttribute(resolvedFile, attrName);
+                    defFile = resolvedFile;
+                }
+            }
+        }
+
+        // Case C: local.alias.locals.attrName.key... (cross-file)
         if (getAttrs.length >= 3 && idx >= 2) {
             String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
             if ("locals".equals(section) || "inputs".equals(section)) {

@@ -532,4 +532,85 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         assertTrue("Root should have renamed_c, got: " + rootDoc.getText(),
                 rootDoc.getText().contains("renamed_c = \"abc\""));
     }
+
+    public void testRenameLocalFromUsageAttrLevel() {
+        // Rename "region" from local.config.locals.region (cursor on "region" at idx 2)
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  region = "us-east-1"
+                }
+                """);
+        var childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                locals {
+                  config = read_terragrunt_config("../root.hcl")
+                }
+                
+                inputs = {
+                  r = local.config.locals.region
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("locals.region") + "locals.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available", handler.isAvailableOnDataContext(ctx));
+
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "region", "aws_region");
+
+        // Child should be updated
+        var childDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(childDoc);
+        assertTrue("Child should use aws_region", childDoc.getText().contains("local.config.locals.aws_region"));
+
+        // Root should be updated
+        var updatedRoot = myFixture.findFileInTempDir("root.hcl");
+        var psiRoot = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedRoot);
+        var rootDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiRoot);
+        assertNotNull(rootDoc);
+        assertTrue("Root should have aws_region, got: " + rootDoc.getText(),
+                rootDoc.getText().contains("aws_region = \"us-east-1\""));
+    }
+
+    public void testRenameInputsKeyFromUsage() {
+        // Rename "env" from include.root.inputs.env (cursor on "env" at idx 2)
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                inputs = {
+                  env = "prod"
+                }
+                """);
+        var childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                  expose = true
+                }
+                
+                inputs = {
+                  e = include.root.inputs.env
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("inputs.env") + "inputs.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available on inputs usage", handler.isAvailableOnDataContext(ctx));
+    }
 }
