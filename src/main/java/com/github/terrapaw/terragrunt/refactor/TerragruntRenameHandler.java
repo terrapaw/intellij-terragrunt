@@ -102,16 +102,33 @@ public class TerragruntRenameHandler implements RenameHandler {
                                 }
                             }
                         }
+                        if ("dependency".equals(rootVar)) {
+                            // Allow rename on dependency.X.outputs.Y (at idx 2)
+                            PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+                            if (getAttrs != null && getAttrs.length >= 3) {
+                                int idx = -1;
+                                for (int i = 0; i < getAttrs.length; i++) {
+                                    if (getAttrs[i] == getAttr) { idx = i; break; }
+                                }
+                                if (idx == 2) {
+                                    String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+                                    if ("outputs".equals(section)) return element;
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Case 3: On object key inside inputs = { ... } or locals (nested objects)
+        // Case 3: On object key inside inputs = { ... }, mock_outputs = { ... }, or locals (nested objects)
         if (element.getParent() instanceof TerragruntObjectElem objElem) {
             if (element == objElem.getFirstChild()) {
                 TerragruntAttribute attr = PsiTreeUtil.getParentOfType(element, TerragruntAttribute.class);
                 if (attr != null && "inputs".equals(attr.getIdentifier().getText())) {
+                    return element;
+                }
+                if (attr != null && "mock_outputs".equals(attr.getIdentifier().getText())) {
                     return element;
                 }
                 // Case 4: Object key inside locals block (nested objects)
@@ -157,6 +174,7 @@ public class TerragruntRenameHandler implements RenameHandler {
 
         // Determine rename type based on source context
         boolean isInputsKey = false;
+        boolean isMockOutputsKey = false;
         boolean isDeepKey = false;
         PsiElement keyElement = source;
         // Handle quoted keys: source is STRING_LITERAL inside StringLit
@@ -171,6 +189,8 @@ public class TerragruntRenameHandler implements RenameHandler {
             TerragruntAttribute attr = PsiTreeUtil.getParentOfType(parentObjElem, TerragruntAttribute.class);
             if (attr != null && "inputs".equals(attr.getIdentifier().getText())) {
                 isInputsKey = true;
+            } else if (attr != null && "mock_outputs".equals(attr.getIdentifier().getText())) {
+                isMockOutputsKey = true;
             } else if (attr != null) {
                 TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
                 if (block != null && "locals".equals(TerragruntPsiUtil.getBlockType(block))) {
@@ -197,6 +217,10 @@ public class TerragruntRenameHandler implements RenameHandler {
                             }
                             if ("local".equals(rootVar) && idx > 0) isUsageSideRename = true;
                             if ("include".equals(rootVar) && idx >= 2) isUsageSideRename = true;
+                            if ("dependency".equals(rootVar) && idx == 2) {
+                                String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+                                if ("outputs".equals(section)) isUsageSideRename = true;
+                            }
                         }
                     }
                 }
@@ -208,6 +232,17 @@ public class TerragruntRenameHandler implements RenameHandler {
             elementsToRename.add(source);
             // Find cross-file usages of inputs key
             findCrossFileInputsUsages(file, oldName, crossFileElements);
+        } else if (isMockOutputsKey) {
+            // Find the mock_outputs key definition and dependency.X.outputs.Y usages
+            elementsToRename.add(source);
+            TerragruntBlock depBlock = PsiTreeUtil.getParentOfType(source, TerragruntBlock.class);
+            if (depBlock != null && "dependency".equals(TerragruntPsiUtil.getBlockType(depBlock))) {
+                List<TerragruntLabel> labels = depBlock.getLabelList();
+                if (!labels.isEmpty()) {
+                    String depName = TerragruntPsiUtil.getLabelText(labels.get(0));
+                    findMockOutputUsagesInFile(file, depName, oldName, elementsToRename);
+                }
+            }
         } else if (isDeepKey) {
             // Build key path by walking up nested objects from the ObjectElem
             java.util.List<String> keyPath = buildKeyPath(parentObjElem);
@@ -361,6 +396,20 @@ public class TerragruntRenameHandler implements RenameHandler {
         if (idx < 0) return;
 
         String localName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+
+        // Case D: dependency.X.outputs.Y — find mock_outputs key and rename
+        if ("dependency".equals(rootVar) && idx == 2 && getAttrs.length >= 3) {
+            String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+            if ("outputs".equals(section)) {
+                String depName = localName;
+                // Find the dependency block and mock_outputs key
+                PsiElement mockKey = findMockOutputKeyElement(file, depName, oldName);
+                if (mockKey != null) {
+                    performRenameForTest(project, file, mockKey, oldName, newName);
+                }
+                return;
+            }
+        }
 
         // Case A: local.attrName.key... (same-file object)
         // Resolve to find the definition attribute in this file or another
@@ -627,6 +676,48 @@ public class TerragruntRenameHandler implements RenameHandler {
                 }
             }
         }
+    }
+
+    private void findMockOutputUsagesInFile(PsiFile file, String depName, String outputName, List<PsiElement> usages) {
+        // Find dependency.depName.outputs.outputName
+        Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
+        for (TerragruntGetAttr getAttr : allGetAttrs) {
+            if (!outputName.equals(getAttr.getIdentifier().getText())) continue;
+            PsiElement parent = getAttr.getParent();
+            if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
+            TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+            if (primary == null) continue;
+            TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+            if (varExpr == null || !"dependency".equals(varExpr.getIdentifier().getText())) continue;
+            PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+            if (getAttrs == null || getAttrs.length < 3 || getAttrs[2] != getAttr) continue;
+            if (!depName.equals(((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText())) continue;
+            if (!"outputs".equals(((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText())) continue;
+            usages.add(getAttr.getIdentifier());
+        }
+    }
+
+    @Nullable
+    private PsiElement findMockOutputKeyElement(PsiFile file, String depName, String keyName) {
+        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+            if (!"dependency".equals(TerragruntPsiUtil.getBlockType(block))) continue;
+            List<TerragruntLabel> labels = block.getLabelList();
+            if (labels.isEmpty() || !depName.equals(TerragruntPsiUtil.getLabelText(labels.get(0)))) continue;
+            TerragruntBody body = block.getBody();
+            if (body == null) continue;
+            for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                if (!"mock_outputs".equals(attr.getIdentifier().getText())) continue;
+                TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                if (obj == null) continue;
+                for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                    PsiElement key = elem.getFirstChild();
+                    if (key != null && keyName.equals(key.getText().replace("\"", ""))) {
+                        return key;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private boolean matchesFile(PsiFile resolved, PsiFile sourceFile) {

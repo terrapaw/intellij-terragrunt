@@ -613,4 +613,82 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         };
         assertTrue("Rename should be available on inputs usage", handler.isAvailableOnDataContext(ctx));
     }
+
+    public void testRenameMockOutputKeyFromDefinition() {
+        // Rename "vpc_id" in mock_outputs should update dependency.vpc.outputs.vpc_id
+        var file = myFixture.addFileToProject("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                  mock_outputs = {
+                    vpc_id = "mock-vpc-123"
+                    subnet_ids = []
+                  }
+                }
+                
+                inputs = {
+                  vpc = dependency.vpc.outputs.vpc_id
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("vpc_id = \"mock");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available on mock_outputs key", handler.isAvailableOnDataContext(ctx));
+
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "vpc_id", "network_id");
+
+        var doc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(doc);
+        String result = doc.getText();
+        assertTrue("Definition should be renamed, got: " + result, result.contains("network_id = \"mock-vpc-123\""));
+        assertTrue("Usage should be renamed, got: " + result, result.contains("dependency.vpc.outputs.network_id"));
+    }
+
+    public void testRenameMockOutputKeyFromUsage() {
+        // Rename from dependency.vpc.outputs.vpc_id (cursor on vpc_id)
+        var file = myFixture.addFileToProject("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                  mock_outputs = {
+                    vpc_id = "mock-vpc-123"
+                  }
+                }
+                
+                inputs = {
+                  vpc = dependency.vpc.outputs.vpc_id
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("outputs.vpc_id") + "outputs.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available on dependency outputs usage", handler.isAvailableOnDataContext(ctx));
+
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "vpc_id", "network_id");
+
+        var doc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(doc);
+        String result = doc.getText();
+        assertTrue("Definition should be renamed, got: " + result, result.contains("network_id = \"mock-vpc-123\""));
+        assertTrue("Usage should be renamed, got: " + result, result.contains("dependency.vpc.outputs.network_id"));
+    }
 }
