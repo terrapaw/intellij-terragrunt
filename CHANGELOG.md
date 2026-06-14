@@ -6,6 +6,7 @@
 - Plugin logo for Marketplace listing
 - Navigate to `locals` block / `inputs` attribute from chain keywords (Ctrl+B on `locals` in `local.config.locals` or `include.root.inputs`)
 - Navigate to directories from path strings and interpolated paths (e.g. `"../modules/vpc"`, `"${get_terragrunt_dir()}/modules"`)
+- Code folding for attributes with object values (`inputs = {...}`, `mock_outputs = {...}`)
 - Rich HTML description on Marketplace plugin page
 - File templates: New → Terragrunt File (Unit, Root, Stack)
 - Structure view (Alt+7) showing blocks, attributes, and nested object keys

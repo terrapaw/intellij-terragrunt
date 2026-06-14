@@ -51,6 +51,20 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         assertTrue("Placeholder should contain label", placeholder.contains("root"));
     }
 
+    public void testFoldingCreatesRegionForInputsAttribute() {
+        PsiFile file = myFixture.configureByText("terragrunt.hcl", """
+                inputs = {
+                  name = "test"
+                  region = "us-east-1"
+                }
+                """);
+        var foldingBuilder = new TerragruntFoldingBuilder();
+        FoldingDescriptor[] descriptors = foldingBuilder.buildFoldRegions(file, myFixture.getEditor().getDocument(), false);
+        assertTrue("Should create folding region for inputs attribute", descriptors.length >= 1);
+        String placeholder = foldingBuilder.getPlaceholderText(descriptors[0].getElement());
+        assertEquals("inputs = {...}", placeholder);
+    }
+
     public void testFileTemplateUnitExists() {
         var template = com.intellij.ide.fileTemplates.FileTemplateManager.getInstance(getProject())
                 .getTemplate("Terragrunt Unit");
