@@ -85,17 +85,22 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         }
 
         // Case 5: On a STRING_LITERAL that is part of a path — navigate to directory or file
-        // Skip quote delimiters
+        // Skip if inside an interpolated string (mixin reference handles unified highlight)
         if (parent instanceof TerragruntStringLit stringLit && !"\"".equals(sourceElement.getText())) {
-            PsiElement[] result = handlePathNavigation(stringLit, sourceElement);
-            if (result != null) return result;
+            if (!stringLit.getText().contains("${")) {
+                PsiElement[] result = handlePathNavigation(stringLit, sourceElement);
+                if (result != null) return result;
+            }
         }
 
         // Case 6: On a function name (IDENTIFIER) inside a path expression — resolve to target
-        // Skip punctuation tokens (quotes, parens, braces) to avoid ugly micro-highlights
+        // Skip punctuation and skip elements inside interpolated strings
         String tokenText = sourceElement.getText();
         if (tokenText.length() > 1 || Character.isLetterOrDigit(tokenText.charAt(0)) || tokenText.charAt(0) == '_') {
-            return handlePathExpressionNavigation(sourceElement);
+            TerragruntStringLit enclosingString = PsiTreeUtil.getParentOfType(sourceElement, TerragruntStringLit.class);
+            if (enclosingString == null || !enclosingString.getText().contains("${")) {
+                return handlePathExpressionNavigation(sourceElement);
+            }
         }
 
         return null;

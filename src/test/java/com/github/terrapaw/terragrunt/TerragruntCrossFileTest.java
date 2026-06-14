@@ -5,6 +5,7 @@ import com.github.terrapaw.terragrunt.reference.TerragruntFileResolver;
 import com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiReference;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
@@ -1375,7 +1376,7 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
     }
 
     public void testNavigateToDirectoryFromInterpolatedPath() {
-        // "${get_terragrunt_dir()}/modules" should resolve to the modules directory
+        // "${get_terragrunt_dir()}/modules" should resolve to the modules directory via mixin reference
         myFixture.addFileToProject("modules/terragrunt.hcl", "locals { x = 1 }");
         var childFile = myFixture.addFileToProject("terragrunt.hcl", """
                 terraform {
@@ -1385,11 +1386,16 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
 
         myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
         String text = myFixture.getEditor().getDocument().getText();
-        int offset = text.indexOf("get_terragrunt_dir()}/modules") + "get_terragrunt_dir()}/".length();
+        // Find the TerragruntStringLit element and check its reference resolves
+        int offset = text.indexOf("${get_terragrunt_dir()}/modules");
         PsiElement element = myFixture.getFile().findElementAt(offset);
-        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
-        assertNotNull("Should resolve interpolated directory path", targets);
-        assertTrue("Should have a target", targets.length > 0);
+        // Walk up to StringLit
+        TerragruntStringLit stringLit = PsiTreeUtil.getParentOfType(element, TerragruntStringLit.class);
+        assertNotNull("Should find enclosing StringLit", stringLit);
+        PsiReference[] refs = stringLit.getReferences();
+        assertTrue("Should have references", refs.length > 0);
+        PsiElement resolved = refs[0].resolve();
+        assertNotNull("Should resolve interpolated directory path", resolved);
     }
 
     public void testNavigateFromFunctionNameInInclude() {
