@@ -736,4 +736,76 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         assertTrue("Definition should be renamed, got: " + result, result.contains("network_id = \"mock-vpc-123\""));
         assertTrue("Usage should be renamed, got: " + result, result.contains("dependency.vpc.outputs.network_id"));
     }
+
+    public void testDeepKeyRenameQuotedKeyFromUsage() {
+        // Rename from usage side where definition uses quoted key
+        var file = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  network = {
+                    "vpc_cidr" = "10.0.0.0/16"
+                  }
+                }
+                
+                inputs = {
+                  cidr = local.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("local.network.vpc_cidr") + "local.network.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "vpc_cidr", "cidr_block");
+
+        var doc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(doc);
+        String result = doc.getText();
+        assertTrue("Definition should be renamed, got: " + result, result.contains("\"cidr_block\" = \"10.0.0.0/16\""));
+        assertTrue("Usage should be renamed, got: " + result, result.contains("local.network.cidr_block"));
+    }
+
+    public void testDeepKeyRenameNestedFolderFromUsage() {
+        // Rename from usage side with deep folder nesting
+        myFixture.addFileToProject("project/common/root.hcl", """
+                locals {
+                  settings = {
+                    log_level = "info"
+                  }
+                }
+                """);
+        var childFile = myFixture.addFileToProject("project/envs/dev/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../../common/root.hcl")
+                }
+                
+                inputs = {
+                  log = local.common.locals.settings.log_level
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("settings.log_level") + "settings.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "log_level", "verbosity");
+
+        // Usage in child should be updated
+        var childDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(childDoc);
+        assertTrue("Child should use verbosity", childDoc.getText().contains("local.common.locals.settings.verbosity"));
+
+        // Definition in common should be updated
+        var updatedCommon = myFixture.findFileInTempDir("project/common/root.hcl");
+        var psiCommon = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedCommon);
+        var commonDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiCommon);
+        assertNotNull(commonDoc);
+        assertTrue("Common should have verbosity, got: " + commonDoc.getText(),
+                commonDoc.getText().contains("verbosity = \"info\""));
+    }
 }

@@ -284,14 +284,14 @@ public class TerragruntRenameHandler implements RenameHandler {
             if (document != null) {
                 elementsToRename.sort((a, b) -> b.getTextOffset() - a.getTextOffset());
                 for (PsiElement el : elementsToRename) {
-                    document.replaceString(el.getTextOffset(), el.getTextOffset() + el.getTextLength(), newName);
+                    replaceElementText(document, el, newName);
                 }
             }
             // Rename in other files
             for (PsiElement el : crossFileElements) {
                 var otherDoc = el.getContainingFile().getViewProvider().getDocument();
                 if (otherDoc != null) {
-                    otherDoc.replaceString(el.getTextOffset(), el.getTextOffset() + el.getTextLength(), newName);
+                    replaceElementText(otherDoc, el, newName);
                 }
             }
         });
@@ -531,12 +531,13 @@ public class TerragruntRenameHandler implements RenameHandler {
             if (defDoc != null) {
                 elementsToRename.sort((a, b) -> b.getTextOffset() - a.getTextOffset());
                 for (PsiElement el : elementsToRename) {
-                    defDoc.replaceString(el.getTextOffset(), el.getTextOffset() + el.getTextLength(), newName);
+                    replaceElementText(defDoc, el, newName);
                 }
             }
             for (PsiElement el : crossFileElements) {
                 var otherDoc = el.getContainingFile().getViewProvider().getDocument();
                 if (otherDoc != null) {
+                    replaceElementText(otherDoc, el, newName);
                     otherDoc.replaceString(el.getTextOffset(), el.getTextOffset() + el.getTextLength(), newName);
                 }
             }
@@ -718,6 +719,18 @@ public class TerragruntRenameHandler implements RenameHandler {
             }
         }
         return null;
+    }
+
+    private void replaceElementText(com.intellij.openapi.editor.Document doc, PsiElement el, String newName) {
+        int start = el.getTextOffset();
+        int end = start + el.getTextLength();
+        // For quoted keys, replace only the content between quotes
+        String text = el.getText();
+        if (text.startsWith("\"") && text.endsWith("\"") && text.length() >= 2) {
+            start += 1;
+            end -= 1;
+        }
+        doc.replaceString(start, end, newName);
     }
 
     private boolean matchesFile(PsiFile resolved, PsiFile sourceFile) {
