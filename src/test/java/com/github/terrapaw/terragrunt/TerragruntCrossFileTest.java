@@ -1194,6 +1194,41 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertEquals("root.hcl", targets[0].getContainingFile().getName());
     }
 
+    public void testNestedAliasNavigationOnDeepestKey() {
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  a = {
+                    b = {
+                      c = "abc"
+                    }
+                  }
+                }
+                """);
+        myFixture.addFileToProject("test.hcl", """
+                locals {
+                  abc = read_terragrunt_config("./root.hcl")
+                  a = local.abc.locals.a
+                }
+                """);
+        var topFile = myFixture.addFileToProject("top.hcl", """
+                locals {
+                  read = read_terragrunt_config("./test.hcl")
+                  d = local.read.locals.a.b.c
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(topFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+
+        // Navigate on "c"
+        int offset = text.indexOf("a.b.c") + 4; // on "c"
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve 'c' through nested alias chain", targets);
+        assertTrue("Should find target for 'c'", targets.length > 0);
+        assertEquals("root.hcl", targets[0].getContainingFile().getName());
+    }
+
     public void testNestedAliasCompletionThroughChain() {
         // root.hcl: a = { b = { c = "abc" } }
         myFixture.addFileToProject("root.hcl", """
@@ -1227,5 +1262,42 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         var lookups = myFixture.getLookupElementStrings();
         assertNotNull("Should have completions", lookups);
         assertTrue("Should suggest 'b' from nested alias, got: " + lookups, lookups.contains("b"));
+    }
+
+    public void testNestedAliasFindUsagesFromObjectKey() {
+        // Ctrl+B on "c" in the source file should find usage in consumer
+        myFixture.addFileToProject("nested/mid/root.hcl", """
+                locals {
+                  abc = read_terragrunt_config("../source/root.hcl")
+                  a = local.abc.locals.a
+                }
+                """);
+        myFixture.addFileToProject("nested/consumer/terragrunt.hcl", """
+                locals {
+                  read = read_terragrunt_config("../mid/root.hcl")
+                  d = local.read.locals.a.b.c
+                }
+                """);
+
+        var rootFile = myFixture.addFileToProject("nested/source/root.hcl", """
+                locals {
+                  a = {
+                    b = {
+                      c = "abc"
+                    }
+                  }
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(rootFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+
+        // Navigate on "c" key definition — should find usages in consumer
+        int offset = text.indexOf("c = \"abc\"");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should find usages of 'c' through nested alias chain", targets);
+        assertTrue("Should find at least one usage", targets.length > 0);
+        assertEquals("terragrunt.hcl", targets[0].getContainingFile().getName());
     }
 }
