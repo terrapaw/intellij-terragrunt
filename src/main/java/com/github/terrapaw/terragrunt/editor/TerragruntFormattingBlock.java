@@ -36,7 +36,7 @@ public class TerragruntFormattingBlock extends AbstractBlock {
 
     @Override
     public @Nullable Spacing getSpacing(@Nullable Block child1, @NotNull Block child2) {
-        return null; // Don't enforce any spacing - preserve user formatting
+        return spacingBuilder.getSpacing(this, child1, child2);
     }
 
     @Override
