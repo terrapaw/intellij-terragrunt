@@ -605,13 +605,58 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
-        assertTrue("Rename should be available on inputs usage", handler.isAvailableOnDataContext(ctx));
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "env", "environment");
+
+        // Child usage should be updated
+        var childDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(childDoc);
+        assertTrue("Child should use environment", childDoc.getText().contains("include.root.inputs.environment"));
+
+        // Root definition should be updated
+        var updatedRoot = myFixture.findFileInTempDir("root.hcl");
+        var psiRoot = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedRoot);
+        var rootDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiRoot);
+        assertNotNull(rootDoc);
+        assertTrue("Root should have environment, got: " + rootDoc.getText(),
+                rootDoc.getText().contains("environment = \"prod\""));
+    }
+
+    public void testDeepKeyRenameWithNestedFolderStructure() {
+        // Realistic folder structure: project/common/root.hcl referenced from project/envs/dev/terragrunt.hcl
+        var commonFile = myFixture.addFileToProject("project/common/root.hcl", """
+                locals {
+                  settings = {
+                    log_level = "info"
+                  }
+                }
+                """);
+        myFixture.addFileToProject("project/envs/dev/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../../common/root.hcl")
+                }
+                
+                inputs = {
+                  log = local.common.locals.settings.log_level
+                }
+                """);
+
+        // Rename from definition side
+        myFixture.configureFromExistingVirtualFile(commonFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("log_level");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "log_level", "verbosity");
+
+        var updatedChild = myFixture.findFileInTempDir("project/envs/dev/terragrunt.hcl");
+        var psiChild = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedChild);
+        assertNotNull(psiChild);
+        var childDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiChild);
+        assertNotNull(childDoc);
+        assertTrue("Child should reference verbosity, got: " + childDoc.getText(),
+                childDoc.getText().contains("local.common.locals.settings.verbosity"));
     }
 
     public void testRenameMockOutputKeyFromDefinition() {
