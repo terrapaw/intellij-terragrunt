@@ -41,7 +41,13 @@ public class TerragruntFormatterTest extends BasePlatformTestCase {
                 """);
         myFixture.performEditorAction("ReformatCode");
         String result = myFixture.getEditor().getDocument().getText();
-        assertTrue("Should indent object contents", result.contains("  name = \"test\""));
+        assertTrue("Should indent object contents", result.contains("  name") && result.contains("  count"));
+        // Alignment means = signs are at same column
+        int eq1 = result.indexOf("= \"test\"");
+        int eq2 = result.indexOf("= 3");
+        int col1 = eq1 - result.lastIndexOf('\n', eq1) - 1;
+        int col2 = eq2 - result.lastIndexOf('\n', eq2) - 1;
+        assertEquals("= should be aligned in object", col1, col2);
     }
 
     public void testPreservesSpacingInsideAttributes() {
@@ -119,6 +125,28 @@ public class TerragruntFormatterTest extends BasePlatformTestCase {
         // Just verify it doesn't crash and produces valid output
         assertTrue("Should contain x", result.contains("x"));
         assertTrue("Should contain long_name", result.contains("long_name"));
+    }
+
+    public void testObjectValueAttrExcludedFromAlignment() {
+        // config has object value — should NOT be aligned with app_name/environment
+        myFixture.configureByText("terragrunt.hcl",
+                "locals {\n  app_name = \"my-app\"\n  environment = \"prod\"\n\n  config = {\n    x = 1\n  }\n}\n");
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // config should have "config = {" with just 1 space before =
+        assertTrue("config should not be padded to match environment: " + result,
+                result.contains("  config = {"));
+    }
+
+    public void testAttrBeforeObjectValueAttrNotAligned() {
+        // config_path should NOT be aligned with mock_outputs (which has object value)
+        myFixture.configureByText("terragrunt.hcl",
+                "dependency \"vpc\" {\n  config_path = \"../vpc\"\n  mock_outputs = {\n    vpc_id = \"test\"\n  }\n}\n");
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // config_path should have just 1 space before = (not padded to match mock_outputs)
+        assertTrue("config_path should not be padded: " + result,
+                result.contains("  config_path = \"../vpc\""));
     }
 
     public void testSpaceAfterCommaInList() {

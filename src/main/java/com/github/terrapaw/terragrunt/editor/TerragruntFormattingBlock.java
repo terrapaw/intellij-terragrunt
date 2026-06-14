@@ -34,19 +34,44 @@ public class TerragruntFormattingBlock extends AbstractBlock {
         List<Block> blocks = new ArrayList<>();
         IElementType myType = myNode.getElementType();
 
-        // Create shared alignment for = signs within body/object
+        // Create alignment for = signs within body/object — reset after blank lines or object-valued attrs
         Alignment equalsAlign = null;
-        if (myType == TerragruntTypes.BODY || myType == TerragruntTypes.OBJECT_EXPR) {
+        boolean needsAlignment = (myType == TerragruntTypes.BODY || myType == TerragruntTypes.OBJECT_EXPR);
+        if (needsAlignment) {
             equalsAlign = Alignment.createAlignment(true);
         }
 
         ASTNode child = myNode.getFirstChildNode();
         while (child != null) {
-            if (child.getElementType() != TokenType.WHITE_SPACE) {
-                blocks.add(makeSubBlock(child, equalsAlign));
-            } else if (equalsAlign != null && hasTwoNewlines(child.getText())) {
-                // Reset alignment after blank lines (same as terragrunt fmt)
-                equalsAlign = Alignment.createAlignment(true);
+            if (child.getElementType() == TokenType.WHITE_SPACE) {
+                // Reset alignment after blank lines (2+ newlines)
+                if (needsAlignment && hasTwoNewlines(child.getText())) {
+                    equalsAlign = Alignment.createAlignment(true);
+                }
+            } else {
+                IElementType childType = child.getElementType();
+
+                // Reset alignment AFTER an attribute with object/array value
+                boolean isAttrWithObject = (childType == TerragruntTypes.ATTRIBUTE || childType == TerragruntTypes.OBJECT_ELEM)
+                        && hasObjectOrArrayValue(child);
+
+                // Reset alignment BEFORE object-valued attr (previous attrs get their own group)
+                if (needsAlignment && isAttrWithObject) {
+                    equalsAlign = Alignment.createAlignment(true);
+                }
+
+                Alignment childValueAlign = null;
+                if ((childType == TerragruntTypes.ATTRIBUTE || childType == TerragruntTypes.OBJECT_ELEM)
+                        && equalsAlign != null && !isAttrWithObject) {
+                    childValueAlign = equalsAlign;
+                }
+
+                blocks.add(makeSubBlock(child, equalsAlign != null ? childValueAlign : null));
+
+                // After an object-valued attribute, reset alignment for next group
+                if (needsAlignment && isAttrWithObject) {
+                    equalsAlign = Alignment.createAlignment(true);
+                }
             }
             child = child.getTreeNext();
         }
@@ -57,15 +82,19 @@ public class TerragruntFormattingBlock extends AbstractBlock {
         IElementType myType = myNode.getElementType();
         IElementType childType = child.getElementType();
 
-        // Inside an attribute: align the = sign
-        if (myType == TerragruntTypes.ATTRIBUTE && childType == TerragruntTypes.EQUALS && valueAlignment != null) {
+        // Inside an attribute or object elem: align the = sign
+        if ((myType == TerragruntTypes.ATTRIBUTE || myType == TerragruntTypes.OBJECT_ELEM)
+                && childType == TerragruntTypes.EQUALS && valueAlignment != null) {
             return new TerragruntFormattingBlock(child, null, valueAlignment, spacingBuilder, null);
         }
 
-        // Pass alignment to attribute/object_elem children
+        // Pass alignment to attribute/object_elem children (skip if value is object/array)
         Alignment childValueAlign = null;
         if ((childType == TerragruntTypes.ATTRIBUTE || childType == TerragruntTypes.OBJECT_ELEM) && equalsAlign != null) {
-            childValueAlign = equalsAlign;
+            // Don't align attributes whose value is an object or array (terragrunt fmt behaviour)
+            if (!hasObjectOrArrayValue(child)) {
+                childValueAlign = equalsAlign;
+            }
         }
 
         return new TerragruntFormattingBlock(child, null, null, spacingBuilder, childValueAlign);
@@ -126,5 +155,33 @@ public class TerragruntFormattingBlock extends AbstractBlock {
     private static boolean hasTwoNewlines(String text) {
         int first = text.indexOf('\n');
         return first != -1 && text.indexOf('\n', first + 1) != -1;
+    }
+
+    private static boolean hasObjectOrArrayValue(ASTNode attrNode) {
+        // Exclude from alignment if the value directly starts with { or [ (block object/array)
+        // but NOT if it's inside a function call like merge({...}) or an inline list
+        ASTNode eq = null;
+        for (ASTNode child = attrNode.getFirstChildNode(); child != null; child = child.getTreeNext()) {
+            if (child.getElementType() == TerragruntTypes.EQUALS) {
+                eq = child;
+                break;
+            }
+        }
+        if (eq == null) return false;
+
+        // Find first non-whitespace token after =
+        ASTNode afterEq = eq.getTreeNext();
+        while (afterEq != null && afterEq.getElementType() == TokenType.WHITE_SPACE) {
+            afterEq = afterEq.getTreeNext();
+        }
+        if (afterEq == null) return false;
+
+        // Check if the value spans multiple lines (the expression after = contains \n)
+        String valueText = afterEq.getText();
+        if (!valueText.contains("\n")) return false;
+
+        // Check if value directly starts with { or [ (not wrapped in a function)
+        String trimmed = valueText.trim();
+        return trimmed.startsWith("{") || trimmed.startsWith("[");
     }
 }
