@@ -56,7 +56,10 @@ public class TerragruntFormattingBlock extends AbstractBlock {
                     newlineCount = 0;
                 }
             } else if (child.getElementType() == TerragruntTypes.LINE_COMMENT || child.getElementType() == TerragruntTypes.BLOCK_COMMENT) {
-                // Comments don't reset newline counter — blank line detection continues through them
+                // Comments reset alignment (same as terragrunt fmt)
+                if (needsAlignment) {
+                    equalsAlign = Alignment.createAlignment(true);
+                }
                 // But they must still be added as blocks to cover their text range
                 blocks.add(new TerragruntFormattingBlock(child, null, null, spacingBuilder, null));
             } else {
