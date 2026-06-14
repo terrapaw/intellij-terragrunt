@@ -9,6 +9,7 @@ import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.project.ProjectUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.openapi.vfs.newvfs.BulkFileListener;
@@ -302,7 +303,7 @@ public class TerragruntDependencyToolWindowFactory implements ToolWindowFactory 
         var descriptor = com.intellij.openapi.fileChooser.FileChooserDescriptorFactory.createSingleFolderDescriptor();
         descriptor.setTitle("Export Dependency Graph");
         descriptor.setDescription("Choose directory to save dependency-graph.dot");
-        var chosen = com.intellij.openapi.fileChooser.FileChooser.chooseFile(descriptor, project, project.getBaseDir());
+        var chosen = com.intellij.openapi.fileChooser.FileChooser.chooseFile(descriptor, project, ProjectUtil.guessProjectDir(project));
         if (chosen == null) return;
 
         Map<String, String> pathToName = new HashMap<>();
