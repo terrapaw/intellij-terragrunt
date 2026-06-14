@@ -205,4 +205,27 @@ public class TerragruntFormatterTest extends BasePlatformTestCase {
             assertEquals("= should be aligned in mock_outputs", vpcCol, subCol);
         }
     }
+
+    public void testAlignmentResetsAfterComment() {
+        // Comments reset alignment groups (matches terragrunt fmt)
+        myFixture.configureByText("terragrunt.hcl",
+                "locals {\n  short = \"a\"\n  # comment\n  very_long_name = \"b\"\n}\n");
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // short should NOT be padded to match very_long_name
+        assertTrue("short should not be aligned with very_long_name: " + result,
+                result.contains("  short = \"a\""));
+        assertTrue("very_long_name should have single space: " + result,
+                result.contains("  very_long_name = \"b\""));
+    }
+
+    public void testHeredocContentPreserved() {
+        myFixture.configureByText("terragrunt.hcl",
+                "generate \"p\" {\n  path = \"p.tf\"\n  contents = <<EOF\nprovider \"aws\" {\n    region=\"us-east-1\"\n}\nEOF\n}\n");
+        myFixture.performEditorAction("ReformatCode");
+        String result = myFixture.getEditor().getDocument().getText();
+        // Heredoc content should not be reformatted (keep original indentation and spacing)
+        assertTrue("Heredoc content should be preserved: " + result,
+                result.contains("    region=\"us-east-1\""));
+    }
 }
