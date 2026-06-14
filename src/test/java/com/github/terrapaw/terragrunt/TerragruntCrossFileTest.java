@@ -1300,4 +1300,59 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertTrue("Should find at least one usage", targets.length > 0);
         assertEquals("terragrunt.hcl", targets[0].getContainingFile().getName());
     }
+
+    public void testNavigateToLocalsBlockFromChainKeyword() {
+        // Ctrl+B on "locals" in local.config.locals should jump to the locals block in resolved file
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  region = "us-east-1"
+                }
+                """);
+        var childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                locals {
+                  config = read_terragrunt_config("../root.hcl")
+                  r = local.config.locals.region
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("config.locals") + "config.".length(); // on "locals"
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate to locals block", targets);
+        assertTrue(targets.length > 0);
+        assertEquals("root.hcl", targets[0].getContainingFile().getName());
+    }
+
+    public void testNavigateToInputsBlockFromChainKeyword() {
+        // Ctrl+B on "inputs" in include.root.inputs should jump to the inputs attribute
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  x = 1
+                }
+                inputs = {
+                  env = "prod"
+                }
+                """);
+        var childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                  expose = true
+                }
+                
+                inputs = {
+                  e = include.root.inputs.env
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("root.inputs") + "root.".length(); // on "inputs"
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should navigate to inputs attribute", targets);
+        assertTrue(targets.length > 0);
+        assertEquals("root.hcl", targets[0].getContainingFile().getName());
+    }
 }
