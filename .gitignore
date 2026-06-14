@@ -9,4 +9,4 @@ out/
 .terragrunt-stack-manifest
 terragrunt.values.hcl
 dependency-graph.dot
-examples/playground/
+examples/_playground/
