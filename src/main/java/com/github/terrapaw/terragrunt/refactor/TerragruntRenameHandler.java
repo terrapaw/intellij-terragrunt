@@ -3,14 +3,19 @@ package com.github.terrapaw.terragrunt.refactor;
 import com.github.terrapaw.terragrunt.lang.TerragruntFile;
 import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.github.terrapaw.terragrunt.lang.psi.*;
+import com.github.terrapaw.terragrunt.reference.TerragruntChainResolver;
+import com.github.terrapaw.terragrunt.reference.TerragruntFileResolver;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiManager;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.refactoring.rename.RenameHandler;
 import org.jetbrains.annotations.NotNull;
@@ -90,6 +95,10 @@ public class TerragruntRenameHandler implements RenameHandler {
     }
 
     private void performRename(Project project, PsiFile file, PsiElement source, String oldName, String newName) {
+        performRenameForTest(project, file, source, oldName, newName);
+    }
+
+    public void performRenameForTest(Project project, PsiFile file, PsiElement source, String oldName, String newName) {
         List<PsiElement> elementsToRename = new ArrayList<>();
 
         // Find the definition in locals block
@@ -104,10 +113,37 @@ public class TerragruntRenameHandler implements RenameHandler {
             }
         }
 
-        // Find all local.X usages
+        // Find all local.X usages in same file
+        findLocalUsagesInFile(file, oldName, elementsToRename);
+
+        // Find cross-file usages
+        List<PsiElement> crossFileElements = new ArrayList<>();
+        findCrossFileUsages(file, oldName, crossFileElements);
+
+        // Perform the rename
+        WriteCommandAction.runWriteCommandAction(project, "Rename '" + oldName + "' to '" + newName + "'", null, () -> {
+            // Rename in current file
+            var document = file.getViewProvider().getDocument();
+            if (document != null) {
+                elementsToRename.sort((a, b) -> b.getTextOffset() - a.getTextOffset());
+                for (PsiElement el : elementsToRename) {
+                    document.replaceString(el.getTextOffset(), el.getTextOffset() + el.getTextLength(), newName);
+                }
+            }
+            // Rename in other files
+            for (PsiElement el : crossFileElements) {
+                var otherDoc = el.getContainingFile().getViewProvider().getDocument();
+                if (otherDoc != null) {
+                    otherDoc.replaceString(el.getTextOffset(), el.getTextOffset() + el.getTextLength(), newName);
+                }
+            }
+        });
+    }
+
+    private void findLocalUsagesInFile(PsiFile file, String name, List<PsiElement> usages) {
         Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
         for (TerragruntGetAttr getAttr : allGetAttrs) {
-            if (!oldName.equals(getAttr.getIdentifier().getText())) continue;
+            if (!name.equals(getAttr.getIdentifier().getText())) continue;
             PsiElement parent = getAttr.getParent();
             if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
             TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
@@ -116,21 +152,79 @@ public class TerragruntRenameHandler implements RenameHandler {
             if (varExpr == null || !"local".equals(varExpr.getIdentifier().getText())) continue;
             PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
             if (getAttrs != null && getAttrs.length > 0 && getAttrs[0] == getAttr) {
-                elementsToRename.add(getAttr.getIdentifier());
+                usages.add(getAttr.getIdentifier());
             }
         }
+    }
 
-        // Perform the rename
-        WriteCommandAction.runWriteCommandAction(project, "Rename '" + oldName + "' to '" + newName + "'", null, () -> {
-            var document = file.getViewProvider().getDocument();
-            if (document == null) return;
-            // Replace in reverse offset order to preserve positions
-            elementsToRename.sort((a, b) -> b.getTextOffset() - a.getTextOffset());
-            for (PsiElement el : elementsToRename) {
-                int start = el.getTextOffset();
-                int end = start + el.getTextLength();
-                document.replaceString(start, end, newName);
+    private void findCrossFileUsages(PsiFile sourceFile, String name, List<PsiElement> usages) {
+        Project project = sourceFile.getProject();
+        for (VirtualFile contentRoot : ProjectRootManager.getInstance(project).getContentRoots()) {
+            findCrossFileUsagesRecursive(contentRoot, project, sourceFile, name, usages);
+        }
+    }
+
+    private void findCrossFileUsagesRecursive(VirtualFile dir, Project project, PsiFile sourceFile, String name, List<PsiElement> usages) {
+        for (VirtualFile child : dir.getChildren()) {
+            if (child.isDirectory()) {
+                if ((child.getName().startsWith(".") && !child.getName().equals(".terragrunt-stack")) || child.getName().equals("node_modules")) continue;
+                findCrossFileUsagesRecursive(child, project, sourceFile, name, usages);
+            } else if (child.getName().endsWith(".hcl")) {
+                PsiFile psiFile = PsiManager.getInstance(project).findFile(child);
+                if (psiFile == null || psiFile.equals(sourceFile)) continue;
+                findUsagesInOtherFile(psiFile, name, sourceFile, usages);
             }
-        });
+        }
+    }
+
+    private void findUsagesInOtherFile(PsiFile file, String name, PsiFile sourceFile, List<PsiElement> usages) {
+        Collection<TerragruntGetAttr> allGetAttrs = PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class);
+        for (TerragruntGetAttr getAttr : allGetAttrs) {
+            if (!name.equals(getAttr.getIdentifier().getText())) continue;
+            PsiElement parent = getAttr.getParent();
+            if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
+            TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+            if (primary == null) continue;
+            TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+            if (varExpr == null) continue;
+            String rootVar = varExpr.getIdentifier().getText();
+            PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+            if (getAttrs == null) continue;
+
+            if ("include".equals(rootVar)) {
+                // include.X.locals.<name> — getAttr at index 2
+                if (getAttrs.length >= 3 && getAttrs[2] == getAttr) {
+                    String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+                    if (!"locals".equals(section)) continue;
+                    String includeName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                    TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
+                    if (includeBlock == null) continue;
+                    PsiFile resolved = TerragruntFileResolver.resolveInclude(includeBlock);
+                    if (matchesFile(resolved, sourceFile)) usages.add(getAttr.getIdentifier());
+                }
+            } else if ("local".equals(rootVar)) {
+                // local.alias.<name> (depth 1) where alias resolves to sourceFile
+                if (getAttrs.length >= 2 && getAttrs[1] == getAttr) {
+                    String aliasName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                    PsiFile resolved = TerragruntChainResolver.resolveLocalAlias(file, aliasName);
+                    if (matchesFile(resolved, sourceFile)) usages.add(getAttr.getIdentifier());
+                }
+                // local.alias.locals.<name> (depth 2)
+                if (getAttrs.length >= 3 && getAttrs[2] == getAttr) {
+                    String aliasName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                    String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
+                    if ("locals".equals(section)) {
+                        PsiFile resolved = TerragruntChainResolver.resolveLocalAlias(file, aliasName);
+                        if (matchesFile(resolved, sourceFile)) usages.add(getAttr.getIdentifier());
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean matchesFile(PsiFile resolved, PsiFile sourceFile) {
+        return resolved != null && resolved.getVirtualFile() != null &&
+                sourceFile.getVirtualFile() != null &&
+                resolved.getVirtualFile().getPath().equals(sourceFile.getVirtualFile().getPath());
     }
 }

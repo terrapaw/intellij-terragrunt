@@ -13,6 +13,7 @@
 - Quick-fix: Remove duplicate block (Alt+Enter on duplicates)
 - Quick-fix: Suggest closest name for typos in block types, attributes, and variable references
 - `values.X` navigation in stack units (Ctrl+B jumps to definition in `terragrunt.stack.hcl`, find usages from definition)
+- Cross-file rename: Shift+F6 on a local variable now updates usages in other files (`include.X.locals.Y`, `local.alias.Y`, `local.alias.locals.Y`)
 - Run configurations: execute `terragrunt` commands (plan/apply/init/validate/destroy) from the IDE with output in the Run tool window
 - Gutter run marker on `terragrunt.hcl` (plan, apply, init) and `terragrunt.stack.hcl` (stack generate, stack run plan, stack run apply)
 - Binary path setting in Settings → Languages & Frameworks → Terragrunt (auto-detects from PATH)

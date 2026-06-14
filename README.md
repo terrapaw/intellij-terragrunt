@@ -45,7 +45,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - From label → find all usages (Ctrl+B on `"vpc"` in `dependency "vpc"`)
   - Cross-file find usages — finds both direct and aliased references across project
 - **Refactoring**
-  - Rename local variables (Shift+F6) — updates definition and all `local.X` usages
+  - Rename local variables (Shift+F6) — updates definition, all `local.X` usages in current file, and cross-file usages (`include.X.locals.Y`, `local.alias.Y`, `local.alias.locals.Y`)
 - **Documentation (Ctrl+Q)** — shows function signatures and descriptions
 - **Live templates** — `dep`, `inc`, `gen`, `feat`, `loc`, `inp` (type + Tab to expand)
 - **Formatter (Ctrl+Alt+L)** — auto-indents with 2 spaces (configurable in Settings → Code Style)
@@ -92,7 +92,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-317 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+320 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
