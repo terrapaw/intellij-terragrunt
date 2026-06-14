@@ -211,4 +211,133 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         assertTrue("Child should reference app_name, got: " + childText,
                 childText.contains("local.common.locals.app_name"));
     }
+
+    public void testCrossFileRenameInputsKey() {
+        // root.hcl defines inputs
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                inputs = {
+                  default_tags = "test"
+                }
+                """);
+
+        // child references include.root.inputs.default_tags
+        myFixture.addFileToProject("child/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                  expose = true
+                }
+                
+                inputs = {
+                  tags = include.root.inputs.default_tags
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(rootFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("default_tags");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available on inputs key", handler.isAvailableOnDataContext(ctx));
+
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "default_tags", "common_tags");
+
+        // Verify definition was renamed
+        var rootDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(rootDoc);
+        assertTrue("Root should have common_tags", rootDoc.getText().contains("common_tags"));
+
+        // Verify cross-file usage was renamed
+        var updatedChild = myFixture.findFileInTempDir("child/terragrunt.hcl");
+        var psiChild = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedChild);
+        assertNotNull(psiChild);
+        var childDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiChild);
+        assertNotNull(childDoc);
+        String childText = childDoc.getText();
+        assertTrue("Child should reference common_tags, got: " + childText,
+                childText.contains("include.root.inputs.common_tags"));
+    }
+
+    public void testDeepKeyRenameSameFile() {
+        // Rename "vpc_cidr" key inside locals object, updates local.network.vpc_cidr usage
+        var file = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  network = {
+                    vpc_cidr = "10.0.0.0/16"
+                    az_count = 3
+                  }
+                }
+                
+                inputs = {
+                  cidr = local.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("vpc_cidr");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        DataContext ctx = dataId -> {
+            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
+            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
+            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
+            return null;
+        };
+        assertTrue("Rename should be available on object key in locals", handler.isAvailableOnDataContext(ctx));
+
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "vpc_cidr", "cidr_block");
+
+        var doc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(doc);
+        String text = doc.getText();
+        assertTrue("Definition should be renamed, got: " + text, text.contains("cidr_block = \"10.0.0.0/16\""));
+        assertTrue("Usage should be renamed, got: " + text, text.contains("local.network.cidr_block"));
+        assertFalse("Old name should not remain", text.contains("vpc_cidr"));
+    }
+
+    public void testDeepKeyRenameCrossFile() {
+        // Rename "vpc_cidr" in root.hcl, updates local.common.locals.network.vpc_cidr in child
+        var commonFile = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  network = {
+                    vpc_cidr = "10.0.0.0/16"
+                  }
+                }
+                """);
+
+        myFixture.addFileToProject("child/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../root.hcl")
+                }
+                
+                inputs = {
+                  cidr = local.common.locals.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(commonFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("vpc_cidr");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "vpc_cidr", "cidr_block");
+
+        var updatedChild = myFixture.findFileInTempDir("child/terragrunt.hcl");
+        var psiChild = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedChild);
+        assertNotNull(psiChild);
+        var childDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiChild);
+        assertNotNull(childDoc);
+        String childText = childDoc.getText();
+        assertTrue("Child should reference cidr_block, got: " + childText,
+                childText.contains("local.common.locals.network.cidr_block"));
+    }
 }
