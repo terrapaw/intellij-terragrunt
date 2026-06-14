@@ -155,12 +155,17 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             }
         }
 
-        // Handle include.X at depth 1 — navigate to the included file
+        // Handle include.X at depth 1 — navigate to the included file or locals/inputs block
         if ("include".equals(rootVar) && cursorIndex == 1) {
             String includeName = chain[0];
+            String section = chain[1];
             TerragruntBlock includeBlock = TerragruntFileResolver.findIncludeBlock(file, includeName);
             if (includeBlock == null) return null;
             PsiFile targetFile = TerragruntFileResolver.resolveInclude(includeBlock);
+            if (targetFile != null && ("locals".equals(section) || "inputs".equals(section))) {
+                PsiElement target = findSectionTarget(targetFile, section);
+                if (target != null) return new PsiElement[]{target};
+            }
             if (targetFile != null) return new PsiElement[]{targetFile};
         }
 
@@ -189,6 +194,14 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
         if ("local".equals(rootVar) && cursorIndex == 1 && getAttrs.length >= 2) {
             String aliasName = chain[0];
             String attrName = chain[1];
+            // Navigate to locals/inputs block in resolved file
+            if ("locals".equals(attrName) || "inputs".equals(attrName)) {
+                PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
+                if (resolvedFile != null) {
+                    PsiElement target = findSectionTarget(resolvedFile, attrName);
+                    if (target != null) return new PsiElement[]{target};
+                }
+            }
             // Find the alias assignment: locals { alias = include.X.locals }
             PsiFile resolvedFile = resolveLocalAlias(file, aliasName);
             if (resolvedFile != null) {
@@ -805,6 +818,23 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             PsiElement key = elem.getFirstChild();
             if (key != null && keyName.equals(key.getText().replace("\"", ""))) {
                 return key;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Finds the locals block or inputs attribute in a file.
+     */
+    @Nullable
+    private PsiElement findSectionTarget(PsiFile file, String section) {
+        if ("locals".equals(section)) {
+            for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+                if ("locals".equals(TerragruntPsiUtil.getBlockType(block))) return block;
+            }
+        } else if ("inputs".equals(section)) {
+            for (TerragruntAttribute attr : PsiTreeUtil.findChildrenOfType(file, TerragruntAttribute.class)) {
+                if ("inputs".equals(attr.getIdentifier().getText())) return attr;
             }
         }
         return null;

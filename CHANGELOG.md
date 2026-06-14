@@ -4,6 +4,7 @@
 
 ### Added
 - Plugin logo for Marketplace listing
+- Navigate to `locals` block / `inputs` attribute from chain keywords (Ctrl+B on `locals` in `local.config.locals` or `include.root.inputs`)
 - Rich HTML description on Marketplace plugin page
 - File templates: New → Terragrunt File (Unit, Root, Stack)
 - Structure view (Alt+7) showing blocks, attributes, and nested object keys
