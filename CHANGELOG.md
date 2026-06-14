@@ -21,6 +21,7 @@
 
 ### Fixed
 - `feature.X.value` and `dependency.X.outputs.Y` navigation incorrectly matched the first block instead of the named one when multiple blocks existed
+- Nested alias completion and navigation: `local.read.locals.a.b.c` now follows same-file alias chains (e.g. `a = local.abc.locals.a`) through multiple files
 - `dependency.X.outputs.` completion suggested mock_outputs keys from the wrong dependency block when multiple existed
 - Potential crash during live editing when parser produces incomplete block nodes (null identifier guard)
 - Syntax highlighting colours missing compared to Terraform/HCL plugin (#62)

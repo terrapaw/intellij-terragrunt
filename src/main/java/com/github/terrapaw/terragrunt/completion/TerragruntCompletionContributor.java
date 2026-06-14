@@ -448,6 +448,12 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                                         TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
                                         if (obj != null) {
                                             addObjectKeysToCompletion(obj, result);
+                                        } else {
+                                            // Attr value might be a reference (e.g. local.abc.locals.a) — resolve it
+                                            TerragruntObjectExpr resolvedObj = resolveAttributeValueToObject(attr, deepFile);
+                                            if (resolvedObj != null) {
+                                                addObjectKeysToCompletion(resolvedObj, result);
+                                            }
                                         }
                                     }
                                 }
@@ -462,6 +468,10 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                                     TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(attrFile, attrName);
                                     if (attr != null) {
                                         TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+                                        // If attr value is a reference, resolve it to get the object
+                                        if (obj == null) {
+                                            obj = resolveAttributeValueToObject(attr, attrFile);
+                                        }
                                         for (int idx = 3; idx < depth && obj != null; idx++) {
                                             String keyName = ((TerragruntGetAttr) getAttrs[idx]).getIdentifier().getText();
                                             TerragruntObjectElem matchedElem = null;
@@ -717,6 +727,39 @@ public class TerragruntCompletionContributor extends CompletionContributor {
     @Nullable
     private PsiFile resolveDeepChainForCompletion(PsiFile currentFile, PsiElement[] getAttrs, int startIndex, int depth, PsiFile originFile) {
         return TerragruntChainResolver.resolveChain(currentFile, getAttrs, startIndex, depth, originFile);
+    }
+
+    /**
+     * Resolves an attribute whose value is a reference expression (e.g. local.abc.locals.a)
+     * to find the actual object it points to.
+     */
+    @Nullable
+    private TerragruntObjectExpr resolveAttributeValueToObject(TerragruntAttribute attr, PsiFile attrFile) {
+        TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
+        if (postfix == null) return null;
+        TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+        if (primary == null) return null;
+        TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+        if (varExpr == null || !"local".equals(varExpr.getIdentifier().getText())) return null;
+
+        PsiElement[] valueGetAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+        if (valueGetAttrs == null || valueGetAttrs.length < 3) return null;
+
+        String valueAlias = ((TerragruntGetAttr) valueGetAttrs[0]).getIdentifier().getText();
+        String valueSection = ((TerragruntGetAttr) valueGetAttrs[1]).getIdentifier().getText();
+        if (!"locals".equals(valueSection)) return null;
+
+        PsiFile targetFile = TerragruntChainResolver.resolveLocalAlias(attrFile, valueAlias);
+        if (targetFile == null) return null;
+
+        String targetAttrName = ((TerragruntGetAttr) valueGetAttrs[2]).getIdentifier().getText();
+        TerragruntAttribute targetAttr = TerragruntFileResolver.findLocalAttribute(targetFile, targetAttrName);
+        if (targetAttr == null) return null;
+
+        TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(targetAttr, TerragruntObjectExpr.class);
+        if (obj != null) return obj;
+        // Recurse if the target is also a reference
+        return resolveAttributeValueToObject(targetAttr, targetFile);
     }
 
     private void addObjectKeysToCompletion(TerragruntObjectExpr obj, com.intellij.codeInsight.completion.CompletionResultSet result) {
