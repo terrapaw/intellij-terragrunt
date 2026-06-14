@@ -6,6 +6,7 @@ import com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBody;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.project.ProjectUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
@@ -23,7 +24,7 @@ public class TerragruntDependencyScanner {
      */
     public static List<DependencyNode> scanProject(@NotNull Project project) {
         List<DependencyNode> nodes = new ArrayList<>();
-        VirtualFile baseDir = project.getBaseDir();
+        VirtualFile baseDir = ProjectUtil.guessProjectDir(project);
 
         // Scan content roots
         com.intellij.openapi.roots.ProjectRootManager rootManager =
