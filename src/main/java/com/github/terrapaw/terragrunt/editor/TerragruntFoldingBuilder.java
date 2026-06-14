@@ -1,6 +1,8 @@
 package com.github.terrapaw.terragrunt.editor;
 
+import com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute;
 import com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock;
+import com.github.terrapaw.terragrunt.lang.psi.TerragruntObjectExpr;
 import com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.folding.FoldingBuilderEx;
@@ -28,6 +30,14 @@ public class TerragruntFoldingBuilder extends FoldingBuilderEx {
                 descriptors.add(new FoldingDescriptor(block.getNode(), range));
             }
         }
+        // Fold top-level attributes with object values (inputs = { ... })
+        Collection<TerragruntAttribute> attrs = PsiTreeUtil.findChildrenOfType(root, TerragruntAttribute.class);
+        for (TerragruntAttribute attr : attrs) {
+            TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+            if (obj != null && obj.getTextRange().getLength() > 1) {
+                descriptors.add(new FoldingDescriptor(attr.getNode(), attr.getTextRange()));
+            }
+        }
         return descriptors.toArray(FoldingDescriptor.EMPTY_ARRAY);
     }
 
@@ -44,6 +54,9 @@ public class TerragruntFoldingBuilder extends FoldingBuilderEx {
             }
             sb.append(" {...}");
             return sb.toString();
+        }
+        if (psi instanceof TerragruntAttribute attr) {
+            return attr.getIdentifier().getText() + " = {...}";
         }
         return "{...}";
     }
