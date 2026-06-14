@@ -120,7 +120,7 @@ for_intro ::= FOR IDENTIFIER (COMMA IDENTIFIER)? IN expression COLON
 for_cond ::= IF expression
 
 template_expr ::= string_lit | heredoc_expr
-string_lit ::= QUOTE (STRING_LITERAL | interpolation)* QUOTE
+string_lit ::= QUOTE (STRING_LITERAL | interpolation)* QUOTE {mixin="com.github.terrapaw.terragrunt.lang.psi.impl.TerragruntStringLitMixin"}
 interpolation ::= INTERPOLATION_START expression INTERPOLATION_END | DIRECTIVE_START expression INTERPOLATION_END
 heredoc_expr ::= HEREDOC_START IDENTIFIER heredoc_body HEREDOC_END
 heredoc_body ::= (HEREDOC_CONTENT | interpolation) *

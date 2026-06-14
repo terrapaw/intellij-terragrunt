@@ -9,6 +9,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -83,6 +84,125 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             }
         }
 
+        // Case 5: On a STRING_LITERAL that is part of a path — navigate to directory or file
+        // Skip if inside an interpolated string (mixin reference handles unified highlight)
+        if (parent instanceof TerragruntStringLit stringLit && !"\"".equals(sourceElement.getText())) {
+            if (!stringLit.getText().contains("${")) {
+                PsiElement[] result = handlePathNavigation(stringLit, sourceElement);
+                if (result != null) return result;
+            }
+        }
+
+        // Case 6: On a function name (IDENTIFIER) inside a path expression — resolve to target
+        // Skip punctuation and skip elements inside interpolated strings
+        String tokenText = sourceElement.getText();
+        if (tokenText.length() > 1 || Character.isLetterOrDigit(tokenText.charAt(0)) || tokenText.charAt(0) == '_') {
+            TerragruntStringLit enclosingString = PsiTreeUtil.getParentOfType(sourceElement, TerragruntStringLit.class);
+            if (enclosingString == null || !enclosingString.getText().contains("${")) {
+                return handlePathExpressionNavigation(sourceElement);
+            }
+        }
+
+        return null;
+    }
+
+    @Nullable
+    private PsiElement[] handlePathExpressionNavigation(PsiElement sourceElement) {
+        PsiFile file = sourceElement.getContainingFile();
+
+        // Check if we're inside a read_terragrunt_config(...) call
+        TerragruntFunctionCall funcCall = PsiTreeUtil.getParentOfType(sourceElement, TerragruntFunctionCall.class);
+        if (funcCall != null && "read_terragrunt_config".equals(funcCall.getIdentifier().getText())) {
+            PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(funcCall, file);
+            if (resolved != null) return new PsiElement[]{resolved};
+        }
+
+        // Check if we're inside a path/config_path/source attribute with a function call
+        TerragruntAttribute attr = PsiTreeUtil.getParentOfType(sourceElement, TerragruntAttribute.class);
+        if (attr != null) {
+            String attrName = attr.getIdentifier().getText();
+            if ("path".equals(attrName) || "config_path".equals(attrName) || "source".equals(attrName)) {
+                TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
+                if (block != null) {
+                    String blockType = TerragruntPsiUtil.getBlockType(block);
+                    if ("include".equals(blockType) || "dependency".equals(blockType) || "terraform".equals(blockType)) {
+                        // Try resolving as include/dependency path
+                        if ("include".equals(blockType)) {
+                            PsiFile resolved = TerragruntFileResolver.resolveInclude(block);
+                            if (resolved != null) return new PsiElement[]{resolved};
+                        }
+                        // Try resolving the string value as a path
+                        TerragruntStringLit stringLit = PsiTreeUtil.findChildOfType(attr, TerragruntStringLit.class);
+                        if (stringLit != null) {
+                            PsiElement[] result = handlePathNavigation(stringLit, sourceElement);
+                            if (result != null) return result;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check if we're inside a nested read_terragrunt_config (find parent)
+        if (funcCall != null) {
+            TerragruntFunctionCall outerFunc = PsiTreeUtil.getParentOfType(funcCall, TerragruntFunctionCall.class);
+            if (outerFunc != null && "read_terragrunt_config".equals(outerFunc.getIdentifier().getText())) {
+                PsiFile resolved = TerragruntFileResolver.resolveReadTerragruntConfig(outerFunc, file);
+                if (resolved != null) return new PsiElement[]{resolved};
+            }
+        }
+
+        return null;
+    }
+
+    @Nullable
+    private PsiElement[] handlePathNavigation(TerragruntStringLit stringLit, PsiElement sourceElement) {
+        // Get the full string content (without quotes)
+        String fullText = stringLit.getText();
+        if (fullText.length() < 2) return null;
+        String content = fullText.substring(1, fullText.length() - 1);
+        if (content.isEmpty()) return null;
+
+        PsiFile file = sourceElement.getContainingFile();
+        VirtualFile vFile = file.getVirtualFile();
+        if (vFile == null || vFile.getParent() == null) return null;
+
+        // Evaluate interpolated paths (handles ${get_terragrunt_dir()}, etc.)
+        String path = content;
+        if (content.contains("${")) {
+            path = TerragruntFileResolver.evaluateInterpolatedPathPublic(content, file);
+            if (path == null) return null;
+        }
+
+        // Resolve relative to the file's directory, or absolute from root
+        VirtualFile dir = vFile.getParent();
+        VirtualFile current;
+        if (path.startsWith("/")) {
+            // Absolute path — navigate from filesystem root
+            VirtualFile root = vFile;
+            while (root.getParent() != null) root = root.getParent();
+            current = root;
+            for (String part : path.substring(1).split("/")) {
+                if (current == null || part.isEmpty()) continue;
+                current = current.findChild(part);
+            }
+        } else {
+            current = dir;
+            for (String part : path.split("/")) {
+                if (current == null) break;
+                if ("..".equals(part)) current = current.getParent();
+                else if (!".".equals(part) && !part.isEmpty()) current = current.findChild(part);
+            }
+        }
+        if (current == null) return null;
+
+        PsiManager psiManager = PsiManager.getInstance(file.getProject());
+        if (current.isDirectory()) {
+            var psiDir = psiManager.findDirectory(current);
+            if (psiDir != null) return new PsiElement[]{psiDir};
+        } else {
+            var psiFile = psiManager.findFile(current);
+            if (psiFile != null) return new PsiElement[]{psiFile};
+        }
         return null;
     }
 

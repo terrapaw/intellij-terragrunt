@@ -5,6 +5,7 @@ import com.github.terrapaw.terragrunt.reference.TerragruntFileResolver;
 import com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiReference;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 
@@ -1354,5 +1355,84 @@ public class TerragruntCrossFileTest extends BasePlatformTestCase {
         assertNotNull("Should navigate to inputs attribute", targets);
         assertTrue(targets.length > 0);
         assertEquals("root.hcl", targets[0].getContainingFile().getName());
+    }
+
+    public void testNavigateToDirectoryFromPath() {
+        // Ctrl+B on a path that points to a directory
+        myFixture.addFileToProject("modules/vpc/terragrunt.hcl", "locals { x = 1 }");
+        var childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                terraform {
+                  source = "../modules/vpc"
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("../modules/vpc") + 3; // inside the string
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve directory path", targets);
+        assertTrue("Should have a target", targets.length > 0);
+    }
+
+    public void testNavigateToDirectoryFromInterpolatedPath() {
+        // "${get_terragrunt_dir()}/modules" should resolve to the modules directory via mixin reference
+        myFixture.addFileToProject("modules/terragrunt.hcl", "locals { x = 1 }");
+        var childFile = myFixture.addFileToProject("terragrunt.hcl", """
+                terraform {
+                  source = "${get_terragrunt_dir()}/modules"
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        // Find the TerragruntStringLit element and check its reference resolves
+        int offset = text.indexOf("${get_terragrunt_dir()}/modules");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        // Walk up to StringLit
+        TerragruntStringLit stringLit = PsiTreeUtil.getParentOfType(element, TerragruntStringLit.class);
+        assertNotNull("Should find enclosing StringLit", stringLit);
+        PsiReference[] refs = stringLit.getReferences();
+        assertTrue("Should have references", refs.length > 0);
+        PsiElement resolved = refs[0].resolve();
+        assertNotNull("Should resolve interpolated directory path", resolved);
+    }
+
+    public void testNavigateFromFunctionNameInInclude() {
+        // Ctrl+B on find_in_parent_folders should navigate to the resolved file
+        myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
+        var childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("root.hcl")
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("find_in_parent_folders");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve from function name in include path", targets);
+        assertTrue(targets.length > 0);
+        assertEquals("root.hcl", targets[0].getContainingFile().getName());
+    }
+
+    public void testNavigateFromReadTerragruntConfigFunctionName() {
+        // Ctrl+B on read_terragrunt_config should navigate to the target file
+        myFixture.addFileToProject("common.hcl", "locals { x = 1 }");
+        var childFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common.hcl")
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(childFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("read_terragrunt_config");
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = handler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should resolve from read_terragrunt_config function name", targets);
+        assertTrue(targets.length > 0);
+        assertEquals("common.hcl", targets[0].getContainingFile().getName());
     }
 }

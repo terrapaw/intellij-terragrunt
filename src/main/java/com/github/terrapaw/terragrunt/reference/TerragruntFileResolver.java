@@ -178,6 +178,10 @@ public class TerragruntFileResolver {
      * Returns the resolved path string, or null if any interpolation can't be evaluated.
      */
     @Nullable
+    public static String evaluateInterpolatedPathPublic(String path, PsiFile sourceFile) {
+        return evaluateInterpolatedPath(path, sourceFile);
+    }
+
     private static String evaluateInterpolatedPath(String path, PsiFile sourceFile) {
         VirtualFile vFile = sourceFile.getVirtualFile();
         if (vFile == null) return null;
