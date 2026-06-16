@@ -845,7 +845,16 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                     if (!"locals".equals(section)) continue;
 
                     String remoteAttr = ((TerragruntGetAttr) getAttrs[2]).getIdentifier().getText();
-                    if (!attrName.equals(remoteAttr)) continue;
+                    if (!attrName.equals(remoteAttr)) {
+                        // Check if remoteAttr is an alias that ultimately references attrName in sourceFile
+                        String aliasName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                        PsiFile resolvedFile = TerragruntChainResolver.resolveLocalAlias(psiFile, aliasName);
+                        if (resolvedFile == null) continue;
+                        TerragruntAttribute remoteAttrDef = TerragruntFileResolver.findLocalAttribute(resolvedFile, remoteAttr);
+                        if (remoteAttrDef == null) continue;
+                        // Check if this attribute's value chains to sourceFile's attrName
+                        if (!attributeAliasesToTarget(remoteAttrDef, resolvedFile, sourceFile, attrName, 10)) continue;
+                    }
 
                     // Check remaining keys match
                     boolean matches = true;
@@ -866,6 +875,38 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 }
             }
         }
+    }
+
+    /**
+     * Checks if an attribute's value is a reference that ultimately points to targetAttrName in targetFile.
+     * e.g. root_settings = local.root.locals.settings → checks if "root" resolves to targetFile and "settings" matches targetAttrName.
+     */
+    private boolean attributeAliasesToTarget(TerragruntAttribute attr, PsiFile attrFile, PsiFile targetFile, String targetAttrName, int maxDepth) {
+        if (maxDepth <= 0) return false;
+        TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
+        if (postfix == null) return false;
+        TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+        if (primary == null) return false;
+        TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+        if (varExpr == null || !"local".equals(varExpr.getIdentifier().getText())) return false;
+        PsiElement[] valueGetAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+        if (valueGetAttrs == null || valueGetAttrs.length < 3) return false;
+        String valueAlias = ((TerragruntGetAttr) valueGetAttrs[0]).getIdentifier().getText();
+        String valueSection = ((TerragruntGetAttr) valueGetAttrs[1]).getIdentifier().getText();
+        String valueAttr = ((TerragruntGetAttr) valueGetAttrs[2]).getIdentifier().getText();
+        if (!"locals".equals(valueSection)) return false;
+        PsiFile resolvedFile = TerragruntChainResolver.resolveLocalAlias(attrFile, valueAlias);
+        if (resolvedFile == null) return false;
+        // Direct match: resolvedFile is targetFile and valueAttr matches targetAttrName
+        if (targetAttrName.equals(valueAttr) && resolvedFile.getVirtualFile() != null &&
+                targetFile.getVirtualFile() != null &&
+                resolvedFile.getVirtualFile().getPath().equals(targetFile.getVirtualFile().getPath())) {
+            return true;
+        }
+        // Recurse: check if valueAttr in resolvedFile is itself an alias
+        TerragruntAttribute nextAttr = TerragruntFileResolver.findLocalAttribute(resolvedFile, valueAttr);
+        if (nextAttr == null) return false;
+        return attributeAliasesToTarget(nextAttr, resolvedFile, targetFile, targetAttrName, maxDepth - 1);
     }
 
     /**

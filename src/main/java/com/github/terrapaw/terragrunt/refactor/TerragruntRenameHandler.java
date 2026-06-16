@@ -287,11 +287,18 @@ public class TerragruntRenameHandler implements RenameHandler {
                     replaceElementText(document, el, newName);
                 }
             }
-            // Rename in other files
+            // Rename in other files (group by document, sort reverse within each)
+            var byDoc = new java.util.HashMap<com.intellij.openapi.editor.Document, java.util.List<PsiElement>>();
             for (PsiElement el : crossFileElements) {
                 var otherDoc = el.getContainingFile().getViewProvider().getDocument();
                 if (otherDoc != null) {
-                    replaceElementText(otherDoc, el, newName);
+                    byDoc.computeIfAbsent(otherDoc, k -> new java.util.ArrayList<>()).add(el);
+                }
+            }
+            for (var entry : byDoc.entrySet()) {
+                entry.getValue().sort((a, b) -> b.getTextOffset() - a.getTextOffset());
+                for (PsiElement el : entry.getValue()) {
+                    replaceElementText(entry.getKey(), el, newName);
                 }
             }
         });
@@ -534,11 +541,18 @@ public class TerragruntRenameHandler implements RenameHandler {
                     replaceElementText(defDoc, el, newName);
                 }
             }
+            // Rename in other files (group by document, sort reverse within each)
+            var byDoc = new java.util.HashMap<com.intellij.openapi.editor.Document, java.util.List<PsiElement>>();
             for (PsiElement el : crossFileElements) {
                 var otherDoc = el.getContainingFile().getViewProvider().getDocument();
                 if (otherDoc != null) {
-                    replaceElementText(otherDoc, el, newName);
-                    otherDoc.replaceString(el.getTextOffset(), el.getTextOffset() + el.getTextLength(), newName);
+                    byDoc.computeIfAbsent(otherDoc, k -> new java.util.ArrayList<>()).add(el);
+                }
+            }
+            for (var entry : byDoc.entrySet()) {
+                entry.getValue().sort((a, b) -> b.getTextOffset() - a.getTextOffset());
+                for (PsiElement el : entry.getValue()) {
+                    replaceElementText(entry.getKey(), el, newName);
                 }
             }
         });
