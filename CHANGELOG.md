@@ -5,6 +5,8 @@
 ### Fixed
 - Cross-file rename corruption when multiple usages exist in the same file (offsets now sorted per document)
 - Find-usages (Ctrl+B from definition) now traces through renamed aliases in intermediate files
+- Rename from `local.alias.Y` (where alias = `include.X.locals`) now resolves through the alias
+- Deep key rename through alias chains works in both directions (definition → usage and usage → definition)
 
 ## [0.4.0] - 2026-06-16
 
