@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-16
+
 ### Added
 - Plugin logo for Marketplace listing
 - Navigate to `locals` block / `inputs` attribute from chain keywords (Ctrl+B on `locals` in `local.config.locals` or `include.root.inputs`)
