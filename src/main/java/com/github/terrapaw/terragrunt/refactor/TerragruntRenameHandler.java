@@ -801,6 +801,11 @@ public class TerragruntRenameHandler implements RenameHandler {
     }
 
     private boolean attributeAliasesToTarget(TerragruntAttribute attr, PsiFile attrFile, PsiFile targetFile, String targetAttrName) {
+        return attributeAliasesToTarget(attr, attrFile, targetFile, targetAttrName, 10);
+    }
+
+    private boolean attributeAliasesToTarget(TerragruntAttribute attr, PsiFile attrFile, PsiFile targetFile, String targetAttrName, int maxDepth) {
+        if (maxDepth <= 0) return false;
         TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
         if (postfix == null) return false;
         TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
@@ -818,7 +823,7 @@ public class TerragruntRenameHandler implements RenameHandler {
         if (targetAttrName.equals(valueAttr) && matchesFile(resolvedFile, targetFile)) return true;
         TerragruntAttribute nextAttr = TerragruntFileResolver.findLocalAttribute(resolvedFile, valueAttr);
         if (nextAttr == null) return false;
-        return attributeAliasesToTarget(nextAttr, resolvedFile, targetFile, targetAttrName);
+        return attributeAliasesToTarget(nextAttr, resolvedFile, targetFile, targetAttrName, maxDepth - 1);
     }
 
     @Nullable
