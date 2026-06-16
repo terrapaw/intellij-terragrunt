@@ -568,9 +568,15 @@ public class TerragruntRenameHandler implements RenameHandler {
         // Also find usages in the current file if it's different from defFile
         if (!defFile.equals(file)) {
             findDeepKeyUsagesInFile(file, attrName, keyPath, crossFileElements);
-            // Also add the source element itself (the usage we're renaming from)
-            // since the scanner may not find it through renamed aliases
-            crossFileElements.add(source);
+            // Add the source element if not already found by the scanner
+            boolean sourceAlreadyFound = false;
+            for (PsiElement el : crossFileElements) {
+                if (el.getTextOffset() == source.getTextOffset() && el.getContainingFile().equals(file)) {
+                    sourceAlreadyFound = true;
+                    break;
+                }
+            }
+            if (!sourceAlreadyFound) crossFileElements.add(source);
         }
 
         final PsiFile finalDefFile = defFile;
@@ -723,7 +729,15 @@ public class TerragruntRenameHandler implements RenameHandler {
                     String section = ((TerragruntGetAttr) getAttrs[1]).getIdentifier().getText();
                     if (!"locals".equals(section)) continue;
                     String remoteAttr = ((TerragruntGetAttr) getAttrs[2]).getIdentifier().getText();
-                    if (!attrName.equals(remoteAttr)) continue;
+                    if (!attrName.equals(remoteAttr)) {
+                        // Check if remoteAttr is an alias that resolves to attrName in sourceFile
+                        String aliasName = ((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText();
+                        PsiFile resolvedAlias = TerragruntChainResolver.resolveLocalAlias(psiFile, aliasName);
+                        if (resolvedAlias == null) continue;
+                        TerragruntAttribute remoteAttrDef = TerragruntFileResolver.findLocalAttribute(resolvedAlias, remoteAttr);
+                        if (remoteAttrDef == null) continue;
+                        if (!attributeAliasesToTarget(remoteAttrDef, resolvedAlias, sourceFile, attrName)) continue;
+                    }
                     // Check remaining keys match
                     boolean matches = true;
                     for (int i = 0; i < keyPath.size(); i++) {
@@ -784,6 +798,27 @@ public class TerragruntRenameHandler implements RenameHandler {
             }
         }
         return null;
+    }
+
+    private boolean attributeAliasesToTarget(TerragruntAttribute attr, PsiFile attrFile, PsiFile targetFile, String targetAttrName) {
+        TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
+        if (postfix == null) return false;
+        TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+        if (primary == null) return false;
+        TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+        if (varExpr == null || !"local".equals(varExpr.getIdentifier().getText())) return false;
+        PsiElement[] valueGetAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+        if (valueGetAttrs == null || valueGetAttrs.length < 3) return false;
+        String valueAlias = ((TerragruntGetAttr) valueGetAttrs[0]).getIdentifier().getText();
+        String valueSection = ((TerragruntGetAttr) valueGetAttrs[1]).getIdentifier().getText();
+        String valueAttr = ((TerragruntGetAttr) valueGetAttrs[2]).getIdentifier().getText();
+        if (!"locals".equals(valueSection)) return false;
+        PsiFile resolvedFile = TerragruntChainResolver.resolveLocalAlias(attrFile, valueAlias);
+        if (resolvedFile == null) return false;
+        if (targetAttrName.equals(valueAttr) && matchesFile(resolvedFile, targetFile)) return true;
+        TerragruntAttribute nextAttr = TerragruntFileResolver.findLocalAttribute(resolvedFile, valueAttr);
+        if (nextAttr == null) return false;
+        return attributeAliasesToTarget(nextAttr, resolvedFile, targetFile, targetAttrName);
     }
 
     @Nullable
