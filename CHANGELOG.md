@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-16
+
 ### Fixed
 - Cross-file rename corruption when multiple usages exist in the same file (offsets now sorted per document)
 - Find-usages (Ctrl+B from definition) now traces through renamed aliases in intermediate files
