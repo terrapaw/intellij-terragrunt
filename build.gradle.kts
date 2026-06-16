@@ -33,64 +33,47 @@ intellijPlatform {
         name = "Terragrunt HCL"
         version = project.version.toString()
         description = """
-            <p>Full-featured Terragrunt HCL language support for IntelliJ-based IDEs. Standalone parser — no dependency on the Terraform plugin.</p>
+            <p>Full-featured Terragrunt support for IntelliJ-based IDEs. Navigate Terragrunt configurations across files, includes, dependencies, stacks, and function-generated paths as naturally as navigating source code.</p>
+            <p>Works independently or alongside the Terraform/HCL plugin — no Terraform plugin dependency required.</p>
 
-            <h3>Code Completion</h3>
+            <h3>Cross-File Navigation</h3>
             <ul>
-              <li>Context-aware block and attribute suggestions</li>
-              <li>60+ built-in functions with signatures</li>
-              <li>Dot-completion: <code>local.</code>, <code>dependency.vpc.outputs.</code>, <code>include.root.locals.</code></li>
-              <li>Cross-file resolution through <code>include</code>, <code>read_terragrunt_config</code>, and aliases</li>
-              <li>Nested object keys at any depth, including across files</li>
-            </ul>
-
-            <h3>Navigation</h3>
-            <ul>
-              <li>Ctrl+Click on variables, paths, and object keys — jumps to definition</li>
-              <li>Resolves 10 Terragrunt functions in paths (<code>find_in_parent_folders</code>, <code>get_repo_root</code>, etc.)</li>
-              <li>Ctrl+B on function names navigates to the resolved target file or directory</li>
-              <li>Arbitrary-depth chain navigation across multiple config files (transitive aliases)</li>
-              <li>Find usages from definitions (locals, inputs, block labels, object keys)</li>
-              <li>Navigate to <code>locals</code>/<code>inputs</code> blocks from chain keywords</li>
+              <li>Go to definition works through <code>read_terragrunt_config</code>, <code>find_in_parent_folders</code>, aliases, and nested configuration references</li>
+              <li>Code completion resolves locals, dependencies, includes, and referenced configs across files</li>
+              <li>Navigate through alias chains regardless of depth</li>
+              <li>Find usages of locals, inputs, object keys, and block labels</li>
             </ul>
 
             <h3>Refactoring</h3>
             <ul>
-              <li>Rename locals, inputs keys, nested object keys, and mock_outputs keys (Shift+F6)</li>
-              <li>Works from both definition and usage side, across files through alias chains</li>
-              <li>Preserves quoted key format on rename</li>
+              <li>Rename locals, input keys, object keys, and mock_outputs across files (Shift+F6)</li>
+              <li>Works from both definition and usage side — renames follow the same chains as navigation</li>
             </ul>
 
             <h3>Inspections &amp; Quick-Fixes</h3>
             <ul>
-              <li>Unknown blocks/attributes, duplicate blocks, missing required attributes</li>
-              <li>Unresolved file paths and variable references</li>
-              <li>Alt+Enter quick-fixes to insert missing attributes or suppress warnings</li>
-              <li>Suppressible with <code># noinspection</code> comments (committable to source control)</li>
+              <li>Unknown or deprecated blocks and attributes</li>
+              <li>Unresolved paths and references</li>
+              <li>Duplicate blocks and missing required attributes</li>
+              <li>Typo correction suggestions via Alt+Enter</li>
+              <li>Suppressible with <code># noinspection</code> comments</li>
             </ul>
 
-            <h3>Editor Support</h3>
+            <h3>Dependency Graph</h3>
+            <ul>
+              <li>Visualize and explore Terragrunt dependency relationships in a searchable tree view with DOT export</li>
+              <li>Run terragrunt commands (plan, apply, init, stack) from gutter markers and run configurations</li>
+            </ul>
+
+            <h3>Editor</h3>
             <ul>
               <li>Semantic syntax highlighting matching the Terraform/HCL plugin</li>
-              <li>Code folding (blocks and object-valued attributes), brace matching</li>
-              <li>Formatter matching <code>terragrunt hcl format</code> output (= alignment, spacing)</li>
-              <li>Live templates (<code>dep</code>, <code>inc</code>, <code>gen</code>, <code>feat</code>, <code>loc</code>, <code>inp</code>)</li>
-              <li>String interpolation support (<code>${'$'}{...}</code> in strings and heredocs)</li>
-              <li>Documentation popup (Ctrl+Q) for functions</li>
-              <li>Structure view (Alt+7) and breadcrumbs</li>
-              <li>File templates: New &rarr; Terragrunt File (Unit, Root, Stack)</li>
-              <li>Configurable settings: entry point filenames, marker filenames, binary path</li>
+              <li>Formatter matching <code>terragrunt hcl format</code> output</li>
+              <li>60+ built-in function signatures with documentation</li>
+              <li>Code folding, live templates, structure view, breadcrumbs, file templates</li>
             </ul>
 
-            <h3>Run &amp; Dependency Tools</h3>
-            <ul>
-              <li>Run configurations: execute terragrunt commands with output in the Run tool window</li>
-              <li>Gutter run markers with command popup (init, plan, apply, stack generate)</li>
-              <li>Dependency tree tool window: DAG visualization, search, context menu, DOT export</li>
-            </ul>
-
-            <h3>Supported Blocks</h3>
-            <p><code>terraform</code>, <code>remote_state</code>, <code>include</code>, <code>locals</code>, <code>dependency</code>, <code>dependencies</code>, <code>generate</code>, <code>catalog</code>, <code>engine</code>, <code>feature</code>, <code>exclude</code>, <code>errors</code>, <code>unit</code>, <code>stack</code></p>
+            <p>Supports Terragrunt 1.x including units, stacks, features, dependencies, remote state, generation, and catalog blocks.</p>
 
             <h3>Requirements</h3>
             <p>IntelliJ IDEA 2025.1+ &bull; Java 21</p>
