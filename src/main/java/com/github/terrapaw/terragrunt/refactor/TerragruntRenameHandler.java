@@ -568,6 +568,9 @@ public class TerragruntRenameHandler implements RenameHandler {
         // Also find usages in the current file if it's different from defFile
         if (!defFile.equals(file)) {
             findDeepKeyUsagesInFile(file, attrName, keyPath, crossFileElements);
+            // Also add the source element itself (the usage we're renaming from)
+            // since the scanner may not find it through renamed aliases
+            crossFileElements.add(source);
         }
 
         final PsiFile finalDefFile = defFile;
@@ -598,7 +601,17 @@ public class TerragruntRenameHandler implements RenameHandler {
 
     @Nullable
     private PsiElement findObjectKeyByPath(TerragruntAttribute attr, PsiElement[] getAttrs, int targetIdx, String localName) {
-        TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+        // Find the outermost ObjectExpr (the one with the most ObjectElem children)
+        TerragruntObjectExpr obj = null;
+        Collection<TerragruntObjectExpr> allObjs = PsiTreeUtil.findChildrenOfType(attr, TerragruntObjectExpr.class);
+        int maxElems = 0;
+        for (TerragruntObjectExpr candidate : allObjs) {
+            int count = PsiTreeUtil.getChildrenOfTypeAsList(candidate, TerragruntObjectElem.class).size();
+            if (count > maxElems) {
+                maxElems = count;
+                obj = candidate;
+            }
+        }
         if (obj == null) return null;
 
         // Determine start index for key walking
