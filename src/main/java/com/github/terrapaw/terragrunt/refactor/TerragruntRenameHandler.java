@@ -607,17 +607,15 @@ public class TerragruntRenameHandler implements RenameHandler {
 
     @Nullable
     private PsiElement findObjectKeyByPath(TerragruntAttribute attr, PsiElement[] getAttrs, int targetIdx, String localName) {
-        // Find the outermost ObjectExpr (the one with the most ObjectElem children)
+        // Find the attribute's value ObjectExpr (the outermost one, not nested inside object elems)
         TerragruntObjectExpr obj = null;
-        Collection<TerragruntObjectExpr> allObjs = PsiTreeUtil.findChildrenOfType(attr, TerragruntObjectExpr.class);
-        int maxElems = 0;
-        for (TerragruntObjectExpr candidate : allObjs) {
-            int count = PsiTreeUtil.getChildrenOfTypeAsList(candidate, TerragruntObjectElem.class).size();
-            if (count > maxElems) {
-                maxElems = count;
-                obj = candidate;
-            }
+        // Walk direct children of attr, looking past the = sign
+        for (PsiElement child = attr.getFirstChild(); child != null; child = child.getNextSibling()) {
+            TerragruntObjectExpr found = PsiTreeUtil.findChildOfType(child, TerragruntObjectExpr.class);
+            if (found != null) { obj = found; break; }
+            if (child instanceof TerragruntObjectExpr oe) { obj = oe; break; }
         }
+        if (obj == null) obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
         if (obj == null) return null;
 
         // Determine start index for key walking

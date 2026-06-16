@@ -1296,4 +1296,41 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         assertTrue("Top definition should be renamed", result.contains("label = \"top\""));
         assertTrue("Nested definition should NOT be renamed", result.contains("name = \"inner\""));
     }
+
+    public void testRenameKeyWhenInnerObjectHasMoreChildren() {
+        // Outer object has 1 key (opts), inner has 3 keys (a, b, c)
+        // Renaming "opts" should work correctly despite inner being larger
+        var file = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  config = {
+                    opts = {
+                      a = 1
+                      b = 2
+                      c = 3
+                    }
+                  }
+                }
+                
+                inputs = {
+                  o = local.config.opts
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        // Rename "opts" from the usage
+        int offset = text.indexOf("local.config.opts") + "local.config.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "opts", "options");
+
+        var doc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(doc);
+        String result = doc.getText();
+        assertTrue("Definition should be renamed, got: " + result, result.contains("options = {"));
+        assertTrue("Usage should be renamed, got: " + result, result.contains("local.config.options"));
+        assertTrue("Inner keys should be unchanged", result.contains("a = 1"));
+    }
 }
