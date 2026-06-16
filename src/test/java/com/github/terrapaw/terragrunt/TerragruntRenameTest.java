@@ -1116,4 +1116,54 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         assertTrue("Root should have cidr_block, got: " + rootDoc.getText(),
                 rootDoc.getText().contains("cidr_block = \"10.0.0.0/16\""));
     }
+
+    public void testRenameDeepKeyFromDefinitionThroughRenamedAlias() {
+        // Rename "network" from root.hcl (definition side) should update app.hcl
+        // even though app.hcl references it through root_settings (a renamed alias)
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  settings = {
+                    network = {
+                      vpc_cidr = "10.0.0.0/16"
+                    }
+                  }
+                }
+                """);
+        myFixture.addFileToProject("common/terragrunt.hcl", """
+                locals {
+                  root = read_terragrunt_config("../root.hcl")
+                  root_settings = local.root.locals.settings
+                }
+                """);
+        myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common/terragrunt.hcl")
+                  cidr   = local.common.locals.root_settings.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(rootFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("network");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "network", "net");
+
+        // Root definition should be renamed
+        var rootDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(rootDoc);
+        assertTrue("Root should have net, got: " + rootDoc.getText(),
+                rootDoc.getText().contains("net = {"));
+
+        // App usage should be renamed through the alias chain
+        var updatedApp = myFixture.findFileInTempDir("app/terragrunt.hcl");
+        var psiApp = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedApp);
+        assertNotNull(psiApp);
+        var appDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiApp);
+        assertNotNull(appDoc);
+        assertTrue("App should have .net.vpc_cidr, got: " + appDoc.getText(),
+                appDoc.getText().contains("root_settings.net.vpc_cidr"));
+    }
 }
