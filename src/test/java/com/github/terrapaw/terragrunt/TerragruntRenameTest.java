@@ -808,4 +808,168 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         assertTrue("Common should have verbosity, got: " + commonDoc.getText(),
                 commonDoc.getText().contains("verbosity = \"info\""));
     }
+
+    public void testRenameAliasedAttributeDoesNotCorruptOtherFile() {
+        // shared.hcl has root_settings = local.root.locals.settings (an alias)
+        // app.hcl uses local.common.locals.root_settings.network.vpc_cidr
+        // Renaming root_settings in shared.hcl should correctly update app.hcl
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  settings = {
+                    network = {
+                      vpc_cidr = "10.0.0.0/16"
+                    }
+                  }
+                }
+                """);
+        var sharedFile = myFixture.addFileToProject("common/root.hcl", """
+                locals {
+                  root = read_terragrunt_config("../root.hcl")
+                  root_settings = local.root.locals.settings
+                }
+                """);
+        myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common/root.hcl")
+                  cidr   = local.common.locals.root_settings.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(sharedFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("root_settings");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "root_settings", "base_settings");
+
+        // Verify shared.hcl was renamed correctly
+        var sharedDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(sharedDoc);
+        assertTrue("Shared should have base_settings", sharedDoc.getText().contains("base_settings = local.root.locals.settings"));
+
+        // Verify app.hcl was updated correctly (not corrupted)
+        var updatedApp = myFixture.findFileInTempDir("app/terragrunt.hcl");
+        var psiApp = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedApp);
+        assertNotNull(psiApp);
+        var appDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiApp);
+        assertNotNull(appDoc);
+        String appText = appDoc.getText();
+        assertTrue("App should have base_settings, got: " + appText,
+                appText.contains("local.common.locals.base_settings.network.vpc_cidr"));
+        assertFalse("App should NOT be corrupted", appText.contains("base_settingsork"));
+    }
+
+    public void testRenameAliasedAttributeFromUsageSide() {
+        // EXACT playground replica:
+        // root.hcl: locals { settings = { network = { vpc_cidr = "10.0.0.0/16" } } }
+        // common/shared.hcl: locals { root = read_terragrunt_config("../root.hcl"); root_settings = local.root.locals.settings }
+        // app/terragrunt.hcl: include "root" + locals { common = read_terragrunt_config(...); cidr = local.common.locals.root_settings.network.vpc_cidr }
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  aws_region   = "us-east-1"
+                  project_name = "my-project"
+                  environment  = "prod"
+                
+                  settings = {
+                    log_level = "info"
+                    timeout   = 30
+                    network = {
+                      vpc_cidr = "10.0.0.0/16"
+                      az_count = 3
+                    }
+                  }
+                }
+                
+                inputs = {
+                  default_tags = {
+                    Project   = "my-project"
+                    ManagedBy = "terragrunt"
+                  }
+                }
+                """);
+        myFixture.addFileToProject("common/shared.hcl", """
+                locals {
+                  root          = read_terragrunt_config("../root.hcl")
+                  root_settings = local.root.locals.settings
+                }
+                """);
+        var appFile = myFixture.addFileToProject("app/terragrunt.hcl", """
+                include "root" {
+                  path   = find_in_parent_folders("root.hcl")
+                  expose = true
+                }
+                
+                locals {
+                  common      = read_terragrunt_config("../common/shared.hcl")
+                  root_config = include.root.locals
+                
+                  region = local.root_config.aws_region
+                  log    = local.common.locals.root_settings.log_level
+                  cidr   = local.common.locals.root_settings.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(appFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        // Cursor on "root_settings" in local.common.locals.root_settings.network.vpc_cidr (line 12)
+        int offset = text.lastIndexOf("root_settings");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "root_settings", "base_settings");
+
+        // App should be updated correctly - both usages
+        var appDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(appDoc);
+        String appText = appDoc.getText();
+        assertTrue("App should have base_settings.log_level, got: " + appText,
+                appText.contains("local.common.locals.base_settings.log_level"));
+        assertTrue("App should have base_settings.network.vpc_cidr, got: " + appText,
+                appText.contains("local.common.locals.base_settings.network.vpc_cidr"));
+        assertFalse("App should NOT have root_settings anymore",
+                appText.contains("root_settings"));
+        assertFalse("App should NOT be corrupted",
+                appText.contains("base_settingsork") || appText.contains("base_settingsog"));
+    }
+
+    public void testFindUsagesThroughRenamedAlias() {
+        // root.hcl defines settings.network.vpc_cidr
+        // shared.hcl aliases it as root_settings = local.root.locals.settings
+        // app.hcl uses local.common.locals.root_settings.network.vpc_cidr
+        // Ctrl+B on vpc_cidr in root.hcl should find usage in app.hcl
+        myFixture.addFileToProject("common/root.hcl", """
+                locals {
+                  root = read_terragrunt_config("../root.hcl")
+                  root_settings = local.root.locals.settings
+                }
+                """);
+        myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common/root.hcl")
+                  cidr   = local.common.locals.root_settings.network.vpc_cidr
+                }
+                """);
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  settings = {
+                    network = {
+                      vpc_cidr = "10.0.0.0/16"
+                    }
+                  }
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(rootFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("vpc_cidr");
+
+        var gotoHandler = new com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler();
+        PsiElement element = myFixture.getFile().findElementAt(offset);
+        PsiElement[] targets = gotoHandler.getGotoDeclarationTargets(element, offset, myFixture.getEditor());
+        assertNotNull("Should find usages of vpc_cidr through renamed alias chain", targets);
+        assertTrue("Should find at least one usage", targets.length > 0);
+        assertEquals("terragrunt.hcl", targets[0].getContainingFile().getName());
+    }
 }
