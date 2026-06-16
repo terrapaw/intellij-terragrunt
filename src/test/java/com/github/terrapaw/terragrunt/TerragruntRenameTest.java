@@ -972,4 +972,148 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         assertTrue("Should find at least one usage", targets.length > 0);
         assertEquals("terragrunt.hcl", targets[0].getContainingFile().getName());
     }
+
+    public void testRenameFromAliasUsageWithoutLocalsKeyword() {
+        // local.root_config.aws_region where root_config = include.root.locals
+        // Renaming "aws_region" from here should update root.hcl
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  aws_region = "us-east-1"
+                }
+                """);
+        var appFile = myFixture.addFileToProject("child/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                  expose = true
+                }
+                
+                locals {
+                  root_config = include.root.locals
+                  region = local.root_config.aws_region
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(appFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        int offset = text.indexOf("local.root_config.aws_region") + "local.root_config.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "aws_region", "region");
+
+        // Usage in app should be updated
+        var appDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(appDoc);
+        assertTrue("App should have local.root_config.region, got: " + appDoc.getText(),
+                appDoc.getText().contains("local.root_config.region"));
+
+        // Definition in root.hcl should be updated
+        var updatedRoot = myFixture.findFileInTempDir("root.hcl");
+        var psiRoot = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedRoot);
+        var rootDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiRoot);
+        assertNotNull(rootDoc);
+        assertTrue("Root should have region, got: " + rootDoc.getText(),
+                rootDoc.getText().contains("region = \"us-east-1\""));
+    }
+
+    public void testRenameDeepKeyThroughAliasChain() {
+        // local.common.locals.root_settings.network.vpc_cidr
+        // root_settings in shared.hcl = local.root.locals.settings (alias)
+        // Renaming "network" (idx=3) should resolve through the alias to root.hcl
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  settings = {
+                    network = {
+                      vpc_cidr = "10.0.0.0/16"
+                    }
+                  }
+                }
+                """);
+        myFixture.addFileToProject("common/terragrunt.hcl", """
+                locals {
+                  root = read_terragrunt_config("../root.hcl")
+                  root_settings = local.root.locals.settings
+                }
+                """);
+        var appFile = myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common/terragrunt.hcl")
+                  cidr   = local.common.locals.root_settings.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(appFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        // Cursor on "network" in local.common.locals.root_settings.network.vpc_cidr
+        int offset = text.indexOf(".network.") + 1; // on "network"
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "network", "net");
+
+        // App should be updated
+        var appDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(appDoc);
+        assertTrue("App should have .net.vpc_cidr, got: " + appDoc.getText(),
+                appDoc.getText().contains("root_settings.net.vpc_cidr"));
+
+        // Root should be updated
+        var updatedRoot = myFixture.findFileInTempDir("root.hcl");
+        var psiRoot = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedRoot);
+        var rootDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiRoot);
+        assertNotNull(rootDoc);
+        assertTrue("Root should have net key, got: " + rootDoc.getText(),
+                rootDoc.getText().contains("net = {"));
+    }
+
+    public void testRenameDeepestKeyThroughAliasChain() {
+        // Same setup, renaming "vpc_cidr" (idx=4)
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  settings = {
+                    network = {
+                      vpc_cidr = "10.0.0.0/16"
+                    }
+                  }
+                }
+                """);
+        myFixture.addFileToProject("common/root.hcl", """
+                locals {
+                  root = read_terragrunt_config("../root.hcl")
+                  root_settings = local.root.locals.settings
+                }
+                """);
+        var appFile = myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common/root.hcl")
+                  cidr   = local.common.locals.root_settings.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(appFile.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        // Cursor on "vpc_cidr" in local.common.locals.root_settings.network.vpc_cidr
+        int offset = text.indexOf(".vpc_cidr") + 1;
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "vpc_cidr", "cidr_block");
+
+        // App should be updated
+        var appDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(appDoc);
+        assertTrue("App should have .network.cidr_block, got: " + appDoc.getText(),
+                appDoc.getText().contains("root_settings.network.cidr_block"));
+
+        // Root should be updated
+        var updatedRoot = myFixture.findFileInTempDir("root.hcl");
+        var psiRoot = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedRoot);
+        var rootDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiRoot);
+        assertNotNull(rootDoc);
+        assertTrue("Root should have cidr_block, got: " + rootDoc.getText(),
+                rootDoc.getText().contains("cidr_block = \"10.0.0.0/16\""));
+    }
 }

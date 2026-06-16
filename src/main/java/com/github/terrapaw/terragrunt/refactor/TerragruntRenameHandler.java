@@ -509,7 +509,45 @@ public class TerragruntRenameHandler implements RenameHandler {
 
         // Find the object key in the definition
         PsiElement defKey = findObjectKeyByPath(defAttr, getAttrs, idx, localName);
-        if (defKey == null) return;
+        if (defKey == null) {
+            // defAttr might be an alias — resolve through it
+            PsiFile resolvedAliasFile = TerragruntChainResolver.resolveLocalAlias(defFile, localName);
+            if (resolvedAliasFile != null) {
+                // Simple case: oldName is a direct attribute in the resolved file
+                TerragruntAttribute remoteAttr = TerragruntFileResolver.findLocalAttribute(resolvedAliasFile, oldName);
+                if (remoteAttr != null) {
+                    performRenameForTest(project, resolvedAliasFile, remoteAttr.getIdentifier(), oldName, newName);
+                    return;
+                }
+            }
+            // Deep case: defAttr's value is an alias (local.X.locals.Y) pointing to another file's object
+            PsiFile targetFile = resolveAttributeValueToFile(defAttr, defFile);
+            String targetAttrName = resolveAttributeValueToAttrName(defAttr);
+            if (targetFile != null && targetAttrName != null) {
+                TerragruntAttribute targetAttr = TerragruntFileResolver.findLocalAttribute(targetFile, targetAttrName);
+                if (targetAttr != null) {
+                    TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(targetAttr, TerragruntObjectExpr.class);
+                    if (obj != null) {
+                        int keyStart = 3;
+                        for (int i = keyStart; i <= idx && obj != null; i++) {
+                            String keyName = ((TerragruntGetAttr) getAttrs[i]).getIdentifier().getText();
+                            for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                                PsiElement key = elem.getFirstChild();
+                                if (key != null && keyName.equals(key.getText().replace("\"", ""))) {
+                                    if (i == idx) {
+                                        performRenameForTest(project, targetFile, key, oldName, newName);
+                                        return;
+                                    }
+                                    obj = PsiTreeUtil.findChildOfType(elem, TerragruntObjectExpr.class);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return;
+        }
 
         // Now delegate: find the enclosing ObjectElem and do definition-side rename
         TerragruntObjectElem defObjElem = PsiTreeUtil.getParentOfType(defKey, TerragruntObjectElem.class);
@@ -733,6 +771,31 @@ public class TerragruntRenameHandler implements RenameHandler {
             }
         }
         return null;
+    }
+
+    @Nullable
+    private PsiFile resolveAttributeValueToFile(TerragruntAttribute attr, PsiFile attrFile) {
+        TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
+        if (postfix == null) return null;
+        TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+        if (primary == null) return null;
+        TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+        if (varExpr == null || !"local".equals(varExpr.getIdentifier().getText())) return null;
+        PsiElement[] valueGetAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+        if (valueGetAttrs == null || valueGetAttrs.length < 3) return null;
+        String valueAlias = ((TerragruntGetAttr) valueGetAttrs[0]).getIdentifier().getText();
+        String valueSection = ((TerragruntGetAttr) valueGetAttrs[1]).getIdentifier().getText();
+        if (!"locals".equals(valueSection)) return null;
+        return TerragruntChainResolver.resolveLocalAlias(attrFile, valueAlias);
+    }
+
+    @Nullable
+    private String resolveAttributeValueToAttrName(TerragruntAttribute attr) {
+        TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
+        if (postfix == null) return null;
+        PsiElement[] valueGetAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+        if (valueGetAttrs == null || valueGetAttrs.length < 3) return null;
+        return ((TerragruntGetAttr) valueGetAttrs[2]).getIdentifier().getText();
     }
 
     private void replaceElementText(com.intellij.openapi.editor.Document doc, PsiElement el, String newName) {
