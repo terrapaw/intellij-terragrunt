@@ -1166,4 +1166,134 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         assertTrue("App should have .net.vpc_cidr, got: " + appDoc.getText(),
                 appDoc.getText().contains("root_settings.net.vpc_cidr"));
     }
+
+    public void testRenameAliasFromIntermediateFile() {
+        // Rename "root_settings" from shared.hcl (the intermediate file where the alias lives)
+        // Should update shared.hcl definition AND app.hcl usage
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  settings = {
+                    network = { vpc_cidr = "10.0.0.0/16" }
+                  }
+                }
+                """);
+        var sharedFile = myFixture.addFileToProject("common/terragrunt.hcl", """
+                locals {
+                  root = read_terragrunt_config("../root.hcl")
+                  root_settings = local.root.locals.settings
+                }
+                """);
+        myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../common/terragrunt.hcl")
+                  cidr   = local.common.locals.root_settings.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(sharedFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("root_settings");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "root_settings", "base_cfg");
+
+        // Shared definition should be renamed
+        var sharedDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(sharedDoc);
+        assertTrue("Shared should have base_cfg", sharedDoc.getText().contains("base_cfg = local.root.locals.settings"));
+
+        // App usage should be renamed
+        var updatedApp = myFixture.findFileInTempDir("app/terragrunt.hcl");
+        var psiApp = com.intellij.psi.PsiManager.getInstance(getProject()).findFile(updatedApp);
+        var appDoc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(psiApp);
+        assertNotNull(appDoc);
+        assertTrue("App should have base_cfg, got: " + appDoc.getText(),
+                appDoc.getText().contains("local.common.locals.base_cfg.network.vpc_cidr"));
+    }
+
+    public void testRenameUpdatesMultipleConsumers() {
+        // Two app files both use local.common.locals.network.vpc_cidr
+        // Renaming vpc_cidr from root.hcl should update BOTH
+        var rootFile = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  network = {
+                    vpc_cidr = "10.0.0.0/16"
+                  }
+                }
+                """);
+        myFixture.addFileToProject("app1/terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("../root.hcl")
+                  cidr   = local.common.locals.network.vpc_cidr
+                }
+                """);
+        myFixture.addFileToProject("app2/terragrunt.hcl", """
+                locals {
+                  cfg  = read_terragrunt_config("../root.hcl")
+                  cidr = local.cfg.locals.network.vpc_cidr
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(rootFile.getVirtualFile());
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("vpc_cidr");
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "vpc_cidr", "cidr_block");
+
+        // Both consumers should be updated
+        var app1 = myFixture.findFileInTempDir("app1/terragrunt.hcl");
+        var app1Doc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(
+                com.intellij.psi.PsiManager.getInstance(getProject()).findFile(app1));
+        assertNotNull(app1Doc);
+        assertTrue("App1 should have cidr_block, got: " + app1Doc.getText(),
+                app1Doc.getText().contains("network.cidr_block"));
+
+        var app2 = myFixture.findFileInTempDir("app2/terragrunt.hcl");
+        var app2Doc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(
+                com.intellij.psi.PsiManager.getInstance(getProject()).findFile(app2));
+        assertNotNull(app2Doc);
+        assertTrue("App2 should have cidr_block, got: " + app2Doc.getText(),
+                app2Doc.getText().contains("network.cidr_block"));
+    }
+
+    public void testRenameSameKeyNameAtDifferentDepths() {
+        // settings = { name = "x", nested = { name = "y" } }
+        // Renaming "name" at the top level should NOT affect nested.name
+        var file = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  config = {
+                    name = "top"
+                    nested = {
+                      name = "inner"
+                    }
+                  }
+                }
+                
+                inputs = {
+                  top   = local.config.name
+                  inner = local.config.nested.name
+                }
+                """);
+
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        String text = myFixture.getEditor().getDocument().getText();
+        // Cursor on "name" in local.config.name (the TOP-level key, not nested)
+        int offset = text.indexOf("local.config.name") + "local.config.".length();
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "name", "label");
+
+        var doc = com.intellij.psi.PsiDocumentManager.getInstance(getProject()).getDocument(myFixture.getFile());
+        assertNotNull(doc);
+        String result = doc.getText();
+        assertTrue("Top usage should be renamed, got: " + result, result.contains("local.config.label"));
+        assertTrue("Nested usage should NOT be renamed, got: " + result, result.contains("local.config.nested.name"));
+        assertTrue("Top definition should be renamed", result.contains("label = \"top\""));
+        assertTrue("Nested definition should NOT be renamed", result.contains("name = \"inner\""));
+    }
 }
