@@ -21,6 +21,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Unknown block types
   - Unknown attributes in blocks
   - Duplicate block names (e.g. two `dependency "vpc"` in the same file) — quick-fix to change label or remove block
+  - Duplicate blocks (e.g. two `locals` blocks — Terragrunt does not merge them)
   - Duplicate attributes (same key twice in the same block body)
   - Unexpected label count (e.g. `locals "foo"`, `dependency "vpc" "extra"`, `dependency {}`, `dependency "" {}`) — quick-fix to remove extra labels
   - Missing required attributes (with quick-fix to insert them)

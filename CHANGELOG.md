@@ -8,6 +8,9 @@
 - Duplicate attributes inspection — flags same key appearing twice in the same block body
 - Unused dependencies inspection — flags `dependency` blocks whose label is never referenced via `dependency.X`
 
+### Fixed
+- Duplicate block inspection now flags multiple `locals` blocks (Terragrunt does not support this)
+
 ## [0.4.1] - 2026-06-16
 
 ### Fixed

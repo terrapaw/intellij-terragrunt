@@ -303,6 +303,24 @@ public class TerragruntInspectionTest extends BasePlatformTestCase {
         assertEquals("Different labels should not trigger duplicate warning", 0, warnings);
     }
 
+    public void testDuplicateLocalsBlockDetected() {
+        myFixture.enableInspections(new TerragruntDuplicateBlockInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  name = "first"
+                }
+                
+                locals {
+                  region = "us-east-1"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Duplicate 'locals' block"))
+                .count();
+        assertEquals("Should detect duplicate locals block", 1, warnings);
+    }
+
     public void testTooManyLabelsDetected() {
         myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntLabelCountInspection());
         myFixture.configureByText("terragrunt.hcl", """

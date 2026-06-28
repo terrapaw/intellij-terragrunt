@@ -27,9 +27,23 @@ public class TerragruntDuplicateBlockInspection extends TerragruntBaseInspection
                     if (block.getIdentifier() == null) continue;
                     String type = TerragruntPsiUtil.getBlockType(block);
 
-                    // Unlabeled blocks (locals, terraform) can appear multiple times — Terragrunt merges them
+                    // Unlabeled blocks: locals cannot appear multiple times (Terragrunt errors)
+                    // Other unlabeled blocks (terraform, remote_state) are singletons too
                     List<TerragruntLabel> labels = block.getLabelList();
-                    if (labels.isEmpty()) continue;
+                    if (labels.isEmpty()) {
+                        String key = type + ":_unlabeled_";
+                        if (seen.containsKey(key)) {
+                            holder.registerProblem(
+                                    block.getIdentifier(),
+                                    "Duplicate '" + type + "' block (Terragrunt does not support multiple " + type + " blocks)",
+                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING,
+                                    new RemoveDuplicateBlockQuickFix()
+                            );
+                        } else {
+                            seen.put(key, block);
+                        }
+                        continue;
+                    }
 
                     String label = TerragruntPsiUtil.getLabelText(labels.getFirst());
                     String key = type + ":" + label;
