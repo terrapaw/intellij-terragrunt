@@ -62,3 +62,30 @@ include "" {
 include "suppressed" {
   path = "../this-does-not-exist.hcl"
 }
+
+# Unused local variable — "unused_var" is never referenced via local.unused_var
+locals {
+  used_var   = "hello"
+  unused_var = "nobody uses me"
+}
+
+inputs = {
+  greeting = local.used_var
+}
+
+# Duplicate attribute — same key twice in same block
+locals {
+  name = "first"
+  name = "second"
+}
+
+# Unused dependency — "ecs" label is never referenced via dependency.ecs
+dependency "ecs" {
+  config_path = "../ecs"
+}
+
+# Suppressed unused dependency
+# noinspection TerragruntUnusedDependency
+dependency "suppressed_dep" {
+  config_path = "../suppressed"
+}
