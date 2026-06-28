@@ -7,6 +7,7 @@
 - Unused local variables inspection — flags `locals` attributes not referenced via `local.X`
 - Duplicate attributes inspection — flags same key appearing twice in the same block body
 - Unused dependencies inspection — flags `dependency` blocks whose label is never referenced via `dependency.X`
+- Input calculator — right-click → "Show Computed Inputs" to see the resolved inputs for a file (merges includes, resolves locals)
 
 ### Fixed
 - Duplicate block inspection now flags multiple `locals` blocks (Terragrunt does not support this)
