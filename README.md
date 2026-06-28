@@ -28,6 +28,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Unresolved file paths in `include` and `dependency` blocks (suppressed for `.terragrunt-stack/` when stack defines the unit)
   - Unresolved variable references (`local.X`, `dependency.X`, `feature.X`)
   - Unused local variables — flags `locals` attributes not referenced via `local.X`
+  - Unused local variables (cross-file) — scans entire project for references via `include.X.locals.Y` and aliases (disabled by default, enable in Settings → Inspections)
   - Unused dependencies — flags `dependency` blocks whose label is never referenced
   - All inspections suppressible with `# noinspection ShortName` comments (committable to source control)
 - **Navigation (Ctrl+Click / Ctrl+B)**
