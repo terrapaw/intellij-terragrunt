@@ -1,6 +1,7 @@
 package com.github.terrapaw.terragrunt.toolwindow;
 
 import com.github.terrapaw.terragrunt.lang.TerragruntFileType;
+import com.intellij.icons.AllIcons;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
@@ -21,6 +22,7 @@ import java.awt.*;
 import java.util.List;
 
 public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
+    private VirtualFile pinnedFile = null;
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
@@ -39,8 +41,33 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
         JLabel header = new JLabel("Open a Terragrunt file to see computed inputs");
         header.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
+        JToggleButton pinButton = new JToggleButton(AllIcons.General.Pin_tab);
+        pinButton.setToolTipText("Pin current file");
+        pinButton.setPreferredSize(new Dimension(28, 28));
+        pinButton.addActionListener(e -> {
+            if (pinButton.isSelected()) {
+                VirtualFile[] sel = FileEditorManager.getInstance(project).getSelectedFiles();
+                if (sel.length > 0 && sel[0].getName().endsWith(".hcl")) {
+                    pinnedFile = sel[0];
+                    pinButton.setToolTipText("Pinned: " + pinnedFile.getName());
+                } else {
+                    pinButton.setSelected(false);
+                }
+            } else {
+                pinnedFile = null;
+                pinButton.setToolTipText("Pin current file");
+                // Refresh to current file
+                VirtualFile[] sel = FileEditorManager.getInstance(project).getSelectedFiles();
+                if (sel.length > 0) updateTable(project, model, header, sel[0]);
+            }
+        });
+
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.add(header, BorderLayout.CENTER);
+        headerPanel.add(pinButton, BorderLayout.EAST);
+
         JPanel panel = new JPanel(new BorderLayout());
-        panel.add(header, BorderLayout.NORTH);
+        panel.add(headerPanel, BorderLayout.NORTH);
         panel.add(new JScrollPane(table), BorderLayout.CENTER);
 
         Content content = ContentFactory.getInstance().createContent(panel, "", false);
@@ -50,7 +77,8 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
         project.getMessageBus().connect().subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, new FileEditorManagerListener() {
             @Override
             public void selectionChanged(@NotNull FileEditorManagerEvent event) {
-                if (toolWindow.isVisible()) {
+                if (!toolWindow.isVisible()) return;
+                if (pinnedFile == null) {
                     updateTable(project, model, header, event.getNewFile());
                 }
             }
@@ -62,9 +90,11 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
                     @Override
                     public void documentChanged(com.intellij.openapi.editor.event.@NotNull DocumentEvent event) {
                         if (!toolWindow.isVisible()) return;
-                        VirtualFile[] selected = FileEditorManager.getInstance(project).getSelectedFiles();
-                        if (selected.length > 0 && selected[0].getName().endsWith(".hcl")) {
-                            var file = selected[0];
+                        VirtualFile target = pinnedFile != null ? pinnedFile :
+                                FileEditorManager.getInstance(project).getSelectedFiles().length > 0 ?
+                                        FileEditorManager.getInstance(project).getSelectedFiles()[0] : null;
+                        if (target != null && target.getName().endsWith(".hcl")) {
+                            var file = target;
                             com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater(() -> {
                                 com.intellij.psi.PsiDocumentManager.getInstance(project).commitAllDocuments();
                                 updateTable(project, model, header, file);
@@ -78,8 +108,10 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
             @Override
             public void selectionChanged(com.intellij.ui.content.@NotNull ContentManagerEvent event) {
                 if (toolWindow.isVisible()) {
-                    VirtualFile[] sel = FileEditorManager.getInstance(project).getSelectedFiles();
-                    if (sel.length > 0) updateTable(project, model, header, sel[0]);
+                    VirtualFile target = pinnedFile != null ? pinnedFile :
+                            FileEditorManager.getInstance(project).getSelectedFiles().length > 0 ?
+                                    FileEditorManager.getInstance(project).getSelectedFiles()[0] : null;
+                    if (target != null) updateTable(project, model, header, target);
                 }
             }
         });
@@ -107,10 +139,11 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
         List<TerragruntInputResolver.InputEntry> inputs = com.intellij.openapi.application.ReadAction.compute(
                 () -> TerragruntInputResolver.resolveInputs(psiFile));
 
+        String prefix = pinnedFile != null ? "📌 " : "";
         if (inputs.isEmpty()) {
-            header.setText(file.getName() + " — no inputs found");
+            header.setText(prefix + file.getName() + " — no inputs found");
         } else {
-            header.setText(file.getName() + " — " + inputs.size() + " input(s)");
+            header.setText(prefix + file.getName() + " — " + inputs.size() + " input(s)");
             for (var entry : inputs) {
                 model.addRow(new Object[]{entry.key(), entry.value(), entry.resolved(), entry.source()});
             }
