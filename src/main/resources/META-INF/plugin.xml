@@ -101,6 +101,13 @@
                          level="WARNING"
                          implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntUnusedLocalInspection"/>
         <localInspection language="Terragrunt"
+                         shortName="TerragruntUnusedLocalCrossFile"
+                         displayName="Unused local variable (cross-file)"
+                         groupName="Terragrunt"
+                         enabledByDefault="false"
+                         level="WARNING"
+                         implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntUnusedLocalCrossFileInspection"/>
+        <localInspection language="Terragrunt"
                          shortName="TerragruntDuplicateAttribute"
                          displayName="Duplicate attribute"
                          groupName="Terragrunt"

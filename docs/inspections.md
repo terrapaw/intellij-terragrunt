@@ -27,6 +27,7 @@ You can also use Alt+Enter on any warning → "Suppress" to insert the comment a
 | `TerragruntDuplicateAttribute` | Flags same attribute key appearing twice in the same block body |
 | `TerragruntLabelCount` | Flags missing, empty, or extra labels on blocks |
 | `TerragruntUnusedLocal` | Flags `locals` attributes not referenced via `local.X` in the file |
+| `TerragruntUnusedLocalCrossFile` | Flags `locals` not referenced locally or from any other file (disabled by default — scans project) |
 | `TerragruntUnusedDependency` | Flags `dependency` blocks whose label is never referenced |
 
 ## Quick-Fixes

@@ -19,6 +19,10 @@ public class TerragruntUnusedLocalInspection extends TerragruntBaseInspection {
         return new PsiElementVisitor() {
             @Override
             public void visitFile(@NotNull PsiFile file) {
+                // Skip files that are likely shared/included configs (they export locals cross-file).
+                // A file is a leaf unit if it has include or dependency blocks.
+                if (!hasIncludeOrDependency(file)) return;
+
                 // Collect all local.X references
                 Set<String> usedLocals = new HashSet<>();
                 for (TerragruntGetAttr getAttr : PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class)) {
@@ -50,5 +54,13 @@ public class TerragruntUnusedLocalInspection extends TerragruntBaseInspection {
                 }
             }
         };
+    }
+
+    private boolean hasIncludeOrDependency(PsiFile file) {
+        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+            String type = TerragruntPsiUtil.getBlockType(block);
+            if ("include".equals(type) || "dependency".equals(type)) return true;
+        }
+        return false;
     }
 }
