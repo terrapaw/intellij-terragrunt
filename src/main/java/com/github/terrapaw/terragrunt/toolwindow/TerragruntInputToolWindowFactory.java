@@ -24,7 +24,7 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
-        String[] columns = {"Key", "Expression", "Resolved", "Source"};
+        String[] columns = {"Key", "Raw Value", "Computed Value", "Source"};
         DefaultTableModel model = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) { return false; }
