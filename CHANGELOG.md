@@ -4,6 +4,9 @@
 
 ### Added
 - File path auto-completion inside `include` path, `dependency` config_path, `terraform` source, and `read_terragrunt_config()` — type `../` or `${get_repo_root()}/` to get file/directory suggestions with function evaluation
+- Unused local variables inspection — flags `locals` attributes not referenced via `local.X`
+- Duplicate attributes inspection — flags same key appearing twice in the same block body
+- Unused dependencies inspection — flags `dependency` blocks whose label is never referenced via `dependency.X`
 
 ## [0.4.1] - 2026-06-16
 
