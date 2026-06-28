@@ -24,16 +24,17 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
-        String[] columns = {"Key", "Value", "Source"};
+        String[] columns = {"Key", "Expression", "Resolved", "Source"};
         DefaultTableModel model = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) { return false; }
         };
         JBTable table = new JBTable(model);
         table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
-        table.getColumnModel().getColumn(0).setPreferredWidth(150);
-        table.getColumnModel().getColumn(1).setPreferredWidth(300);
-        table.getColumnModel().getColumn(2).setPreferredWidth(150);
+        table.getColumnModel().getColumn(0).setPreferredWidth(140);
+        table.getColumnModel().getColumn(1).setPreferredWidth(250);
+        table.getColumnModel().getColumn(2).setPreferredWidth(200);
+        table.getColumnModel().getColumn(3).setPreferredWidth(130);
 
         JLabel header = new JLabel("Open a Terragrunt file to see computed inputs");
         header.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
@@ -81,7 +82,7 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
         } else {
             header.setText(file.getName() + " — " + inputs.size() + " input(s)");
             for (var entry : inputs) {
-                model.addRow(new Object[]{entry.key(), entry.value(), entry.source()});
+                model.addRow(new Object[]{entry.key(), entry.value(), entry.resolved(), entry.source()});
             }
         }
     }

@@ -506,11 +506,13 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
         assertEquals("Should find 3 inputs", 3, inputs.size());
         assertEquals("aws_region", inputs.get(0).key());
-        assertEquals("us-east-1", inputs.get(0).value());
+        assertEquals("local.region", inputs.get(0).value());
+        assertEquals("us-east-1", inputs.get(0).resolved());
         assertEquals("environment", inputs.get(1).key());
-        assertEquals("prod", inputs.get(1).value());
+        assertEquals("local.env", inputs.get(1).value());
+        assertEquals("prod", inputs.get(1).resolved());
         assertEquals("app_name", inputs.get(2).key());
-        assertEquals("my-api", inputs.get(2).value());
+        assertEquals("my-api", inputs.get(2).resolved());
     }
 
     public void testInputResolverMergesIncluded() {
@@ -538,9 +540,45 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
         // region overridden by current file, team from include, app_name from current
         var map = new java.util.LinkedHashMap<String, String>();
-        for (var entry : inputs) map.put(entry.key(), entry.value());
+        for (var entry : inputs) map.put(entry.key(), entry.resolved());
         assertEquals("region should be overridden", "us-east-1", map.get("region"));
         assertEquals("team from include", "platform", map.get("team"));
         assertEquals("app_name from current", "api", map.get("app_name"));
+    }
+
+    public void testInputResolverDeepChainResolution() {
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  region = "ap-southeast-2"
+                  env    = "production"
+                }
+                """);
+        myFixture.addFileToProject("common/terragrunt.hcl", """
+                locals {
+                  root_config = read_terragrunt_config("../root.hcl")
+                  region      = local.root_config.locals.region
+                }
+                """);
+        var file = myFixture.addFileToProject("app/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                }
+                
+                locals {
+                  common = read_terragrunt_config("../common/terragrunt.hcl")
+                  region = local.common.locals.region
+                }
+                
+                inputs = {
+                  aws_region = local.region
+                  env        = include.root.locals.env
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
+        var map = new java.util.LinkedHashMap<String, String>();
+        for (var entry : inputs) map.put(entry.key(), entry.resolved());
+        assertEquals("aws_region should resolve through chain to ap-southeast-2", "ap-southeast-2", map.get("aws_region"));
+        assertEquals("env should resolve from include", "production", map.get("env"));
     }
 }
