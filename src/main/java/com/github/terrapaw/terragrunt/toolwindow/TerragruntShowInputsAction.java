@@ -1,9 +1,7 @@
 package com.github.terrapaw.terragrunt.toolwindow;
 
 import com.github.terrapaw.terragrunt.lang.TerragruntFileType;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.CommonDataKeys;
+import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.psi.PsiFile;
@@ -22,9 +20,15 @@ public class TerragruntShowInputsAction extends AnAction {
     }
 
     @Override
+    public @NotNull ActionUpdateThread getActionUpdateThread() {
+        return ActionUpdateThread.BGT;
+    }
+
+    @Override
     public void update(@NotNull AnActionEvent e) {
         PsiFile file = e.getData(CommonDataKeys.PSI_FILE);
-        e.getPresentation().setEnabledAndVisible(file != null && file.getFileType() == TerragruntFileType.INSTANCE);
+        boolean visible = file != null && file.getFileType() == TerragruntFileType.INSTANCE;
+        e.getPresentation().setEnabledAndVisible(visible);
     }
 
     @Override
