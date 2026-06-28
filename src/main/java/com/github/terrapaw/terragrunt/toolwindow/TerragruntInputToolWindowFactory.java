@@ -50,15 +50,18 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
         project.getMessageBus().connect().subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, new FileEditorManagerListener() {
             @Override
             public void selectionChanged(@NotNull FileEditorManagerEvent event) {
-                updateTable(project, model, header, event.getNewFile());
+                if (toolWindow.isVisible()) {
+                    updateTable(project, model, header, event.getNewFile());
+                }
             }
         });
 
-        // Update on document changes (typing)
+        // Update on document changes (typing) — only when window is visible
         com.intellij.openapi.editor.EditorFactory.getInstance().getEventMulticaster()
                 .addDocumentListener(new com.intellij.openapi.editor.event.DocumentListener() {
                     @Override
                     public void documentChanged(com.intellij.openapi.editor.event.@NotNull DocumentEvent event) {
+                        if (!toolWindow.isVisible()) return;
                         VirtualFile[] selected = FileEditorManager.getInstance(project).getSelectedFiles();
                         if (selected.length > 0 && selected[0].getName().endsWith(".hcl")) {
                             var file = selected[0];
@@ -69,6 +72,17 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
                         }
                     }
                 }, project);
+
+        // Refresh when window becomes visible
+        toolWindow.addContentManagerListener(new com.intellij.ui.content.ContentManagerListener() {
+            @Override
+            public void selectionChanged(com.intellij.ui.content.@NotNull ContentManagerEvent event) {
+                if (toolWindow.isVisible()) {
+                    VirtualFile[] sel = FileEditorManager.getInstance(project).getSelectedFiles();
+                    if (sel.length > 0) updateTable(project, model, header, sel[0]);
+                }
+            }
+        });
 
         // Initial update
         VirtualFile[] selected = FileEditorManager.getInstance(project).getSelectedFiles();
