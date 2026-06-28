@@ -399,4 +399,173 @@ public class TerragruntInspectionTest extends BasePlatformTestCase {
                 .count();
         assertTrue("Should produce a warning, not crash", warnings > 0);
     }
+
+    // --- Unused local variable inspection ---
+
+    public void testUnusedLocalFlagged() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnusedLocalInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("root.hcl")
+                }
+                
+                locals {
+                  used   = "yes"
+                  unused = "no"
+                }
+                
+                inputs = {
+                  val = local.used
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unused local variable 'unused'"))
+                .count();
+        assertEquals("Should flag 'unused'", 1, warnings);
+        long noFalsePositive = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unused local variable 'used'"))
+                .count();
+        assertEquals("Should NOT flag 'used'", 0, noFalsePositive);
+    }
+
+    public void testUnusedLocalNotFlaggedInSharedConfig() {
+        // Files without include/dependency are shared configs — locals are exported cross-file
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnusedLocalInspection());
+        myFixture.configureByText("root.hcl", """
+                locals {
+                  region = "us-east-1"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unused local variable"))
+                .count();
+        assertEquals("Should NOT flag in shared config", 0, warnings);
+    }
+
+    public void testUnusedLocalSuppressed() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnusedLocalInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("root.hcl")
+                }
+                
+                # noinspection TerragruntUnusedLocal
+                locals {
+                  unused = "no"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unused local variable"))
+                .count();
+        assertEquals("Should be suppressed", 0, warnings);
+    }
+
+    // --- Duplicate attribute inspection ---
+
+    public void testDuplicateAttributeFlagged() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntDuplicateAttributeInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  name = "first"
+                  name = "second"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Duplicate attribute 'name'"))
+                .count();
+        assertEquals("Should flag duplicate", 1, warnings);
+    }
+
+    public void testNoDuplicateAttributeForDifferentNames() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntDuplicateAttributeInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  name   = "first"
+                  region = "us-east-1"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Duplicate attribute"))
+                .count();
+        assertEquals("Should not flag unique attrs", 0, warnings);
+    }
+
+    // --- Unused dependency inspection ---
+
+    public void testUnusedDependencyFlagged() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnusedDependencyInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                
+                dependency "rds" {
+                  config_path = "../rds"
+                }
+                
+                inputs = {
+                  vpc_id = dependency.vpc.outputs.vpc_id
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unused dependency 'rds'"))
+                .count();
+        assertEquals("Should flag 'rds'", 1, warnings);
+        long noFalsePositive = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unused dependency 'vpc'"))
+                .count();
+        assertEquals("Should NOT flag 'vpc'", 0, noFalsePositive);
+    }
+
+    public void testUnusedDependencySuppressed() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnusedDependencyInspection());
+        myFixture.configureByText("terragrunt.hcl", """
+                # noinspection TerragruntUnusedDependency
+                dependency "unused" {
+                  config_path = "../unused"
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Unused dependency"))
+                .count();
+        assertEquals("Should be suppressed", 0, warnings);
+    }
+
+    // --- Cross-file unused local inspection ---
+
+    public void testCrossFileUnusedLocalNotFlaggedWhenReferencedExternally() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntUnusedLocalCrossFileInspection());
+        var shared = myFixture.addFileToProject("root.hcl", """
+                locals {
+                  region   = "us-east-1"
+                  orphaned = "nobody uses me"
+                }
+                """);
+        myFixture.addFileToProject("app/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                }
+                
+                inputs = {
+                  r = include.root.locals.region
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(shared.getVirtualFile());
+        var highlights = myFixture.doHighlighting();
+        long regionWarnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("'region'"))
+                .count();
+        assertEquals("region referenced externally — should NOT be flagged", 0, regionWarnings);
+        long orphanedWarnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("'orphaned'"))
+                .count();
+        assertEquals("orphaned not referenced anywhere — should be flagged", 1, orphanedWarnings);
+    }
 }
