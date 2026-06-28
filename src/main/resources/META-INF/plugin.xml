@@ -159,8 +159,8 @@
         </action>
         <action id="Terragrunt.ShowInputs"
                 class="com.github.terrapaw.terragrunt.toolwindow.TerragruntShowInputsAction"
-                text="Show Computed Inputs"
-                description="Show the resolved inputs for this Terragrunt file">
+                text="Terragrunt Inputs"
+                description="Open the Terragrunt Inputs tool window">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>

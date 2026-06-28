@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 public class TerragruntShowInputsAction extends AnAction {
 
     public TerragruntShowInputsAction() {
-        super("Show Computed Inputs", "Show the resolved inputs for this Terragrunt file", null);
+        super("Terragrunt Inputs", "Open the Terragrunt Inputs tool window", null);
     }
 
     @Override
