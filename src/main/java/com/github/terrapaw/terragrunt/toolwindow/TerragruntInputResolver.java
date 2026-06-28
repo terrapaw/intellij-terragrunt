@@ -100,34 +100,31 @@ public class TerragruntInputResolver {
         if (maxDepth <= 0) return text;
 
         // Already a terminal value
-        if (isTerminal(text)) return simplifyText(text);
+        if (isTerminal(text)) {
+            // Check for interpolations inside strings: "${expr}-suffix"
+            if (text.startsWith("\"") && text.contains("${")) {
+                return resolveInterpolatedString(text, contextFile, rootFile, maxDepth - 1);
+            }
+            return simplifyText(text);
+        }
 
         // local.X — resolve from locals in contextFile
         if (text.startsWith("local.")) {
             String[] parts = text.substring("local.".length()).split("\\.");
             String localName = parts[0];
 
-            // First try: direct local value
             TerragruntAttribute localAttr = TerragruntFileResolver.findLocalAttribute(contextFile, localName);
             if (localAttr != null && localAttr.getExpression() != null) {
                 if (parts.length == 1) {
-                    // local.X → resolve its value
                     return deepResolve(localAttr.getExpression().getText().trim(), contextFile, rootFile, maxDepth - 1);
                 }
                 // local.alias.something — alias points to a file
                 PsiFile resolved = TerragruntChainResolver.resolveLocalAlias(contextFile, localName);
                 if (resolved != null) {
                     if (parts.length >= 3 && "locals".equals(parts[1])) {
-                        // local.X.locals.Y
-                        TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(resolved, parts[2]);
-                        if (attr != null && attr.getExpression() != null) {
-                            String remaining = parts.length > 3 ? joinParts(parts, 3) : null;
-                            String val = deepResolve(attr.getExpression().getText().trim(), resolved, rootFile, maxDepth - 1);
-                            if (remaining != null) return val; // Can't drill further into object text
-                            return val;
-                        }
+                        // local.X.locals.Y[.locals.Z...]
+                        return resolveDeepLocalsChain(resolved, parts, 2, rootFile, maxDepth - 1);
                     } else if (parts.length == 2) {
-                        // local.alias.Y — look for Y in resolved file's locals
                         TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(resolved, parts[1]);
                         if (attr != null && attr.getExpression() != null) {
                             return deepResolve(attr.getExpression().getText().trim(), resolved, rootFile, maxDepth - 1);
@@ -137,15 +134,92 @@ public class TerragruntInputResolver {
             }
         }
 
-        // include.X.locals.Y — resolve from rootFile's includes
+        // include.X.locals.Y[.locals.Z...] — resolve from rootFile's includes
         if (text.startsWith("include.")) {
-            String resolved = resolveIncludeExpression(text, rootFile);
+            String resolved = resolveIncludeChain(text, rootFile, maxDepth - 1);
             if (resolved != null && !resolved.equals(text)) {
                 return resolved;
             }
         }
 
         return simplifyText(text);
+    }
+
+    /**
+     * Resolves "${expr}-suffix" strings by evaluating each interpolation.
+     */
+    private static String resolveInterpolatedString(String text, PsiFile contextFile, PsiFile rootFile, int maxDepth) {
+        String content = text.substring(1, text.length() - 1); // strip quotes
+        StringBuilder result = new StringBuilder();
+        int i = 0;
+        while (i < content.length()) {
+            if (i < content.length() - 1 && content.charAt(i) == '$' && content.charAt(i + 1) == '{') {
+                int end = content.indexOf('}', i + 2);
+                if (end == -1) { result.append(content.substring(i)); break; }
+                String expr = content.substring(i + 2, end).trim();
+                String resolved = deepResolve(expr, contextFile, rootFile, maxDepth);
+                result.append(resolved);
+                i = end + 1;
+            } else {
+                result.append(content.charAt(i));
+                i++;
+            }
+        }
+        return result.toString();
+    }
+
+    /**
+     * Resolves include.X.locals.Y.locals.Z... chains at arbitrary depth.
+     */
+    private static String resolveIncludeChain(String text, PsiFile rootFile, int maxDepth) {
+        String[] parts = text.split("\\.");
+        if (parts.length < 4) return null;
+        // parts[0]=include, parts[1]=name, parts[2]=locals, parts[3]=attr, ...
+        String includeName = parts[1];
+
+        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(rootFile, TerragruntBlock.class)) {
+            if (!"include".equals(TerragruntPsiUtil.getBlockType(block))) continue;
+            var labels = block.getLabelList();
+            if (labels.isEmpty() || !includeName.equals(TerragruntPsiUtil.getLabelText(labels.get(0)))) continue;
+            PsiFile included = TerragruntFileResolver.resolveInclude(block);
+            if (included == null) return null;
+
+            if (!"locals".equals(parts[2])) return null;
+            return resolveDeepLocalsChain(included, parts, 3, rootFile, maxDepth);
+        }
+        return null;
+    }
+
+    /**
+     * Given a file and parts starting at index startIdx, resolves attr[.locals.attr...]
+     * Following chains: if the attr value is itself a reference to another file, follow it.
+     */
+    private static String resolveDeepLocalsChain(PsiFile file, String[] parts, int startIdx, PsiFile rootFile, int maxDepth) {
+        if (maxDepth <= 0 || startIdx >= parts.length) return null;
+
+        String attrName = parts[startIdx];
+        TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(file, attrName);
+        if (attr == null || attr.getExpression() == null) return null;
+
+        // If there are more parts after this (e.g. .locals.Z), the value must resolve to a file
+        if (startIdx + 1 < parts.length && "locals".equals(parts[startIdx + 1]) && startIdx + 2 < parts.length) {
+            // attr value should be a reference to another file (read_terragrunt_config or alias)
+            PsiFile nextFile = TerragruntChainResolver.resolveLocalAlias(file, attrName);
+            if (nextFile != null) {
+                return resolveDeepLocalsChain(nextFile, parts, startIdx + 2, rootFile, maxDepth - 1);
+            }
+            // Try evaluating the expression and see if it references another local
+            String val = attr.getExpression().getText().trim();
+            if (val.startsWith("local.")) {
+                String resolved = deepResolve(val, file, rootFile, maxDepth - 1);
+                // Can't follow further into resolved text
+                return resolved;
+            }
+            return null;
+        }
+
+        // Terminal: resolve this attribute's value
+        return deepResolve(attr.getExpression().getText().trim(), file, rootFile, maxDepth - 1);
     }
 
     private static boolean isTerminal(String text) {
@@ -170,30 +244,6 @@ public class TerragruntInputResolver {
             sb.append(parts[i]);
         }
         return sb.toString();
-    }
-
-    private static String resolveIncludeExpression(String text, PsiFile file) {
-        // include.X.locals.Y or include.X.inputs.Y
-        String[] parts = text.split("\\.");
-        if (parts.length < 4) return null;
-        String includeName = parts[1];
-        String section = parts[2]; // locals or inputs
-        String attrName = parts[3];
-
-        for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
-            if (!"include".equals(TerragruntPsiUtil.getBlockType(block))) continue;
-            var labels = block.getLabelList();
-            if (labels.isEmpty() || !includeName.equals(TerragruntPsiUtil.getLabelText(labels.get(0)))) continue;
-            PsiFile included = TerragruntFileResolver.resolveInclude(block);
-            if (included == null) return null;
-            if ("locals".equals(section)) {
-                TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(included, attrName);
-                if (attr != null && attr.getExpression() != null) {
-                    return deepResolve(attr.getExpression().getText().trim(), included, file, 8);
-                }
-            }
-        }
-        return null;
     }
 
     private static String simplifyExpression(TerragruntExpression expr) {

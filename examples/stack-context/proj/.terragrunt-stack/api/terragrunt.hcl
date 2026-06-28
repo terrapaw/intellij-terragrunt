@@ -6,5 +6,5 @@ include "root" {
 # include "root" → myconfig.hcl → env_config → env.hcl → environment
 inputs = {
   env        = include.root.locals.env_config.locals.environment
-  deploy_env = "${include.root.locals.deploy_env}-abc"
+  deploy_env = include.root.locals.deploy_env
 }

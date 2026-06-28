@@ -516,7 +516,7 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
     }
 
     public void testInputResolverMergesIncluded() {
-        myFixture.addFileToProject("root.hcl", """
+        myFixture.addFileToProject("ir-merge/root.hcl", """
                 locals {
                   region = "us-west-2"
                 }
@@ -526,7 +526,7 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
                   team   = "platform"
                 }
                 """);
-        var file = myFixture.addFileToProject("app/terragrunt.hcl", """
+        var file = myFixture.addFileToProject("ir-merge/app/terragrunt.hcl", """
                 include "root" {
                   path = "../root.hcl"
                 }
@@ -547,38 +547,64 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
     }
 
     public void testInputResolverDeepChainResolution() {
-        myFixture.addFileToProject("root.hcl", """
+        // local.region → local.common.locals.region → resolves to "ap-southeast-2"
+        var file = myFixture.addFileToProject("ir-chain/terragrunt.hcl", """
                 locals {
                   region = "ap-southeast-2"
-                  env    = "production"
+                  deeper = local.region
+                }
+                
+                inputs = {
+                  aws_region = local.deeper
                 }
                 """);
-        myFixture.addFileToProject("common/terragrunt.hcl", """
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
+        assertEquals(1, inputs.size());
+        assertEquals("aws_region", inputs.get(0).key());
+        assertEquals("ap-southeast-2", inputs.get(0).resolved());
+    }
+
+    public void testInputResolverInterpolatedString() {
+        myFixture.addFileToProject("root.hcl", """
                 locals {
-                  root_config = read_terragrunt_config("../root.hcl")
-                  region      = local.root_config.locals.region
+                  deploy_env = "staging"
                 }
                 """);
-        var file = myFixture.addFileToProject("app/terragrunt.hcl", """
+        var file = myFixture.addFileToProject("svc/terragrunt.hcl", """
                 include "root" {
                   path = "../root.hcl"
                 }
                 
+                inputs = {
+                  bucket = "${include.root.locals.deploy_env}-my-bucket"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
+        assertEquals(1, inputs.size());
+        assertEquals("staging-my-bucket", inputs.get(0).resolved());
+    }
+
+    public void testInputResolverDeepIncludeLocalsChain() {
+        // Test that local.X chains resolve through multiple hops within same file
+        var file = myFixture.addFileToProject("ir-deep2/terragrunt.hcl", """
                 locals {
-                  common = read_terragrunt_config("../common/terragrunt.hcl")
-                  region = local.common.locals.region
+                  base_env = "production"
+                  env      = local.base_env
+                  prefix   = "${local.env}-app"
                 }
                 
                 inputs = {
-                  aws_region = local.region
-                  env        = include.root.locals.env
+                  environment = local.env
+                  bucket_name = local.prefix
                 }
                 """);
         myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
         var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
         var map = new java.util.LinkedHashMap<String, String>();
         for (var entry : inputs) map.put(entry.key(), entry.resolved());
-        assertEquals("aws_region should resolve through chain to ap-southeast-2", "ap-southeast-2", map.get("aws_region"));
-        assertEquals("env should resolve from include", "production", map.get("env"));
+        assertEquals("production", map.get("environment"));
+        assertEquals("production-app", map.get("bucket_name"));
     }
 }
