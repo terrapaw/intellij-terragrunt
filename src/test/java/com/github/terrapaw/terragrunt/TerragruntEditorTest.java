@@ -486,4 +486,61 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         var tac = com.intellij.codeInsight.template.TemplateActionContext.expanding(file, offset);
         assertTrue("Should allow templates when offset is at block identifier (typing new block name)", ctx.isInContext(tac));
     }
+
+    // --- Input Calculator ---
+
+    public void testInputResolverCollectsInputs() {
+        var file = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  region = "us-east-1"
+                  env    = "prod"
+                }
+                
+                inputs = {
+                  aws_region  = local.region
+                  environment = local.env
+                  app_name    = "my-api"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
+        assertEquals("Should find 3 inputs", 3, inputs.size());
+        assertEquals("aws_region", inputs.get(0).key());
+        assertEquals("us-east-1", inputs.get(0).value());
+        assertEquals("environment", inputs.get(1).key());
+        assertEquals("prod", inputs.get(1).value());
+        assertEquals("app_name", inputs.get(2).key());
+        assertEquals("my-api", inputs.get(2).value());
+    }
+
+    public void testInputResolverMergesIncluded() {
+        myFixture.addFileToProject("root.hcl", """
+                locals {
+                  region = "us-west-2"
+                }
+                
+                inputs = {
+                  region = local.region
+                  team   = "platform"
+                }
+                """);
+        var file = myFixture.addFileToProject("app/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                }
+                
+                inputs = {
+                  region   = "us-east-1"
+                  app_name = "api"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
+        // region overridden by current file, team from include, app_name from current
+        var map = new java.util.LinkedHashMap<String, String>();
+        for (var entry : inputs) map.put(entry.key(), entry.value());
+        assertEquals("region should be overridden", "us-east-1", map.get("region"));
+        assertEquals("team from include", "platform", map.get("team"));
+        assertEquals("app_name from current", "api", map.get("app_name"));
+    }
 }

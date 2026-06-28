@@ -152,5 +152,12 @@
                 class="com.github.terrapaw.terragrunt.lang.CreateTerragruntFileAction">
             <add-to-group group-id="NewGroup" anchor="last"/>
         </action>
+        <action id="Terragrunt.ShowInputs"
+                class="com.github.terrapaw.terragrunt.toolwindow.TerragruntShowInputsAction"
+                text="Show Computed Inputs"
+                description="Show the resolved inputs for this Terragrunt file">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
     </actions>
 </idea-plugin>
