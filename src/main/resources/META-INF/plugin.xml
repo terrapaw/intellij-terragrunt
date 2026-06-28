@@ -145,6 +145,9 @@
         <toolWindow id="Terragrunt Dependencies"
                     anchor="bottom"
                     factoryClass="com.github.terrapaw.terragrunt.toolwindow.TerragruntDependencyToolWindowFactory"/>
+        <toolWindow id="Terragrunt Inputs"
+                    anchor="bottom"
+                    factoryClass="com.github.terrapaw.terragrunt.toolwindow.TerragruntInputToolWindowFactory"/>
     </extensions>
 
     <actions>
