@@ -54,6 +54,18 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
             }
         });
 
+        // Update on document changes (typing)
+        com.intellij.openapi.editor.EditorFactory.getInstance().getEventMulticaster()
+                .addDocumentListener(new com.intellij.openapi.editor.event.DocumentListener() {
+                    @Override
+                    public void documentChanged(com.intellij.openapi.editor.event.@NotNull DocumentEvent event) {
+                        VirtualFile[] selected = FileEditorManager.getInstance(project).getSelectedFiles();
+                        if (selected.length > 0 && selected[0].getName().endsWith(".hcl")) {
+                            updateTable(project, model, header, selected[0]);
+                        }
+                    }
+                }, project);
+
         // Initial update
         VirtualFile[] selected = FileEditorManager.getInstance(project).getSelectedFiles();
         if (selected.length > 0) {
