@@ -3,11 +3,12 @@
 ## [Unreleased]
 
 ### Added
-- File path auto-completion inside `include` path, `dependency` config_path, `terraform` source, and `read_terragrunt_config()` — type `../` or `${get_repo_root()}/` to get file/directory suggestions with function evaluation
-- Unused local variables inspection — flags `locals` attributes not referenced via `local.X`
+- File path auto-completion inside `include` path, `dependency` config_path, `terraform` source, and `read_terragrunt_config()` — type `../` or `${get_repo_root()}/` to get file/directory suggestions with function evaluation (auto-popup on `/`)
+- Unused local variables inspection — flags `locals` attributes not referenced via `local.X` (skips shared configs)
+- Unused local variables (cross-file) inspection — scans entire project for references (disabled by default, enable in Settings → Inspections)
 - Duplicate attributes inspection — flags same key appearing twice in the same block body
 - Unused dependencies inspection — flags `dependency` blocks whose label is never referenced via `dependency.X`
-- Input calculator — right-click → "Show Computed Inputs" to see the resolved inputs for a file (merges includes, resolves locals)
+- Input calculator tool window (View → Tool Windows → Terragrunt Inputs) — shows final merged inputs with deep recursive resolution through local chains, include chains, and interpolated strings. Live updates on typing, pin support.
 
 ### Fixed
 - Duplicate block inspection now flags multiple `locals` blocks (Terragrunt does not support this)
