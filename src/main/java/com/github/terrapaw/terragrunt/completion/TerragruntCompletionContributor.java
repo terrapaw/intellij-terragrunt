@@ -78,7 +78,10 @@ public class TerragruntCompletionContributor extends CompletionContributor {
 
                         // Evaluate interpolations in prefix
                         String evaluated = TerragruntFileResolver.evaluateInterpolatedPathPublic(prefix, file);
-                        if (evaluated == null) evaluated = prefix;
+                        if (evaluated == null) {
+                            if (prefix.contains("${")) return; // Can't resolve functions
+                            evaluated = prefix;
+                        }
 
                         // Resolve to a directory
                         com.intellij.openapi.vfs.VirtualFile dir;
@@ -117,7 +120,7 @@ public class TerragruntCompletionContributor extends CompletionContributor {
 
                         // List children and offer as completions
                         for (com.intellij.openapi.vfs.VirtualFile child : dir.getChildren()) {
-                            if (child.getName().startsWith(".")) continue;
+                            if (child.getName().startsWith(".") && !child.getName().equals(".terragrunt-stack")) continue;
                             var icon = child.isDirectory()
                                     ? com.intellij.icons.AllIcons.Nodes.Folder
                                     : com.intellij.icons.AllIcons.FileTypes.Any_type;
@@ -150,22 +153,18 @@ public class TerragruntCompletionContributor extends CompletionContributor {
 
     @Nullable
     private String getPathPrefixAtCaret(PsiElement position, int caretOffset) {
-        // Walk up to find the string_lit node
         TerragruntStringLit stringLit = PsiTreeUtil.getParentOfType(position, TerragruntStringLit.class);
         if (stringLit == null) return null;
         String fullText = stringLit.getText();
         if (fullText.length() < 2) return null;
-        // String content starts after opening quote
         int stringStart = stringLit.getTextRange().getStartOffset() + 1;
         int relOffset = caretOffset - stringStart;
         String content = fullText.substring(1, fullText.length() - 1);
-        // Remove IntelliJ's dummy identifier
         content = content.replace(com.intellij.codeInsight.completion.CompletionUtilCore.DUMMY_IDENTIFIER_TRIMMED, "");
         content = content.replace(com.intellij.codeInsight.completion.CompletionUtilCore.DUMMY_IDENTIFIER, "");
         if (relOffset < 0) return null;
         if (relOffset > content.length()) relOffset = content.length();
         String upToCaret = content.substring(0, relOffset);
-        // Get everything up to and including last /
         int lastSlash = upToCaret.lastIndexOf('/');
         return lastSlash >= 0 ? upToCaret.substring(0, lastSlash) : "";
     }

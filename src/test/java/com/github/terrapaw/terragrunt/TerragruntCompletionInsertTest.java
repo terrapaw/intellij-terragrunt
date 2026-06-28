@@ -447,4 +447,84 @@ public class TerragruntCompletionInsertTest extends BasePlatformTestCase {
             assertTrue("Should NOT suggest paths in regular strings, got: " + names, names.isEmpty());
         }
     }
+
+    public void testPathCompletionImmediatelyAfterSlash() {
+        // Caret right after / with no typed text yet
+        myFixture.addFileToProject("envs/dev.hcl", "locals {}");
+        myFixture.addFileToProject("envs/prod.hcl", "locals {}");
+        var mainFile = myFixture.addFileToProject("app/terragrunt.hcl", """
+                locals {
+                  env = read_terragrunt_config("../envs/<caret>")
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should offer completions after /", completions);
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest dev.hcl, got: " + names, names.contains("dev.hcl"));
+        assertTrue("Should suggest prod.hcl, got: " + names, names.contains("prod.hcl"));
+    }
+
+    public void testPathCompletionAfterInterpolationSlash() {
+        // Caret right after ${func()}/ — the trickiest case
+        myFixture.addFileToProject("envs/dev.hcl", "locals {}");
+        myFixture.addFileToProject("envs/prod.hcl", "locals {}");
+        var mainFile = myFixture.addFileToProject("envs/terragrunt.hcl", """
+                locals {
+                  env = read_terragrunt_config("${get_terragrunt_dir()}/<caret>")
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should offer completions after interpolation/", completions);
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest dev.hcl, got: " + names, names.contains("dev.hcl"));
+    }
+
+    public void testPathCompletionWithGetParentTerragruntDir() {
+        // get_parent_terragrunt_dir() resolves to parent dir containing root.hcl (via include)
+        myFixture.addFileToProject("root.hcl", "locals {}");
+        myFixture.addFileToProject("envs/dev.hcl", "locals {}");
+        myFixture.addFileToProject("envs/prod.hcl", "locals {}");
+        var mainFile = myFixture.addFileToProject("app/terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("root.hcl")
+                }
+                
+                locals {
+                  env = read_terragrunt_config("${get_parent_terragrunt_dir()}/envs/<caret>")
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should offer completions with get_parent_terragrunt_dir, got null", completions);
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest dev.hcl, got: " + names, names.contains("dev.hcl"));
+    }
+
+    public void testPathCompletionImmediatelyAfterFunctionSlash() {
+        // Exact case: "${get_parent_terragrunt_dir()}/" with caret right after /
+        myFixture.addFileToProject("root.hcl", "locals {}");
+        myFixture.addFileToProject("envs/dev.hcl", "locals {}");
+        myFixture.addFileToProject("app/main.tf", "");
+        var mainFile = myFixture.addFileToProject("app/terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("root.hcl")
+                }
+                
+                locals {
+                  env = read_terragrunt_config("${get_parent_terragrunt_dir()}/<caret>")
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should offer completions after func()/", completions);
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest envs, got: " + names, names.contains("envs"));
+        assertTrue("Should suggest app, got: " + names, names.contains("app"));
+    }
 }
