@@ -144,9 +144,11 @@
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow id="Terragrunt Dependencies"
                     anchor="bottom"
+                    icon="AllIcons.Actions.ShowAsTree"
                     factoryClass="com.github.terrapaw.terragrunt.toolwindow.TerragruntDependencyToolWindowFactory"/>
         <toolWindow id="Terragrunt Inputs"
                     anchor="bottom"
+                    icon="AllIcons.Nodes.DataTables"
                     factoryClass="com.github.terrapaw.terragrunt.toolwindow.TerragruntInputToolWindowFactory"/>
     </extensions>
 
