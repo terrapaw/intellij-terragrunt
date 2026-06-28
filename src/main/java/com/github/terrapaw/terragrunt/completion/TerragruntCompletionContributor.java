@@ -52,6 +52,138 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                         }
                     }
                 });
+
+        // Path completion inside strings (include path, dependency config_path, read_terragrunt_config arg)
+        extend(CompletionType.BASIC,
+                PlatformPatterns.psiElement(),
+                new CompletionProvider<>() {
+                    @Override
+                    protected void addCompletions(@NotNull CompletionParameters parameters,
+                                                  @NotNull ProcessingContext context,
+                                                  @NotNull CompletionResultSet result) {
+                        PsiElement position = parameters.getPosition();
+                        // Only activate inside string literals in path context
+                        var tokenType = position.getNode().getElementType();
+                        if (tokenType != TerragruntTypes.STRING_LITERAL) return;
+                        if (!isInPathContext(position)) return;
+
+                        PsiFile file = parameters.getOriginalFile();
+                        com.intellij.openapi.vfs.VirtualFile vFile = file.getVirtualFile();
+                        if (vFile == null || vFile.getParent() == null) return;
+                        com.intellij.openapi.vfs.VirtualFile baseDir = vFile.getParent();
+
+                        // Extract the string content up to the caret
+                        String prefix = getPathPrefixAtCaret(position, parameters.getOffset());
+                        if (prefix == null) return;
+
+                        // Evaluate interpolations in prefix
+                        String evaluated = TerragruntFileResolver.evaluateInterpolatedPathPublic(prefix, file);
+                        if (evaluated == null) {
+                            if (prefix.contains("${")) return; // Can't resolve functions
+                            evaluated = prefix;
+                        }
+
+                        // Resolve to a directory
+                        com.intellij.openapi.vfs.VirtualFile dir;
+                        if (evaluated.startsWith("/")) {
+                            // Try relative to any ancestor of baseDir
+                            dir = null;
+                            com.intellij.openapi.vfs.VirtualFile root = baseDir;
+                            while (root != null) {
+                                if (evaluated.startsWith(root.getPath())) {
+                                    String rel = evaluated.substring(root.getPath().length());
+                                    dir = root;
+                                    for (String part : rel.split("/")) {
+                                        if (dir == null || part.isEmpty()) continue;
+                                        dir = dir.findChild(part);
+                                    }
+                                    break;
+                                }
+                                root = root.getParent();
+                            }
+                            if (dir == null) {
+                                dir = com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(evaluated);
+                            }
+                        } else {
+                            dir = baseDir;
+                            for (String part : evaluated.split("/")) {
+                                if (dir == null) break;
+                                if ("..".equals(part)) dir = dir.getParent();
+                                else if (!".".equals(part) && !part.isEmpty()) dir = dir.findChild(part);
+                            }
+                        }
+                        if (dir == null || !dir.isDirectory()) return;
+
+                        // Use prefix matcher for the filename part (after last /)
+                        String filePrefix = getFilenamePrefixAtCaret(position, parameters.getOffset());
+                        CompletionResultSet pathResult = result.withPrefixMatcher(filePrefix != null ? filePrefix : "");
+
+                        // List children and offer as completions
+                        for (com.intellij.openapi.vfs.VirtualFile child : dir.getChildren()) {
+                            if (child.getName().startsWith(".") && !child.getName().equals(".terragrunt-stack")) continue;
+                            var icon = child.isDirectory()
+                                    ? com.intellij.icons.AllIcons.Nodes.Folder
+                                    : com.intellij.icons.AllIcons.FileTypes.Any_type;
+                            pathResult.addElement(LookupElementBuilder.create(child.getName())
+                                    .withIcon(icon)
+                                    .withInsertHandler(child.isDirectory() ? (ctx, item) -> {
+                                        ctx.getDocument().insertString(ctx.getTailOffset(), "/");
+                                        ctx.getEditor().getCaretModel().moveToOffset(ctx.getTailOffset());
+                                    } : null));
+                        }
+                    }
+                });
+    }
+
+    private boolean isInPathContext(PsiElement position) {
+        // Inside read_terragrunt_config("...")
+        TerragruntFunctionCall funcCall = PsiTreeUtil.getParentOfType(position, TerragruntFunctionCall.class);
+        if (funcCall != null && "read_terragrunt_config".equals(funcCall.getIdentifier().getText())) return true;
+
+        // Inside include/dependency block path/config_path/source attribute
+        TerragruntAttribute attr = PsiTreeUtil.getParentOfType(position, TerragruntAttribute.class);
+        if (attr == null) return false;
+        String attrName = attr.getIdentifier().getText();
+        if (!"path".equals(attrName) && !"config_path".equals(attrName) && !"source".equals(attrName)) return false;
+        TerragruntBlock block = PsiTreeUtil.getParentOfType(attr, TerragruntBlock.class);
+        if (block == null) return false;
+        String blockType = TerragruntPsiUtil.getBlockType(block);
+        return "include".equals(blockType) || "dependency".equals(blockType) || "terraform".equals(blockType);
+    }
+
+    @Nullable
+    private String getPathPrefixAtCaret(PsiElement position, int caretOffset) {
+        TerragruntStringLit stringLit = PsiTreeUtil.getParentOfType(position, TerragruntStringLit.class);
+        if (stringLit == null) return null;
+        String fullText = stringLit.getText();
+        if (fullText.length() < 2) return null;
+        int stringStart = stringLit.getTextRange().getStartOffset() + 1;
+        int relOffset = caretOffset - stringStart;
+        String content = fullText.substring(1, fullText.length() - 1);
+        content = content.replace(com.intellij.codeInsight.completion.CompletionUtilCore.DUMMY_IDENTIFIER_TRIMMED, "");
+        content = content.replace(com.intellij.codeInsight.completion.CompletionUtilCore.DUMMY_IDENTIFIER, "");
+        if (relOffset < 0) return null;
+        if (relOffset > content.length()) relOffset = content.length();
+        String upToCaret = content.substring(0, relOffset);
+        int lastSlash = upToCaret.lastIndexOf('/');
+        return lastSlash >= 0 ? upToCaret.substring(0, lastSlash) : "";
+    }
+
+    @Nullable
+    private String getFilenamePrefixAtCaret(PsiElement position, int caretOffset) {
+        TerragruntStringLit stringLit = PsiTreeUtil.getParentOfType(position, TerragruntStringLit.class);
+        if (stringLit == null) return "";
+        String fullText = stringLit.getText();
+        if (fullText.length() < 2) return "";
+        int stringStart = stringLit.getTextRange().getStartOffset() + 1;
+        int relOffset = caretOffset - stringStart;
+        String content = fullText.substring(1, fullText.length() - 1);
+        content = content.replace(com.intellij.codeInsight.completion.CompletionUtilCore.DUMMY_IDENTIFIER_TRIMMED, "");
+        content = content.replace(com.intellij.codeInsight.completion.CompletionUtilCore.DUMMY_IDENTIFIER, "");
+        if (relOffset < 0 || relOffset > content.length()) return "";
+        String upToCaret = content.substring(0, relOffset);
+        int lastSlash = upToCaret.lastIndexOf('/');
+        return lastSlash >= 0 ? upToCaret.substring(lastSlash + 1) : upToCaret;
     }
 
     private boolean isInsideString(PsiElement position) {

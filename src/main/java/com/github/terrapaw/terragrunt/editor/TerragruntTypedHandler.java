@@ -22,6 +22,18 @@ public class TerragruntTypedHandler extends TypedHandlerDelegate {
             editor.getDocument().insertString(offset, "\"");
         }
 
+        // Auto-popup completion after / in path strings
+        if (c == '/') {
+            int offset = editor.getCaretModel().getOffset();
+            if (offset > 0) {
+                var psi = file.findElementAt(offset - 1);
+                if (psi != null && psi.getNode().getElementType() == com.github.terrapaw.terragrunt.lang.psi.TerragruntTypes.STRING_LITERAL) {
+                    com.intellij.codeInsight.AutoPopupController.getInstance(project)
+                            .scheduleAutoPopup(editor, com.intellij.codeInsight.completion.CompletionType.BASIC, f -> f.getFileType() == TerragruntFileType.INSTANCE);
+                }
+            }
+        }
+
         return Result.CONTINUE;
     }
 }

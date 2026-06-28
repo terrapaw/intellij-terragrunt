@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- File path auto-completion inside `include` path, `dependency` config_path, `terraform` source, and `read_terragrunt_config()` — type `../` or `${get_repo_root()}/` to get file/directory suggestions with function evaluation
+
 ## [0.4.1] - 2026-06-16
 
 ### Fixed
