@@ -16,6 +16,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Alias-aware: `local.env_inputs.` → suggests input keys when `env_inputs = include.env.inputs`
   - `read_terragrunt_config`: `local.common.locals.` and `local.common.inputs.` → suggests from loaded file
   - For expressions: `[for` / `{for` templates, and loop variable completion inside for body
+  - File path completion: type `../` or `${get_repo_root()}/` inside `include` path, `dependency` config_path, `terraform` source, or `read_terragrunt_config()` to get file/directory suggestions (function-aware)
 - **Inspections/Linting**
   - Unknown block types
   - Unknown attributes in blocks
@@ -96,7 +97,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-357 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+362 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 

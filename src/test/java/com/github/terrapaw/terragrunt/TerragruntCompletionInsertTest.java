@@ -364,4 +364,87 @@ public class TerragruntCompletionInsertTest extends BasePlatformTestCase {
         assertTrue("Should suggest vpc_id from vpc's mock_outputs", names.contains("vpc_id"));
         assertFalse("Should NOT suggest db_host from rds's mock_outputs", names.contains("db_host"));
     }
+
+    // --- Path completion inside strings ---
+
+    public void testPathCompletionInIncludePath() {
+        myFixture.addFileToProject("common/root.hcl", "locals {}");
+        myFixture.addFileToProject("common/env.hcl", "locals {}");
+        var mainFile = myFixture.addFileToProject("terragrunt.hcl", """
+                include "root" {
+                  path = "common/<caret>"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should offer multiple path completions", completions);
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest root.hcl, got: " + names, names.contains("root.hcl"));
+        assertTrue("Should suggest env.hcl, got: " + names, names.contains("env.hcl"));
+    }
+
+    public void testPathCompletionInDependencyConfigPath() {
+        myFixture.addFileToProject("vpc/terragrunt.hcl", "locals {}");
+        myFixture.addFileToProject("rds/terragrunt.hcl", "locals {}");
+        var mainFile = myFixture.addFileToProject("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "<caret>"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should offer path completions", completions);
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest vpc/ directory, got: " + names, names.contains("vpc"));
+        assertTrue("Should suggest rds/ directory, got: " + names, names.contains("rds"));
+    }
+
+    public void testPathCompletionInReadTerragruntConfig() {
+        myFixture.addFileToProject("common/shared.hcl", "locals {}");
+        myFixture.addFileToProject("common/env.hcl", "locals {}");
+        var mainFile = myFixture.addFileToProject("terragrunt.hcl", """
+                locals {
+                  common = read_terragrunt_config("common/<caret>")
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should offer path completions", completions);
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest shared.hcl, got: " + names, names.contains("shared.hcl"));
+    }
+
+    public void testPathCompletionWithInterpolatedPrefix() {
+        myFixture.addFileToProject("modules/vpc/main.tf", "");
+        myFixture.addFileToProject("modules/rds/main.tf", "");
+        var mainFile = myFixture.addFileToProject("terragrunt.hcl", """
+                include "root" {
+                  path = "${get_terragrunt_dir()}/modules/<caret>"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should offer completions with interpolated prefix", completions);
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest vpc/ directory, got: " + names, names.contains("vpc"));
+    }
+
+    public void testNoPathCompletionInRegularString() {
+        // A plain string that's not a path attribute should NOT get path completions
+        myFixture.configureByText("terragrunt.hcl", """
+                locals {
+                  name = "hello/<caret>"
+                }
+                """);
+        var completions = myFixture.completeBasic();
+        if (completions != null) {
+            java.util.List<String> names = java.util.List.of(completions).stream()
+                    .map(l -> l.getLookupString()).toList();
+            assertTrue("Should NOT suggest paths in regular strings, got: " + names, names.isEmpty());
+        }
+    }
 }
