@@ -41,20 +41,20 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
         JLabel header = new JLabel("Open a Terragrunt file to see computed inputs");
         header.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
-        JButton pinButton = new JButton("Pin", AllIcons.Nodes.Padlock);
+        JButton pinButton = new JButton("Pin", AllIcons.General.Pin_tab);
         pinButton.setToolTipText("Pin current file");
         pinButton.addActionListener(e -> {
             if (pinnedFile == null) {
                 VirtualFile[] sel = FileEditorManager.getInstance(project).getSelectedFiles();
                 if (sel.length > 0 && sel[0].getName().endsWith(".hcl")) {
                     pinnedFile = sel[0];
-                    pinButton.setIcon(AllIcons.Nodes.SecurityRole);
+                    pinButton.setIcon(AllIcons.Nodes.Padlock);
                     pinButton.setText(pinnedFile.getName());
                     pinButton.setToolTipText("Click to unpin");
                 }
             } else {
                 pinnedFile = null;
-                pinButton.setIcon(AllIcons.Nodes.Padlock);
+                pinButton.setIcon(AllIcons.General.Pin_tab);
                 pinButton.setText("Pin");
                 pinButton.setToolTipText("Pin current file");
                 VirtualFile[] sel = FileEditorManager.getInstance(project).getSelectedFiles();
