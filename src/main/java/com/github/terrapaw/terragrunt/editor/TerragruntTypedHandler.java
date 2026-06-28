@@ -22,6 +22,12 @@ public class TerragruntTypedHandler extends TypedHandlerDelegate {
             editor.getDocument().insertString(offset, "\"");
         }
 
+        // Auto-popup completion after / in path strings
+        if (c == '/') {
+            com.intellij.codeInsight.AutoPopupController.getInstance(project)
+                    .scheduleAutoPopup(editor, com.intellij.codeInsight.completion.CompletionType.BASIC, f -> f.getFileType() == TerragruntFileType.INSTANCE);
+        }
+
         return Result.CONTINUE;
     }
 }
