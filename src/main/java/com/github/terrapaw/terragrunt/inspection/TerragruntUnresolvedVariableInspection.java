@@ -86,6 +86,20 @@ public class TerragruntUnresolvedVariableInspection extends TerragruntBaseInspec
                             }
                         }
                     }
+                    case "unit" -> {
+                        if (!blockLabelExists(file, "unit", name)) {
+                            holder.registerProblem(getAttr.getIdentifier(),
+                                    "Unresolved unit '" + name + "'",
+                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
+                        }
+                    }
+                    case "stack" -> {
+                        if (!blockLabelExists(file, "stack", name)) {
+                            holder.registerProblem(getAttr.getIdentifier(),
+                                    "Unresolved stack '" + name + "'",
+                                    ProblemHighlightType.GENERIC_ERROR_OR_WARNING);
+                        }
+                    }
                 }
             }
         };
@@ -125,5 +139,9 @@ public class TerragruntUnresolvedVariableInspection extends TerragruntBaseInspec
 
     private boolean featureExists(PsiFile file, String name) {
         return TerragruntPsiUtil.blockExists(file, "feature", name);
+    }
+
+    private boolean blockLabelExists(PsiFile file, String blockType, String name) {
+        return TerragruntPsiUtil.blockExists(file, blockType, name);
     }
 }

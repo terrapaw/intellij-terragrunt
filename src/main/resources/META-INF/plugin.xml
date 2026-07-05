@@ -121,6 +121,13 @@
                          enabledByDefault="true"
                          level="WARNING"
                          implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntUnusedDependencyInspection"/>
+        <localInspection language="Terragrunt"
+                         shortName="TerragruntAutoinclude"
+                         displayName="Invalid content in autoinclude"
+                         groupName="Terragrunt"
+                         enabledByDefault="true"
+                         level="ERROR"
+                         implementationClass="com.github.terrapaw.terragrunt.inspection.TerragruntAutoincludeInspection"/>
         <psi.referenceContributor language="Terragrunt"
                                   implementation="com.github.terrapaw.terragrunt.reference.TerragruntReferenceContributor"/>
         <gotoDeclarationHandler implementationClass="com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler"/>

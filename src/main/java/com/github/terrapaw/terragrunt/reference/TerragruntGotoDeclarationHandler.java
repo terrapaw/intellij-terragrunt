@@ -268,6 +268,8 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             if ("dependency".equals(rootVar)) return resolveDependency(file, attrName);
             if ("feature".equals(rootVar)) return resolveFeature(file, attrName);
             if ("values".equals(rootVar)) return resolveValuesKey(file, attrName);
+            if ("unit".equals(rootVar)) return resolveBlockByLabel(file, "unit", attrName);
+            if ("stack".equals(rootVar)) return resolveBlockByLabel(file, "stack", attrName);
             if ("include".equals(rootVar)) {
                 // include.X -> navigate to the include block
                 TerragruntBlock block = TerragruntFileResolver.findIncludeBlock(file, attrName);
@@ -306,6 +308,16 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
             String attr = chain[1];
             if ("value".equals(attr)) {
                 PsiElement target = findFeatureDefault(file, featureName);
+                if (target != null) return new PsiElement[]{target};
+            }
+        }
+
+        // Handle unit.X.path / stack.X.path at depth 1 — navigate to path attribute in block
+        if (("unit".equals(rootVar) || "stack".equals(rootVar)) && cursorIndex == 1 && getAttrs.length >= 2) {
+            String blockName = chain[0];
+            String attr = chain[1];
+            if ("path".equals(attr)) {
+                PsiElement target = findBlockAttribute(file, rootVar, blockName, "path");
                 if (target != null) return new PsiElement[]{target};
             }
         }
@@ -1175,6 +1187,25 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                         }
                     }
                 }
+            }
+        }
+        return null;
+    }
+
+    private PsiElement[] resolveBlockByLabel(PsiFile file, String blockType, String labelName) {
+        TerragruntBlock block = TerragruntPsiUtil.findBlock(file, blockType, labelName);
+        return block != null ? new PsiElement[]{block} : null;
+    }
+
+    @Nullable
+    private PsiElement findBlockAttribute(PsiFile file, String blockType, String blockName, String attrName) {
+        TerragruntBlock block = TerragruntPsiUtil.findBlock(file, blockType, blockName);
+        if (block == null) return null;
+        TerragruntBody body = block.getBody();
+        if (body == null) return null;
+        for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+            if (attrName.equals(attr.getIdentifier().getText())) {
+                return attr.getIdentifier();
             }
         }
         return null;
