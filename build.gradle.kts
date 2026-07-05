@@ -40,6 +40,7 @@ intellijPlatform {
             <ul>
               <li>Go to definition works through <code>read_terragrunt_config</code>, <code>find_in_parent_folders</code>, aliases, and nested configuration references</li>
               <li>Code completion resolves locals, dependencies, includes, and referenced configs across files</li>
+              <li>File path completion with function evaluation — type <code>../</code> or <code>${get_repo_root()}/</code> to get file/directory suggestions</li>
               <li>Navigate through alias chains regardless of depth</li>
               <li>Find usages of locals, inputs, object keys, and block labels</li>
             </ul>
@@ -59,9 +60,10 @@ intellijPlatform {
               <li>Suppressible with <code># noinspection</code> comments</li>
             </ul>
 
-            <h3>Dependency Graph</h3>
+            <h3>Tool Windows</h3>
             <ul>
-              <li>Visualize and explore Terragrunt dependency relationships in a searchable tree view with DOT export</li>
+              <li>Dependency graph — searchable tree view of the DAG with DOT export</li>
+              <li>Input calculator — shows computed inputs with deep recursive resolution across includes and locals</li>
               <li>Run terragrunt commands (plan, apply, init, stack) from gutter markers and run configurations</li>
             </ul>
 
@@ -73,14 +75,13 @@ intellijPlatform {
               <li>Code folding, live templates, structure view, breadcrumbs, file templates</li>
             </ul>
 
-            <p>Supports Terragrunt 1.x including units, stacks, features, dependencies, remote state, generation, autoinclude, and catalog blocks.</p>
-
             <h3>Stacks &amp; Autoinclude</h3>
             <ul>
               <li>Full <code>autoinclude</code> support — completion and navigation for <code>unit.&lt;name&gt;.path</code> and <code>stack.&lt;name&gt;.path</code></li>
               <li>Validates autoinclude content (flags invalid locals, values, nested autoinclude)</li>
-              <li>Input calculator tool window — shows computed inputs with deep recursive resolution</li>
             </ul>
+
+            <p>Supports Terragrunt 1.x including units, stacks, features, dependencies, remote state, generation, autoinclude, and catalog blocks.</p>
 
             <h3>Requirements</h3>
             <p>IntelliJ IDEA 2025.1+ &bull; Java 21</p>
