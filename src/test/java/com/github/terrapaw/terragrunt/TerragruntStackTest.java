@@ -423,4 +423,51 @@ public class TerragruntStackTest extends BasePlatformTestCase {
                 .count();
         assertEquals("Should NOT flag duplicate autoinclude across units", 0, warnings);
     }
+
+    public void testDuplicateDependencyInSameAutoinclude() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntAutoincludeInspection());
+        myFixture.configureByText("terragrunt.stack.hcl", """
+                unit "app" {
+                  source = "./catalog/units/app"
+                  path   = "app"
+                
+                  autoinclude {
+                    dependency "vpc" {
+                      config_path = "../vpc"
+                    }
+                    dependency "vpc" {
+                      config_path = "../other-vpc"
+                    }
+                  }
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long errors = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Duplicate dependency block 'vpc'"))
+                .count();
+        assertEquals("Should flag duplicate dependency in same autoinclude", 1, errors);
+    }
+
+    public void testMultipleAutoincludeInSameUnit() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntAutoincludeInspection());
+        myFixture.configureByText("terragrunt.stack.hcl", """
+                unit "app" {
+                  source = "./catalog/units/app"
+                  path   = "app"
+                
+                  autoinclude {
+                    inputs = { x = 1 }
+                  }
+                
+                  autoinclude {
+                    inputs = { y = 2 }
+                  }
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long errors = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Only one autoinclude block"))
+                .count();
+        assertEquals("Should flag multiple autoinclude in same unit", 1, errors);
+    }
 }
