@@ -23,6 +23,7 @@ import java.util.List;
 
 public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
     private VirtualFile pinnedFile = null;
+    private java.util.concurrent.Future<?> pendingUpdate = null;
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
@@ -136,17 +137,25 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
             return;
         }
 
-        List<TerragruntInputResolver.InputEntry> inputs = com.intellij.openapi.application.ApplicationManager.getApplication().runReadAction(
-                (com.intellij.openapi.util.Computable<List<TerragruntInputResolver.InputEntry>>) () -> TerragruntInputResolver.resolveInputs(psiFile));
+        header.setText(file.getName() + " — computing...");
 
-        String prefix = pinnedFile != null ? "📌 " : "";
-        if (inputs.isEmpty()) {
-            header.setText(prefix + file.getName() + " — no inputs found");
-        } else {
-            header.setText(prefix + file.getName() + " — " + inputs.size() + " input(s)");
-            for (var entry : inputs) {
-                model.addRow(new Object[]{entry.key(), entry.value(), entry.resolved(), entry.source()});
-            }
+        if (pendingUpdate != null && !pendingUpdate.isDone()) {
+            pendingUpdate.cancel(true);
         }
+
+        pendingUpdate = com.intellij.openapi.application.ReadAction.nonBlocking(() -> TerragruntInputResolver.resolveInputs(psiFile))
+                .finishOnUiThread(com.intellij.openapi.application.ModalityState.defaultModalityState(), inputs -> {
+                    model.setRowCount(0);
+                    String prefix = pinnedFile != null ? "📌 " : "";
+                    if (inputs.isEmpty()) {
+                        header.setText(prefix + file.getName() + " — no inputs found");
+                    } else {
+                        header.setText(prefix + file.getName() + " — " + inputs.size() + " input(s)");
+                        for (var entry : inputs) {
+                            model.addRow(new Object[]{entry.key(), entry.value(), entry.resolved(), entry.source()});
+                        }
+                    }
+                })
+                .submit(com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService());
     }
 }
