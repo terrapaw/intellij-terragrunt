@@ -363,4 +363,64 @@ public class TerragruntStackTest extends BasePlatformTestCase {
         assertNotNull(file);
         assertEquals(com.github.terrapaw.terragrunt.lang.TerragruntFileType.INSTANCE, file.getFileType());
     }
+
+    public void testNoDuplicateBlockWarningForAutoincludeInDifferentUnits() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntDuplicateBlockInspection());
+        myFixture.configureByText("terragrunt.stack.hcl", """
+                unit "rds" {
+                  source = "./catalog/units/rds"
+                  path   = "rds"
+                
+                  autoinclude {
+                    dependency "vpc" {
+                      config_path = unit.vpc.path
+                    }
+                  }
+                }
+                
+                unit "app" {
+                  source = "./catalog/units/app"
+                  path   = "app"
+                
+                  autoinclude {
+                    dependency "vpc" {
+                      config_path = unit.vpc.path
+                    }
+                  }
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Duplicate"))
+                .count();
+        assertEquals("Should NOT flag duplicate dependencies in different autoinclude scopes", 0, warnings);
+    }
+
+    public void testNoDuplicateAutoincludeWarningAcrossUnits() {
+        myFixture.enableInspections(new com.github.terrapaw.terragrunt.inspection.TerragruntDuplicateBlockInspection());
+        myFixture.configureByText("terragrunt.stack.hcl", """
+                unit "vpc" {
+                  source = "./catalog/units/vpc"
+                  path   = "vpc"
+                
+                  autoinclude {
+                    inputs = { x = 1 }
+                  }
+                }
+                
+                unit "app" {
+                  source = "./catalog/units/app"
+                  path   = "app"
+                
+                  autoinclude {
+                    inputs = { y = 2 }
+                  }
+                }
+                """);
+        var highlights = myFixture.doHighlighting();
+        long warnings = highlights.stream()
+                .filter(h -> h.getDescription() != null && h.getDescription().contains("Duplicate"))
+                .count();
+        assertEquals("Should NOT flag duplicate autoinclude across units", 0, warnings);
+    }
 }

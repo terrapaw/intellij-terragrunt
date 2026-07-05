@@ -27,6 +27,9 @@ public class TerragruntDuplicateBlockInspection extends TerragruntBaseInspection
                     if (block.getIdentifier() == null) continue;
                     String type = TerragruntPsiUtil.getBlockType(block);
 
+                    // Skip blocks nested inside autoinclude — they're scoped per unit/stack
+                    if (isInsideAutoinclude(block)) continue;
+
                     // Unlabeled blocks: locals cannot appear multiple times (Terragrunt errors)
                     // Other unlabeled blocks (terraform, remote_state) are singletons too
                     // Skip autoinclude — it's scoped per parent unit/stack block, not globally
@@ -64,5 +67,14 @@ public class TerragruntDuplicateBlockInspection extends TerragruntBaseInspection
                 }
             }
         };
+    }
+
+    private boolean isInsideAutoinclude(TerragruntBlock block) {
+        TerragruntBlock parent = PsiTreeUtil.getParentOfType(block, TerragruntBlock.class);
+        while (parent != null) {
+            if ("autoinclude".equals(TerragruntPsiUtil.getBlockType(parent))) return true;
+            parent = PsiTreeUtil.getParentOfType(parent, TerragruntBlock.class);
+        }
+        return false;
     }
 }
