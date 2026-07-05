@@ -29,8 +29,10 @@ public class TerragruntDuplicateBlockInspection extends TerragruntBaseInspection
 
                     // Unlabeled blocks: locals cannot appear multiple times (Terragrunt errors)
                     // Other unlabeled blocks (terraform, remote_state) are singletons too
+                    // Skip autoinclude — it's scoped per parent unit/stack block, not globally
                     List<TerragruntLabel> labels = block.getLabelList();
                     if (labels.isEmpty()) {
+                        if ("autoinclude".equals(type)) continue;
                         String key = type + ":_unlabeled_";
                         if (seen.containsKey(key)) {
                             holder.registerProblem(
