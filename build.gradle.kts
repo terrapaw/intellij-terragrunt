@@ -40,7 +40,7 @@ intellijPlatform {
             <ul>
               <li>Go to definition works through <code>read_terragrunt_config</code>, <code>find_in_parent_folders</code>, aliases, and nested configuration references</li>
               <li>Code completion resolves locals, dependencies, includes, and referenced configs across files</li>
-              <li>File path completion with function evaluation — type <code>../</code> or <code>${get_repo_root()}/</code> to get file/directory suggestions</li>
+              <li>File path completion with function evaluation — type <code>../</code> or <code>${'$'}{get_repo_root()}/</code> to get file/directory suggestions</li>
               <li>Navigate through alias chains regardless of depth</li>
               <li>Find usages of locals, inputs, object keys, and block labels</li>
             </ul>
