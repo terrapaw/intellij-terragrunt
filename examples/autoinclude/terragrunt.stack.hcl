@@ -59,16 +59,3 @@ unit "app" {
     }
   }
 }
-
-# Stack-level autoinclude: injects a unit into a nested stack
-stack "monitoring" {
-  source = "./catalog/stacks/monitoring"
-  path   = "monitoring"
-
-  autoinclude {
-    unit "extra-dashboard" {
-      source = "./catalog/units/dashboard"
-      path   = "extra-dashboard"
-    }
-  }
-}
