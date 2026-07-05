@@ -89,3 +89,42 @@ dependency "ecs" {
 dependency "suppressed_dep" {
   config_path = "../suppressed"
 }
+
+# --- Autoinclude inspections (in stack files) ---
+# These would appear in a terragrunt.stack.hcl file:
+
+# locals not allowed in autoinclude
+# unit "app" {
+#   source = "./catalog/units/app"
+#   path   = "app"
+#   autoinclude {
+#     locals { x = 1 }    # ERROR: locals blocks are not allowed in autoinclude
+#   }
+# }
+
+# values not allowed in autoinclude
+# unit "app" {
+#   source = "./catalog/units/app"
+#   path   = "app"
+#   autoinclude {
+#     values = { x = 1 }  # ERROR: values attribute is not allowed in autoinclude
+#   }
+# }
+
+# Multiple autoinclude blocks in same unit
+# unit "app" {
+#   source = "./catalog/units/app"
+#   path   = "app"
+#   autoinclude { inputs = { x = 1 } }
+#   autoinclude { inputs = { y = 2 } }  # ERROR: Only one autoinclude block is allowed per unit/stack
+# }
+
+# Duplicate dependency in same autoinclude
+# unit "app" {
+#   source = "./catalog/units/app"
+#   path   = "app"
+#   autoinclude {
+#     dependency "vpc" { config_path = "../vpc" }
+#     dependency "vpc" { config_path = "../other" }  # WARNING: Duplicate dependency block 'vpc' in autoinclude
+#   }
+# }
