@@ -73,7 +73,14 @@ intellijPlatform {
               <li>Code folding, live templates, structure view, breadcrumbs, file templates</li>
             </ul>
 
-            <p>Supports Terragrunt 1.x including units, stacks, features, dependencies, remote state, generation, and catalog blocks.</p>
+            <p>Supports Terragrunt 1.x including units, stacks, features, dependencies, remote state, generation, autoinclude, and catalog blocks.</p>
+
+            <h3>Stacks &amp; Autoinclude</h3>
+            <ul>
+              <li>Full <code>autoinclude</code> support — completion and navigation for <code>unit.&lt;name&gt;.path</code> and <code>stack.&lt;name&gt;.path</code></li>
+              <li>Validates autoinclude content (flags invalid locals, values, nested autoinclude)</li>
+              <li>Input calculator tool window — shows computed inputs with deep recursive resolution</li>
+            </ul>
 
             <h3>Requirements</h3>
             <p>IntelliJ IDEA 2025.1+ &bull; Java 21</p>
