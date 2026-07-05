@@ -136,8 +136,8 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
             return;
         }
 
-        List<TerragruntInputResolver.InputEntry> inputs = com.intellij.openapi.application.ReadAction.compute(
-                () -> TerragruntInputResolver.resolveInputs(psiFile));
+        List<TerragruntInputResolver.InputEntry> inputs = com.intellij.openapi.application.ApplicationManager.getApplication().runReadAction(
+                (com.intellij.openapi.util.Computable<List<TerragruntInputResolver.InputEntry>>) () -> TerragruntInputResolver.resolveInputs(psiFile));
 
         String prefix = pinnedFile != null ? "📌 " : "";
         if (inputs.isEmpty()) {
