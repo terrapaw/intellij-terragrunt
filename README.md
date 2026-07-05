@@ -72,12 +72,12 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
 
 ## Supported Blocks
 
-`terraform`, `remote_state`, `include`, `locals`, `dependency`, `dependencies`, `generate`, `catalog`, `engine`, `feature`, `exclude`, `errors`, `unit`, `stack`
+`terraform`, `remote_state`, `include`, `locals`, `dependency`, `dependencies`, `generate`, `catalog`, `engine`, `feature`, `exclude`, `errors`, `unit`, `stack`, `autoinclude`
 
 ## File Detection
 
 The plugin activates for:
-- Files named `terragrunt.hcl`, `root.hcl`, `terragrunt.stack.hcl`, or `terragrunt.values.hcl`
+- Files named `terragrunt.hcl`, `root.hcl`, `terragrunt.stack.hcl`, `terragrunt.values.hcl`, `terragrunt.autoinclude.hcl`, or `terragrunt.autoinclude.stack.hcl`
 - Any `.hcl` file containing Terragrunt-specific blocks (content heuristic)
 - Any `.hcl` file in a directory (or parent directories) containing Terragrunt files
 
@@ -103,7 +103,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-380 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+386 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 

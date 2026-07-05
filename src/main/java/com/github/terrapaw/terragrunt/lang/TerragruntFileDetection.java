@@ -11,7 +11,8 @@ import java.util.Set;
  */
 public final class TerragruntFileDetection {
     public static final Set<String> KNOWN_FILENAMES = Set.of(
-            "terragrunt.hcl", "root.hcl", "terragrunt.stack.hcl", "terragrunt.values.hcl"
+            "terragrunt.hcl", "root.hcl", "terragrunt.stack.hcl", "terragrunt.values.hcl",
+            "terragrunt.autoinclude.hcl", "terragrunt.autoinclude.stack.hcl"
     );
     private static final Set<String> DEFAULT_MARKERS = Set.of(
             "terragrunt.hcl", "root.hcl", "terragrunt.stack.hcl"

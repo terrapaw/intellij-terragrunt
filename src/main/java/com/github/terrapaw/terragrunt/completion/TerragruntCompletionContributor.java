@@ -650,6 +650,36 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                     }
                 }
             }
+        } else if ("unit".equals(rootVar)) {
+            if (depth == 0) {
+                // unit. -> suggest unit block labels from stack file
+                for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+                    if ("unit".equals(TerragruntPsiUtil.getBlockType(block))) {
+                        for (TerragruntLabel label : block.getLabelList()) {
+                            String name = TerragruntPsiUtil.getLabelText(label);
+                            result.addElement(LookupElementBuilder.create(name).withTypeText("unit").bold());
+                        }
+                    }
+                }
+            } else if (depth == 1) {
+                // unit.vpc. -> suggest "path"
+                result.addElement(LookupElementBuilder.create("path").withTypeText("unit path").bold());
+            }
+        } else if ("stack".equals(rootVar)) {
+            if (depth == 0) {
+                // stack. -> suggest stack block labels from stack file
+                for (TerragruntBlock block : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+                    if ("stack".equals(TerragruntPsiUtil.getBlockType(block))) {
+                        for (TerragruntLabel label : block.getLabelList()) {
+                            String name = TerragruntPsiUtil.getLabelText(label);
+                            result.addElement(LookupElementBuilder.create(name).withTypeText("stack").bold());
+                        }
+                    }
+                }
+            } else if (depth == 1) {
+                // stack.X. -> suggest "path"
+                result.addElement(LookupElementBuilder.create("path").withTypeText("stack path").bold());
+            }
         } else if ("feature".equals(rootVar)) {
             if (depth == 0) {
                 // feature. -> suggest feature names

@@ -71,13 +71,17 @@ public class TerragruntSchema {
                 attr("source", true, "string"), attr("path", true, "string"),
                 attr("values", false, "map"), attr("no_dot_terragrunt_stack", false, "bool"),
                 attr("no_validation", false, "bool")
-        ), List.of()));
+        ), List.of("autoinclude")));
 
         BLOCKS.put("stack", new BlockDef("stack", true, List.of(
                 attr("source", true, "string"), attr("path", true, "string"),
                 attr("values", false, "map"), attr("no_dot_terragrunt_stack", false, "bool"),
                 attr("no_validation", false, "bool")
-        ), List.of()));
+        ), List.of("autoinclude")));
+
+        BLOCKS.put("autoinclude", new BlockDef("autoinclude", false, List.of(
+                attr("inputs", false, "map")
+        ), List.of("dependency", "feature", "errors", "generate", "remote_state")));
 
         // Top-level attributes
         TOP_LEVEL_ATTRS.put("inputs", attr("inputs", false, "map"));
