@@ -67,22 +67,43 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
         table.getActionMap().put("copyCell", new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
-                int row = table.getSelectedRow();
-                if (row < 0) return;
+                int[] selectedRows = table.getSelectedRows();
                 int[] selectedCols = table.getSelectedColumns();
+                if (selectedRows.length == 0 || selectedCols.length == 0) return;
+
                 String value;
-                if (selectedCols.length == model.getColumnCount()) {
+                if (selectedCols.length == model.getColumnCount() && selectedRows.length == 1) {
                     // Full row selected — copy all columns tab-separated
+                    int row = selectedRows[0];
                     StringBuilder sb = new StringBuilder();
                     for (int col = 0; col < model.getColumnCount(); col++) {
                         if (col > 0) sb.append("\t");
                         sb.append(String.valueOf(model.getValueAt(row, col)));
                     }
                     value = sb.toString();
+                } else if (selectedRows.length == model.getRowCount() && selectedCols.length == 1) {
+                    // Full column selected — copy all rows newline-separated
+                    int col = selectedCols[0];
+                    StringBuilder sb = new StringBuilder();
+                    for (int row : selectedRows) {
+                        if (sb.length() > 0) sb.append("\n");
+                        sb.append(String.valueOf(model.getValueAt(row, col)));
+                    }
+                    value = sb.toString();
+                } else if (selectedRows.length == 1 && selectedCols.length == 1) {
+                    // Single cell
+                    value = String.valueOf(model.getValueAt(selectedRows[0], selectedCols[0]));
                 } else {
-                    // Single cell — copy just that cell
-                    int col = table.getSelectedColumn();
-                    value = col >= 0 ? String.valueOf(model.getValueAt(row, col)) : "";
+                    // Multi-selection — copy as grid
+                    StringBuilder sb = new StringBuilder();
+                    for (int row : selectedRows) {
+                        if (sb.length() > 0) sb.append("\n");
+                        for (int i = 0; i < selectedCols.length; i++) {
+                            if (i > 0) sb.append("\t");
+                            sb.append(String.valueOf(model.getValueAt(row, selectedCols[i])));
+                        }
+                    }
+                    value = sb.toString();
                 }
                 java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(value);
                 java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
@@ -106,6 +127,18 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
                         java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(sb.toString());
                         java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
                     }
+                }
+            }
+        });
+
+        // Click column header to select entire column
+        table.getTableHeader().addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                int col = table.columnAtPoint(e.getPoint());
+                if (col >= 0) {
+                    table.setRowSelectionInterval(0, model.getRowCount() - 1);
+                    table.setColumnSelectionInterval(col, col);
                 }
             }
         });
