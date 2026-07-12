@@ -4,8 +4,8 @@ import org.gradle.kotlin.dsl.KotlinClosure2
 
 plugins {
     id("java")
-    id("org.jetbrains.intellij.platform") version "2.17.0"
-    id("org.jetbrains.intellij.platform.grammarkit") version "2.17.0"
+    id("org.jetbrains.intellij.platform") version "2.18.1"
+    id("org.jetbrains.intellij.platform.grammarkit") version "2.18.1"
     id("org.jetbrains.changelog") version "2.5.0"
 }
 
