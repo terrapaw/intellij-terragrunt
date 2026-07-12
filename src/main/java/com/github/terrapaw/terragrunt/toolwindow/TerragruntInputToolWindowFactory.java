@@ -39,6 +39,27 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
         table.getColumnModel().getColumn(2).setPreferredWidth(200);
         table.getColumnModel().getColumn(3).setPreferredWidth(130);
 
+        // Detail panel: shows full value when a row is selected
+        javax.swing.JTextArea detailArea = new javax.swing.JTextArea(4, 40);
+        detailArea.setEditable(false);
+        detailArea.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, 12));
+        detailArea.setLineWrap(true);
+        detailArea.setWrapStyleWord(true);
+        JScrollPane detailScroll = new JScrollPane(detailArea);
+        detailScroll.setBorder(BorderFactory.createTitledBorder("Value Detail"));
+
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting()) return;
+            int row = table.getSelectedRow();
+            if (row >= 0 && row < model.getRowCount()) {
+                String computed = String.valueOf(model.getValueAt(row, 2));
+                detailArea.setText(computed);
+                detailArea.setCaretPosition(0);
+            } else {
+                detailArea.setText("");
+            }
+        });
+
         JLabel header = new JLabel("Open a Terragrunt file to see computed inputs");
         header.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
@@ -69,7 +90,11 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
 
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(new JScrollPane(table), BorderLayout.CENTER);
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                new JScrollPane(table), detailScroll);
+        splitPane.setResizeWeight(0.7);
+        panel.add(splitPane, BorderLayout.CENTER);
 
         Content content = ContentFactory.getInstance().createContent(panel, "", false);
         toolWindow.getContentManager().addContent(content);

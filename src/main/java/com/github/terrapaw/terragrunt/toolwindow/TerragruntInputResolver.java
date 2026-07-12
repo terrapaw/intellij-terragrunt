@@ -191,8 +191,16 @@ public class TerragruntInputResolver {
             PsiFile included = TerragruntFileResolver.resolveInclude(block);
             if (included == null) return null;
 
-            if (!"locals".equals(parts[2])) return null;
-            return resolveDeepLocalsChain(included, parts, 3, rootFile, maxDepth);
+            if ("locals".equals(parts[2])) {
+                return resolveDeepLocalsChain(included, parts, 3, rootFile, maxDepth);
+            } else if ("inputs".equals(parts[2])) {
+                String inputKey = parts[3];
+                PsiElement inputValue = findInputValue(included, inputKey);
+                if (inputValue != null) {
+                    return deepResolve(inputValue.getText().trim(), included, rootFile, maxDepth);
+                }
+            }
+            return null;
         }
         return null;
     }

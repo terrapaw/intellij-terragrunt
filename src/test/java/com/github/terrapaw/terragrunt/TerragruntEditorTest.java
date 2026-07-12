@@ -690,4 +690,33 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         assertEquals("production", map.get("test_val"));
         assertEquals("ap-southeast-2", map.get("reg"));
     }
+
+    public void testInputResolverIncludeInputsResolution() {
+        // include.root.inputs.default_tags should resolve from the included file's inputs
+        myFixture.addFileToProject("ir-inc-inputs/root.hcl", """
+                inputs = {
+                  default_tags = {
+                    team = "platform"
+                    env  = "prod"
+                  }
+                  region = "ap-southeast-2"
+                }
+                """);
+        var file = myFixture.addFileToProject("ir-inc-inputs/app/terragrunt.hcl", """
+                include "root" {
+                  path = "../root.hcl"
+                }
+                
+                inputs = {
+                  tags = include.root.inputs.default_tags
+                  reg  = include.root.inputs.region
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
+        var map = new java.util.LinkedHashMap<String, String>();
+        for (var entry : inputs) map.put(entry.key(), entry.resolved());
+        assertTrue("tags should contain team, got: " + map.get("tags"), map.get("tags").contains("team"));
+        assertEquals("ap-southeast-2", map.get("reg"));
+    }
 }
