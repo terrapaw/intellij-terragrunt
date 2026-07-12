@@ -8,7 +8,7 @@
 - Unused local variables (cross-file) inspection — scans entire project for references (disabled by default, enable in Settings → Inspections)
 - Duplicate attributes inspection — flags same key appearing twice in the same block body
 - Unused dependencies inspection — flags `dependency` blocks whose label is never referenced via `dependency.X`
-- Input calculator tool window (View → Tool Windows → Terragrunt Inputs) — shows final merged inputs with deep recursive resolution through local chains, include chains, and interpolated strings. Live updates on typing, pin support.
+- Input calculator tool window (View → Tool Windows → Terragrunt Inputs) — shows final merged inputs with deep recursive resolution through local chains, include chains, interpolated strings, and `include.X.inputs.Y`. Detail panel for objects, right-click "Jump to Input" navigation, pin support.
 - Autoinclude support — `autoinclude` block recognized inside `unit`/`stack` blocks, `unit.<name>.path` and `stack.<name>.path` completion and navigation, inspection flags invalid content (locals/values/nested autoinclude)
 
 ### Fixed

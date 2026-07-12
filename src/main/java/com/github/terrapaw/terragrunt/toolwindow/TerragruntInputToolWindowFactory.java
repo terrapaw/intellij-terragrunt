@@ -27,7 +27,7 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
-        String[] columns = {"Key", "Raw Value", "Computed Value", "Source"};
+        String[] columns = {"Input", "Raw Value", "Computed Value", "Source"};
         DefaultTableModel model = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) { return false; }
@@ -38,6 +38,137 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
         table.getColumnModel().getColumn(1).setPreferredWidth(250);
         table.getColumnModel().getColumn(2).setPreferredWidth(200);
         table.getColumnModel().getColumn(3).setPreferredWidth(130);
+
+        // Detail panel: shows full value when a row is selected
+        javax.swing.JTextArea detailArea = new javax.swing.JTextArea(4, 40);
+        detailArea.setEditable(false);
+        detailArea.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, 12));
+        detailArea.setLineWrap(true);
+        detailArea.setWrapStyleWord(true);
+        JScrollPane detailScroll = new JScrollPane(detailArea);
+        detailScroll.setBorder(BorderFactory.createTitledBorder("Value Detail"));
+
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting()) return;
+            int row = table.getSelectedRow();
+            if (row >= 0 && row < model.getRowCount()) {
+                String computed = String.valueOf(model.getValueAt(row, 2));
+                detailArea.setText(computed);
+                detailArea.setCaretPosition(0);
+            } else {
+                detailArea.setText("");
+            }
+        });
+
+        // Copy selected cell value (not entire row) on Ctrl+C
+        table.setCellSelectionEnabled(true);
+        javax.swing.KeyStroke copy = javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_C, java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx());
+        table.getInputMap().put(copy, "copyCell");
+        table.getActionMap().put("copyCell", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                int[] selectedRows = table.getSelectedRows();
+                int[] selectedCols = table.getSelectedColumns();
+                if (selectedRows.length == 0 || selectedCols.length == 0) return;
+
+                String value;
+                if (selectedCols.length == model.getColumnCount() && selectedRows.length == 1) {
+                    // Full row selected — copy all columns tab-separated
+                    int row = selectedRows[0];
+                    StringBuilder sb = new StringBuilder();
+                    for (int col = 0; col < model.getColumnCount(); col++) {
+                        if (col > 0) sb.append("\t");
+                        sb.append(String.valueOf(model.getValueAt(row, col)));
+                    }
+                    value = sb.toString();
+                } else if (selectedRows.length == model.getRowCount() && selectedCols.length == 1) {
+                    // Full column selected — copy all rows newline-separated
+                    int col = selectedCols[0];
+                    StringBuilder sb = new StringBuilder();
+                    for (int row : selectedRows) {
+                        if (sb.length() > 0) sb.append("\n");
+                        sb.append(String.valueOf(model.getValueAt(row, col)));
+                    }
+                    value = sb.toString();
+                } else if (selectedRows.length == 1 && selectedCols.length == 1) {
+                    // Single cell
+                    value = String.valueOf(model.getValueAt(selectedRows[0], selectedCols[0]));
+                } else {
+                    // Multi-selection — copy as grid
+                    StringBuilder sb = new StringBuilder();
+                    for (int row : selectedRows) {
+                        if (sb.length() > 0) sb.append("\n");
+                        for (int i = 0; i < selectedCols.length; i++) {
+                            if (i > 0) sb.append("\t");
+                            sb.append(String.valueOf(model.getValueAt(row, selectedCols[i])));
+                        }
+                    }
+                    value = sb.toString();
+                }
+                java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(value);
+                java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
+            }
+        });
+
+        // Double-click selects entire row and copies all columns
+        table.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    int row = table.getSelectedRow();
+                    if (row >= 0) {
+                        table.setRowSelectionInterval(row, row);
+                        table.setColumnSelectionInterval(0, model.getColumnCount() - 1);
+                        StringBuilder sb = new StringBuilder();
+                        for (int col = 0; col < model.getColumnCount(); col++) {
+                            if (col > 0) sb.append("\t");
+                            sb.append(String.valueOf(model.getValueAt(row, col)));
+                        }
+                        java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(sb.toString());
+                        java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
+                    }
+                }
+            }
+        });
+
+        // Click column header to select entire column
+        table.getTableHeader().addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                int col = table.columnAtPoint(e.getPoint());
+                if (col >= 0) {
+                    table.setRowSelectionInterval(0, model.getRowCount() - 1);
+                    table.setColumnSelectionInterval(col, col);
+                }
+            }
+        });
+
+        // Right-click context menu with "Jump to Input"
+        javax.swing.JPopupMenu popupMenu = new javax.swing.JPopupMenu();
+        javax.swing.JMenuItem jumpItem = new javax.swing.JMenuItem("Jump to Input");
+        jumpItem.addActionListener(ev -> {
+            int row = table.getSelectedRow();
+            if (row < 0) return;
+            String inputName = String.valueOf(model.getValueAt(row, 0));
+            String source = String.valueOf(model.getValueAt(row, 3));
+            VirtualFile targetFile;
+            if ("current file".equals(source)) {
+                VirtualFile[] sel = FileEditorManager.getInstance(project).getSelectedFiles();
+                targetFile = pinnedFile != null ? pinnedFile : (sel.length > 0 ? sel[0] : null);
+            } else {
+                // Source is like 'include "root"' — resolve include
+                targetFile = pinnedFile != null ? pinnedFile :
+                        (FileEditorManager.getInstance(project).getSelectedFiles().length > 0 ?
+                                FileEditorManager.getInstance(project).getSelectedFiles()[0] : null);
+            }
+            if (targetFile == null) return;
+            PsiFile psiFile = PsiManager.getInstance(project).findFile(targetFile);
+            if (psiFile == null) return;
+            // Find the input key in the file
+            navigateToInput(project, psiFile, inputName, source);
+        });
+        popupMenu.add(jumpItem);
+        table.setComponentPopupMenu(popupMenu);
 
         JLabel header = new JLabel("Open a Terragrunt file to see computed inputs");
         header.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
@@ -69,7 +200,11 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
 
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(new JScrollPane(table), BorderLayout.CENTER);
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                new JScrollPane(table), detailScroll);
+        splitPane.setResizeWeight(0.7);
+        panel.add(splitPane, BorderLayout.CENTER);
 
         Content content = ContentFactory.getInstance().createContent(panel, "", false);
         toolWindow.getContentManager().addContent(content);
@@ -157,5 +292,41 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
                     }
                 })
                 .submit(com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService());
+    }
+
+    private void navigateToInput(Project project, PsiFile file, String inputName, String source) {
+        PsiFile targetFile = file;
+        // If source is an include, resolve to the included file
+        if (source.startsWith("include")) {
+            String includeName = source.replaceAll("include\\s*\"([^\"]+)\"", "$1");
+            for (com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock block :
+                    com.intellij.psi.util.PsiTreeUtil.findChildrenOfType(file, com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock.class)) {
+                if (!"include".equals(com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil.getBlockType(block))) continue;
+                var labels = block.getLabelList();
+                if (!labels.isEmpty() && includeName.equals(com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil.getLabelText(labels.get(0)))) {
+                    PsiFile resolved = com.github.terrapaw.terragrunt.reference.TerragruntFileResolver.resolveInclude(block);
+                    if (resolved != null) targetFile = resolved;
+                    break;
+                }
+            }
+        }
+
+        // Find the input key in the inputs block
+        for (com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute attr :
+                TerragruntInputResolver.getTopLevelAttributes(targetFile)) {
+            if (!"inputs".equals(attr.getIdentifier().getText())) continue;
+            var obj = com.intellij.psi.util.PsiTreeUtil.findChildOfType(attr, com.github.terrapaw.terragrunt.lang.psi.TerragruntObjectExpr.class);
+            if (obj == null) continue;
+            for (var elem : com.intellij.psi.util.PsiTreeUtil.getChildrenOfTypeAsList(obj, com.github.terrapaw.terragrunt.lang.psi.TerragruntObjectElem.class)) {
+                var id = elem.getIdentifier();
+                if (id != null && inputName.equals(id.getText())) {
+                    // Navigate
+                    com.intellij.openapi.fileEditor.OpenFileDescriptor descriptor = new com.intellij.openapi.fileEditor.OpenFileDescriptor(
+                            project, targetFile.getVirtualFile(), id.getTextOffset());
+                    descriptor.navigate(true);
+                    return;
+                }
+            }
+        }
     }
 }
