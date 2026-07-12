@@ -60,6 +60,23 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
             }
         });
 
+        // Copy selected cell value (not entire row) on Ctrl+C
+        table.setCellSelectionEnabled(true);
+        javax.swing.KeyStroke copy = javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_C, java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx());
+        table.getInputMap().put(copy, "copyCell");
+        table.getActionMap().put("copyCell", new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                int row = table.getSelectedRow();
+                int col = table.getSelectedColumn();
+                if (row >= 0 && col >= 0) {
+                    String value = String.valueOf(model.getValueAt(row, col));
+                    java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(value);
+                    java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
+                }
+            }
+        });
+
         JLabel header = new JLabel("Open a Terragrunt file to see computed inputs");
         header.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
