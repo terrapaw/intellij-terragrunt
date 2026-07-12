@@ -124,6 +124,13 @@ public class TerragruntInputResolver {
                     if (parts.length >= 3 && "locals".equals(parts[1])) {
                         // local.X.locals.Y[.locals.Z...]
                         return resolveDeepLocalsChain(resolved, parts, 2, rootFile, maxDepth - 1);
+                    } else if (parts.length >= 3 && "inputs".equals(parts[1])) {
+                        // local.X.inputs.Y — find in inputs map of resolved file
+                        String inputKey = parts[2];
+                        PsiElement inputValue = findInputValue(resolved, inputKey);
+                        if (inputValue != null) {
+                            return deepResolve(inputValue.getText().trim(), resolved, rootFile, maxDepth - 1);
+                        }
                     } else if (parts.length == 2) {
                         TerragruntAttribute attr = TerragruntFileResolver.findLocalAttribute(resolved, parts[1]);
                         if (attr != null && attr.getExpression() != null) {
@@ -244,6 +251,24 @@ public class TerragruntInputResolver {
             sb.append(parts[i]);
         }
         return sb.toString();
+    }
+
+    @org.jetbrains.annotations.Nullable
+    private static PsiElement findInputValue(PsiFile file, String key) {
+        // Find inputs = { ... } top-level attribute and look for the key
+        for (TerragruntAttribute attr : getTopLevelAttributes(file)) {
+            if (!"inputs".equals(attr.getIdentifier().getText())) continue;
+            TerragruntObjectExpr obj = PsiTreeUtil.findChildOfType(attr, TerragruntObjectExpr.class);
+            if (obj == null) continue;
+            for (TerragruntObjectElem elem : PsiTreeUtil.getChildrenOfTypeAsList(obj, TerragruntObjectElem.class)) {
+                String elemKey = getElemKey(elem);
+                if (key.equals(elemKey)) {
+                    var exprs = elem.getExpressionList();
+                    return exprs.size() >= 2 ? exprs.get(1) : (exprs.size() == 1 ? exprs.get(0) : null);
+                }
+            }
+        }
+        return null;
     }
 
     private static String simplifyExpression(TerragruntExpression expr) {

@@ -660,4 +660,34 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         for (var entry : inputs) map.put(entry.key(), entry.resolved());
         assertEquals("prod-us-east-1-bucket", map.get("bucket_name"));
     }
+
+    public void testInputResolverLocalInputsResolution() {
+        // local.env_config.inputs.test should resolve through read_terragrunt_config
+        myFixture.addFileToProject("ir-inputs/root.hcl", """
+                locals {
+                  env = "production"
+                }
+                
+                inputs = {
+                  test    = local.env
+                  region  = "ap-southeast-2"
+                }
+                """);
+        var file = myFixture.addFileToProject("ir-inputs/app/terragrunt.hcl", """
+                locals {
+                  env_config = read_terragrunt_config("../root.hcl")
+                }
+                
+                inputs = {
+                  test_val = local.env_config.inputs.test
+                  reg      = local.env_config.inputs.region
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
+        var map = new java.util.LinkedHashMap<String, String>();
+        for (var entry : inputs) map.put(entry.key(), entry.resolved());
+        assertEquals("production", map.get("test_val"));
+        assertEquals("ap-southeast-2", map.get("reg"));
+    }
 }
