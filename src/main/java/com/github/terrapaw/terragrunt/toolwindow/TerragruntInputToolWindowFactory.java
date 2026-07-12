@@ -27,7 +27,7 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
-        String[] columns = {"Key", "Raw Value", "Computed Value", "Source"};
+        String[] columns = {"Input", "Raw Value", "Computed Value", "Source"};
         DefaultTableModel model = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) { return false; }
@@ -142,6 +142,33 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
                 }
             }
         });
+
+        // Right-click context menu with "Jump to Input"
+        javax.swing.JPopupMenu popupMenu = new javax.swing.JPopupMenu();
+        javax.swing.JMenuItem jumpItem = new javax.swing.JMenuItem("Jump to Input");
+        jumpItem.addActionListener(ev -> {
+            int row = table.getSelectedRow();
+            if (row < 0) return;
+            String inputName = String.valueOf(model.getValueAt(row, 0));
+            String source = String.valueOf(model.getValueAt(row, 3));
+            VirtualFile targetFile;
+            if ("current file".equals(source)) {
+                VirtualFile[] sel = FileEditorManager.getInstance(project).getSelectedFiles();
+                targetFile = pinnedFile != null ? pinnedFile : (sel.length > 0 ? sel[0] : null);
+            } else {
+                // Source is like 'include "root"' — resolve include
+                targetFile = pinnedFile != null ? pinnedFile :
+                        (FileEditorManager.getInstance(project).getSelectedFiles().length > 0 ?
+                                FileEditorManager.getInstance(project).getSelectedFiles()[0] : null);
+            }
+            if (targetFile == null) return;
+            PsiFile psiFile = PsiManager.getInstance(project).findFile(targetFile);
+            if (psiFile == null) return;
+            // Find the input key in the file
+            navigateToInput(project, psiFile, inputName, source);
+        });
+        popupMenu.add(jumpItem);
+        table.setComponentPopupMenu(popupMenu);
 
         JLabel header = new JLabel("Open a Terragrunt file to see computed inputs");
         header.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
@@ -265,5 +292,41 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
                     }
                 })
                 .submit(com.intellij.util.concurrency.AppExecutorUtil.getAppExecutorService());
+    }
+
+    private void navigateToInput(Project project, PsiFile file, String inputName, String source) {
+        PsiFile targetFile = file;
+        // If source is an include, resolve to the included file
+        if (source.startsWith("include")) {
+            String includeName = source.replaceAll("include\\s*\"([^\"]+)\"", "$1");
+            for (com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock block :
+                    com.intellij.psi.util.PsiTreeUtil.findChildrenOfType(file, com.github.terrapaw.terragrunt.lang.psi.TerragruntBlock.class)) {
+                if (!"include".equals(com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil.getBlockType(block))) continue;
+                var labels = block.getLabelList();
+                if (!labels.isEmpty() && includeName.equals(com.github.terrapaw.terragrunt.lang.TerragruntPsiUtil.getLabelText(labels.get(0)))) {
+                    PsiFile resolved = com.github.terrapaw.terragrunt.reference.TerragruntFileResolver.resolveInclude(block);
+                    if (resolved != null) targetFile = resolved;
+                    break;
+                }
+            }
+        }
+
+        // Find the input key in the inputs block
+        for (com.github.terrapaw.terragrunt.lang.psi.TerragruntAttribute attr :
+                TerragruntInputResolver.getTopLevelAttributes(targetFile)) {
+            if (!"inputs".equals(attr.getIdentifier().getText())) continue;
+            var obj = com.intellij.psi.util.PsiTreeUtil.findChildOfType(attr, com.github.terrapaw.terragrunt.lang.psi.TerragruntObjectExpr.class);
+            if (obj == null) continue;
+            for (var elem : com.intellij.psi.util.PsiTreeUtil.getChildrenOfTypeAsList(obj, com.github.terrapaw.terragrunt.lang.psi.TerragruntObjectElem.class)) {
+                var id = elem.getIdentifier();
+                if (id != null && inputName.equals(id.getText())) {
+                    // Navigate
+                    com.intellij.openapi.fileEditor.OpenFileDescriptor descriptor = new com.intellij.openapi.fileEditor.OpenFileDescriptor(
+                            project, targetFile.getVirtualFile(), id.getTextOffset());
+                    descriptor.navigate(true);
+                    return;
+                }
+            }
+        }
     }
 }

@@ -300,7 +300,7 @@ public class TerragruntInputResolver {
         return simplifyText(expr.getText().trim());
     }
 
-    private static List<TerragruntAttribute> getTopLevelAttributes(PsiFile file) {
+    static List<TerragruntAttribute> getTopLevelAttributes(PsiFile file) {
         List<TerragruntAttribute> attrs = new ArrayList<>();
         for (PsiElement child : file.getChildren()) {
             if (child instanceof TerragruntAttribute attr) {
