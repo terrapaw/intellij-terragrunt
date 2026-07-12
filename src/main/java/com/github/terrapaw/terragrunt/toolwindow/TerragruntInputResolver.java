@@ -249,6 +249,23 @@ public class TerragruntInputResolver {
         if (text.startsWith("\"") && text.endsWith("\"") && !text.contains("${")) {
             return text.substring(1, text.length() - 1);
         }
+        // Normalize indentation for objects/lists using brace depth
+        if ((text.startsWith("{") || text.startsWith("[")) && text.contains("\n")) {
+            String[] lines = text.split("\n");
+            StringBuilder result = new StringBuilder();
+            int depth = 0;
+            for (String line : lines) {
+                String trimmed = line.trim();
+                if (trimmed.isEmpty()) continue;
+                // Decrease depth before closing braces
+                if (trimmed.startsWith("}") || trimmed.startsWith("]")) depth--;
+                if (depth < 0) depth = 0;
+                result.append("  ".repeat(depth)).append(trimmed).append("\n");
+                // Increase depth after opening braces
+                if (trimmed.endsWith("{") || trimmed.endsWith("[")) depth++;
+            }
+            return result.toString().stripTrailing();
+        }
         return text;
     }
 
