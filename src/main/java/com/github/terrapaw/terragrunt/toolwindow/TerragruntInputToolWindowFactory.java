@@ -77,6 +77,27 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
             }
         });
 
+        // Double-click selects entire row and copies all columns
+        table.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    int row = table.getSelectedRow();
+                    if (row >= 0) {
+                        table.setRowSelectionInterval(row, row);
+                        table.setColumnSelectionInterval(0, model.getColumnCount() - 1);
+                        StringBuilder sb = new StringBuilder();
+                        for (int col = 0; col < model.getColumnCount(); col++) {
+                            if (col > 0) sb.append("\t");
+                            sb.append(String.valueOf(model.getValueAt(row, col)));
+                        }
+                        java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(sb.toString());
+                        java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
+                    }
+                }
+            }
+        });
+
         JLabel header = new JLabel("Open a Terragrunt file to see computed inputs");
         header.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
