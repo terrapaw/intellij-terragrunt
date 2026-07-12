@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-12
+
 ### Added
 - File path auto-completion inside `include` path, `dependency` config_path, `terraform` source, and `read_terragrunt_config()` — type `../` or `${get_repo_root()}/` to get file/directory suggestions with function evaluation (auto-popup on `/`)
 - Unused local variables inspection — flags `locals` attributes not referenced via `local.X` (skips shared configs)
