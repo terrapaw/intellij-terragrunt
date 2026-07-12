@@ -68,12 +68,24 @@ public class TerragruntInputToolWindowFactory implements ToolWindowFactory {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 int row = table.getSelectedRow();
-                int col = table.getSelectedColumn();
-                if (row >= 0 && col >= 0) {
-                    String value = String.valueOf(model.getValueAt(row, col));
-                    java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(value);
-                    java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
+                if (row < 0) return;
+                int[] selectedCols = table.getSelectedColumns();
+                String value;
+                if (selectedCols.length == model.getColumnCount()) {
+                    // Full row selected — copy all columns tab-separated
+                    StringBuilder sb = new StringBuilder();
+                    for (int col = 0; col < model.getColumnCount(); col++) {
+                        if (col > 0) sb.append("\t");
+                        sb.append(String.valueOf(model.getValueAt(row, col)));
+                    }
+                    value = sb.toString();
+                } else {
+                    // Single cell — copy just that cell
+                    int col = table.getSelectedColumn();
+                    value = col >= 0 ? String.valueOf(model.getValueAt(row, col)) : "";
                 }
+                java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(value);
+                java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
             }
         });
 
