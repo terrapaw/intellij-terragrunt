@@ -607,4 +607,57 @@ public class TerragruntEditorTest extends BasePlatformTestCase {
         assertEquals("production", map.get("environment"));
         assertEquals("production-app", map.get("bucket_name"));
     }
+
+    public void testInputResolverDeepInterpolationMultipleRefs() {
+        // local.abc resolves to an interpolated string that itself references other locals
+        var file = myFixture.addFileToProject("ir-multi-interp/terragrunt.hcl", """
+                locals {
+                  env    = "prod"
+                  region = "us-east-1"
+                  prefix = "${local.env}-${local.region}"
+                  name   = "${local.prefix}-bucket"
+                }
+                
+                inputs = {
+                  bucket = local.name
+                  tag    = "${local.env}/${local.region}"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
+        var map = new java.util.LinkedHashMap<String, String>();
+        for (var entry : inputs) map.put(entry.key(), entry.resolved());
+        assertEquals("prod-us-east-1-bucket", map.get("bucket"));
+        assertEquals("prod/us-east-1", map.get("tag"));
+    }
+
+    public void testInputResolverCrossFileDeepInterpolation() {
+        // Locals in included file resolve to interpolated strings
+        myFixture.addFileToProject("ir-xfile-interp/root.hcl", """
+                locals {
+                  env    = "prod"
+                  region = "us-east-1"
+                  prefix = "${local.env}-${local.region}"
+                }
+                """);
+        var file = myFixture.addFileToProject("ir-xfile-interp/app/terragrunt.hcl", """
+                include "common" {
+                  path = "../root.hcl"
+                }
+                
+                locals {
+                  common = read_terragrunt_config("../root.hcl")
+                  bucket = "${local.common.locals.prefix}-bucket"
+                }
+                
+                inputs = {
+                  bucket_name = local.bucket
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(file.getVirtualFile());
+        var inputs = com.github.terrapaw.terragrunt.toolwindow.TerragruntInputResolver.resolveInputs(myFixture.getFile());
+        var map = new java.util.LinkedHashMap<String, String>();
+        for (var entry : inputs) map.put(entry.key(), entry.resolved());
+        assertEquals("prod-us-east-1-bucket", map.get("bucket_name"));
+    }
 }
