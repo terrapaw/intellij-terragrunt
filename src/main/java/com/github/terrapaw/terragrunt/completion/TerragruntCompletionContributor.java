@@ -118,14 +118,29 @@ public class TerragruntCompletionContributor extends CompletionContributor {
                         String filePrefix = getFilenamePrefixAtCaret(position, parameters.getOffset());
                         CompletionResultSet pathResult = result.withPrefixMatcher(filePrefix != null ? filePrefix : "");
 
+                        // Determine if this is a config_path (only show directories)
+                        boolean isConfigPath = false;
+                        TerragruntAttribute pathAttr = PsiTreeUtil.getParentOfType(position, TerragruntAttribute.class);
+                        if (pathAttr != null && "config_path".equals(pathAttr.getIdentifier().getText())) {
+                            isConfigPath = true;
+                        }
+
                         // List children and offer as completions
                         for (com.intellij.openapi.vfs.VirtualFile child : dir.getChildren()) {
                             if (child.getName().startsWith(".") && !child.getName().equals(".terragrunt-stack")) continue;
+                            if (isConfigPath && !child.isDirectory()) continue;
                             var icon = child.isDirectory()
                                     ? com.intellij.icons.AllIcons.Nodes.Folder
                                     : com.intellij.icons.AllIcons.FileTypes.Any_type;
+                            // For config_path, highlight dirs that contain terragrunt.hcl
+                            String typeText = "";
+                            if (isConfigPath && child.isDirectory() && child.findChild("terragrunt.hcl") != null) {
+                                typeText = "terragrunt unit";
+                            }
                             pathResult.addElement(LookupElementBuilder.create(child.getName())
                                     .withIcon(icon)
+                                    .withTypeText(typeText.isEmpty() ? null : typeText, true)
+                                    .withBoldness(!typeText.isEmpty())
                                     .withInsertHandler(child.isDirectory() ? (ctx, item) -> {
                                         ctx.getDocument().insertString(ctx.getTailOffset(), "/");
                                         ctx.getEditor().getCaretModel().moveToOffset(ctx.getTailOffset());

@@ -1333,4 +1333,73 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         assertTrue("Usage should be renamed, got: " + result, result.contains("local.config.options"));
         assertTrue("Inner keys should be unchanged", result.contains("a = 1"));
     }
+
+    public void testRenameDependencyLabel() {
+        myFixture.configureByText("terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../vpc"
+                }
+                
+                inputs = {
+                  vpc_id = dependency.vpc.outputs.vpc_id
+                  subnet = dependency.vpc.outputs.subnet_id
+                }
+                """);
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("\"vpc\"") + 1;
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "vpc", "network");
+
+        String result = myFixture.getEditor().getDocument().getText();
+        assertTrue("Label should be renamed, got: " + result, result.contains("dependency \"network\""));
+        assertTrue("Usage should be renamed, got: " + result, result.contains("dependency.network.outputs.vpc_id"));
+        assertTrue("Second usage too, got: " + result, result.contains("dependency.network.outputs.subnet_id"));
+        assertFalse("No old name remaining", result.contains("dependency.vpc"));
+    }
+
+    public void testRenameFeatureLabel() {
+        myFixture.configureByText("terragrunt.hcl", """
+                feature "enable_monitoring" {
+                  default = true
+                }
+                
+                inputs = {
+                  monitor = feature.enable_monitoring.value
+                }
+                """);
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("\"enable_monitoring\"") + 1;
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "enable_monitoring", "monitoring_enabled");
+
+        String result = myFixture.getEditor().getDocument().getText();
+        assertTrue("Label should be renamed", result.contains("feature \"monitoring_enabled\""));
+        assertTrue("Usage should be renamed", result.contains("feature.monitoring_enabled.value"));
+    }
+
+    public void testRenameIncludeLabel() {
+        myFixture.configureByText("terragrunt.hcl", """
+                include "root" {
+                  path = find_in_parent_folders("root.hcl")
+                }
+                
+                locals {
+                  region = include.root.locals.region
+                }
+                """);
+        int offset = myFixture.getEditor().getDocument().getText().indexOf("\"root\"") + 1;
+        myFixture.getEditor().getCaretModel().moveToOffset(offset);
+
+        var handler = new TerragruntRenameHandler();
+        handler.performRenameForTest(getProject(), myFixture.getFile(),
+                myFixture.getFile().findElementAt(offset), "root", "base");
+
+        String result = myFixture.getEditor().getDocument().getText();
+        assertTrue("Label should be renamed", result.contains("include \"base\""));
+        assertTrue("Usage should be renamed", result.contains("include.base.locals.region"));
+    }
 }
