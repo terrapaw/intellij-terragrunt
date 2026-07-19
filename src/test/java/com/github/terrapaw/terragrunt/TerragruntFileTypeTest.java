@@ -32,12 +32,6 @@ public class TerragruntFileTypeTest extends BasePlatformTestCase {
                 TerragruntFileType.INSTANCE, envFile.getFileType());
     }
 
-    public void testHclFileWithTerragruntContentDetected() {
-        PsiFile file = myFixture.configureByText("custom.hcl", "include \"root\" { path = \"x\" }");
-        assertEquals("HCL file with include block should be Terragrunt",
-                TerragruntFileType.INSTANCE, file.getFileType());
-    }
-
     public void testHclFileDetectedByOverriderNearTerragruntFiles() {
         myFixture.addFileToProject("root.hcl", "locals { x = 1 }");
         PsiFile customFile = myFixture.addFileToProject("custom-config.hcl", "locals { env = \"dev\" }");

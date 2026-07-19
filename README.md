@@ -78,8 +78,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
 
 The plugin activates for:
 - Files named `terragrunt.hcl`, `root.hcl`, `terragrunt.stack.hcl`, `terragrunt.values.hcl`, `terragrunt.autoinclude.hcl`, or `terragrunt.autoinclude.stack.hcl`
-- Any `.hcl` file containing Terragrunt-specific blocks (content heuristic)
-- Any `.hcl` file in a directory (or parent directories) containing Terragrunt files
+- Any `.hcl` file in a directory (or parent directories) containing Terragrunt marker files (configurable in Settings → Languages & Frameworks → Terragrunt)
 
 ## Building
 
