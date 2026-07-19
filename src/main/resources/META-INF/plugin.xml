@@ -11,7 +11,6 @@
                   language="Terragrunt"
                   fileNames="terragrunt.hcl;root.hcl;terragrunt.stack.hcl;terragrunt.values.hcl"
                   extensions=""/>
-        <fileTypeDetector implementation="com.github.terrapaw.terragrunt.lang.TerragruntFileTypeDetector"/>
         <fileTypeOverrider implementation="com.github.terrapaw.terragrunt.lang.TerragruntFileTypeOverrider"/>
         <lang.parserDefinition language="Terragrunt"
                                implementationClass="com.github.terrapaw.terragrunt.lang.TerragruntParserDefinition"/>
