@@ -161,6 +161,18 @@ public class TerragruntRenameHandler implements RenameHandler {
             }
         }
 
+        // Case 5: On a block label (dependency "vpc", include "root", feature "flag")
+        TerragruntLabel label = PsiTreeUtil.getParentOfType(element, TerragruntLabel.class);
+        if (label != null) {
+            TerragruntBlock block = PsiTreeUtil.getParentOfType(label, TerragruntBlock.class);
+            if (block != null) {
+                String blockType = TerragruntPsiUtil.getBlockType(block);
+                if ("dependency".equals(blockType) || "include".equals(blockType) || "feature".equals(blockType)) {
+                    return element;
+                }
+            }
+        }
+
         return null;
     }
 
@@ -171,6 +183,19 @@ public class TerragruntRenameHandler implements RenameHandler {
     public void performRenameForTest(Project project, PsiFile file, PsiElement source, String oldName, String newName) {
         List<PsiElement> elementsToRename = new ArrayList<>();
         List<PsiElement> crossFileElements = new ArrayList<>();
+
+        // Case: Renaming a block label (dependency "vpc", include "root", feature "flag")
+        TerragruntLabel label = PsiTreeUtil.getParentOfType(source, TerragruntLabel.class);
+        if (label != null) {
+            TerragruntBlock block = PsiTreeUtil.getParentOfType(label, TerragruntBlock.class);
+            if (block != null) {
+                String blockType = TerragruntPsiUtil.getBlockType(block);
+                if ("dependency".equals(blockType) || "include".equals(blockType) || "feature".equals(blockType)) {
+                    performLabelRename(project, file, block, blockType, oldName, newName);
+                    return;
+                }
+            }
+        }
 
         // Determine rename type based on source context
         boolean isInputsKey = false;
@@ -956,5 +981,80 @@ public class TerragruntRenameHandler implements RenameHandler {
                 }
             }
         }
+    }
+
+    private void performLabelRename(Project project, PsiFile file, TerragruntBlock block,
+                                     String blockType, String oldName, String newName) {
+        List<PsiElement> usages = new ArrayList<>();
+
+        // Find all usages of this label: dependency.X, include.X, feature.X
+        for (TerragruntGetAttr getAttr : PsiTreeUtil.findChildrenOfType(file, TerragruntGetAttr.class)) {
+            if (!oldName.equals(getAttr.getIdentifier().getText())) continue;
+            PsiElement parent = getAttr.getParent();
+            if (!(parent instanceof TerragruntPostfixExpr postfix)) continue;
+            TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+            if (primary == null) continue;
+            TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+            if (varExpr == null) continue;
+            if (!blockType.equals(varExpr.getIdentifier().getText())) continue;
+            // This is the first get_attr (the label reference)
+            PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+            if (getAttrs != null && getAttrs.length > 0 && getAttrs[0] == getAttr) {
+                usages.add(getAttr.getIdentifier());
+            }
+        }
+
+        // Also find usages in read_terragrunt_config alias patterns for includes
+        // e.g. local.X where X = include.oldName.locals
+        if ("include".equals(blockType)) {
+            for (TerragruntBlock localsBlock : PsiTreeUtil.findChildrenOfType(file, TerragruntBlock.class)) {
+                if (!"locals".equals(TerragruntPsiUtil.getBlockType(localsBlock))) continue;
+                TerragruntBody body = localsBlock.getBody();
+                if (body == null) continue;
+                for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+                    TerragruntPostfixExpr postfix = PsiTreeUtil.findChildOfType(attr, TerragruntPostfixExpr.class);
+                    if (postfix == null) continue;
+                    TerragruntPrimaryExpr primary = PsiTreeUtil.getChildOfType(postfix, TerragruntPrimaryExpr.class);
+                    if (primary == null) continue;
+                    TerragruntVariableExpr varExpr = PsiTreeUtil.getChildOfType(primary, TerragruntVariableExpr.class);
+                    if (varExpr == null || !"include".equals(varExpr.getIdentifier().getText())) continue;
+                    PsiElement[] getAttrs = PsiTreeUtil.getChildrenOfType(postfix, TerragruntGetAttr.class);
+                    if (getAttrs != null && getAttrs.length > 0) {
+                        if (oldName.equals(((TerragruntGetAttr) getAttrs[0]).getIdentifier().getText())) {
+                            usages.add(((TerragruntGetAttr) getAttrs[0]).getIdentifier());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Perform the rename
+        WriteCommandAction.runWriteCommandAction(project, () -> {
+            var document = file.getViewProvider().getDocument();
+            if (document == null) return;
+
+            // Collect all elements (label + usages), sort by reverse offset
+            List<PsiElement> all = new ArrayList<>(usages);
+
+            // Add the label itself
+            List<TerragruntLabel> labels = block.getLabelList();
+            if (!labels.isEmpty()) {
+                TerragruntLabel labelNode = labels.get(0);
+                // Find the STRING_LITERAL or IDENTIFIER inside the label
+                for (PsiElement child = labelNode.getFirstChild(); child != null; child = child.getNextSibling()) {
+                    if (child.getNode().getElementType() == TerragruntTypes.STRING_LITERAL ||
+                        child.getNode().getElementType() == TerragruntTypes.IDENTIFIER) {
+                        all.add(child);
+                        break;
+                    }
+                }
+            }
+
+            // Sort by reverse offset
+            all.sort((a, b) -> b.getTextOffset() - a.getTextOffset());
+            for (PsiElement el : all) {
+                replaceElementText(document, el, newName);
+            }
+        });
     }
 }

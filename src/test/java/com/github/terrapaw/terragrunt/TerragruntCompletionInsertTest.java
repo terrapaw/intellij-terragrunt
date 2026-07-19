@@ -527,4 +527,24 @@ public class TerragruntCompletionInsertTest extends BasePlatformTestCase {
         assertTrue("Should suggest envs, got: " + names, names.contains("envs"));
         assertTrue("Should suggest app, got: " + names, names.contains("app"));
     }
+
+    public void testConfigPathCompletionOnlyShowsDirs() {
+        // config_path should only show directories, not files
+        myFixture.addFileToProject("cp-test/vpc/terragrunt.hcl", "locals {}");
+        myFixture.addFileToProject("cp-test/rds/terragrunt.hcl", "locals {}");
+        myFixture.addFileToProject("cp-test/random-file.hcl", "locals {}");
+        var mainFile = myFixture.addFileToProject("cp-test/app/terragrunt.hcl", """
+                dependency "vpc" {
+                  config_path = "../<caret>"
+                }
+                """);
+        myFixture.configureFromExistingVirtualFile(mainFile.getVirtualFile());
+        var completions = myFixture.completeBasic();
+        assertNotNull("Should offer completions", completions);
+        java.util.List<String> names = java.util.List.of(completions).stream()
+                .map(l -> l.getLookupString()).toList();
+        assertTrue("Should suggest vpc dir, got: " + names, names.contains("vpc"));
+        assertTrue("Should suggest rds dir, got: " + names, names.contains("rds"));
+        assertFalse("Should NOT suggest files, got: " + names, names.contains("random-file.hcl"));
+    }
 }

@@ -25,12 +25,18 @@ public class TerragruntTypedHandler extends TypedHandlerDelegate {
         // Auto-popup completion after / in path strings
         if (c == '/') {
             int offset = editor.getCaretModel().getOffset();
-            if (offset > 0) {
-                var psi = file.findElementAt(offset - 1);
-                if (psi != null && psi.getNode().getElementType() == com.github.terrapaw.terragrunt.lang.psi.TerragruntTypes.STRING_LITERAL) {
-                    com.intellij.codeInsight.AutoPopupController.getInstance(project)
-                            .scheduleAutoPopup(editor, com.intellij.codeInsight.completion.CompletionType.BASIC, f -> f.getFileType() == TerragruntFileType.INSTANCE);
+            // Check if we're inside a quoted string by scanning backwards for an unmatched "
+            String text = editor.getDocument().getText();
+            boolean inString = false;
+            for (int i = offset - 1; i >= 0; i--) {
+                if (text.charAt(i) == '"' && (i == 0 || text.charAt(i - 1) != '\\')) {
+                    inString = !inString;
                 }
+                if (text.charAt(i) == '\n') break; // don't cross lines
+            }
+            if (inString) {
+                com.intellij.codeInsight.AutoPopupController.getInstance(project)
+                        .scheduleAutoPopup(editor, com.intellij.codeInsight.completion.CompletionType.BASIC, f -> f.getFileType() == TerragruntFileType.INSTANCE);
             }
         }
 

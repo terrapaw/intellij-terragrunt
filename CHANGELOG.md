@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- Rename block labels (Shift+F6) — rename dependency, include, and feature labels with all usages updated (`dependency.vpc.outputs.X`, `include.root.locals.Y`, `feature.flag.value`)
+- Dependency `config_path` completion now only shows directories and highlights those containing `terragrunt.hcl`
+
 ## [0.5.0] - 2026-07-12
 
 ### Added
