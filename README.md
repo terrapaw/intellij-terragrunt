@@ -48,7 +48,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Deep chain: `include.root.locals.env_config.locals.environment` → resolves through nested aliases at any depth
   - `dependency.vpc.outputs.vpc_id` → jumps to `vpc_id` in mock_outputs
   - `feature.flag.value` → jumps to `default` attribute in feature block
-  - `values.environment` → jumps to definition in `terragrunt.stack.hcl` unit values block
+  - `unit "vpc"` label in `terragrunt.stack.hcl` → navigate to the unit's `terragrunt.hcl`
   - From definition → find all usages (Ctrl+B on `app_name` in `locals`)
   - From label → find all usages (Ctrl+B on `"vpc"` in `dependency "vpc"`)
   - Cross-file find usages — finds both direct and aliased references across project
@@ -56,7 +56,7 @@ Terragrunt HCL language support for IntelliJ-based IDEs.
   - Rename local variables (Shift+F6) — updates definition, all `local.X` usages in current file, and cross-file usages (`include.X.locals.Y`, `local.alias.Y`, `local.alias.locals.Y`)
   - Rename inputs keys (Shift+F6) — updates definition and cross-file `include.X.inputs.Y` references
   - Rename nested object keys (Shift+F6) — updates definition and `local.attr.key` usages, works from both definition and usage side through alias chains
-  - Rename block labels (Shift+F6) — rename dependency, include, and feature labels with all usages updated
+  - Rename block labels (Shift+F6) — rename dependency, include, and feature labels with all usages updated (`dependency.vpc.outputs.X`, `include.root.locals.Y`, `feature.flag.value`)
 - **Documentation (Ctrl+Q)** — shows function signatures and descriptions
 - **Live templates** — `dep`, `inc`, `gen`, `feat`, `loc`, `inp` (type + Tab to expand)
 - **Formatter (Ctrl+Alt+L)** — auto-indents with 2 spaces (configurable in Settings → Code Style)
@@ -103,7 +103,7 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 ./gradlew test
 ```
 
-397 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
+398 tests covering lexer, parser, inspections, completion, navigation, formatting, and cross-file resolution.
 
 ## Installation
 
@@ -113,19 +113,20 @@ Launches a sandboxed IntelliJ instance with the plugin loaded.
 
 ## Requirements
 
-- IntelliJ IDEA 2025.1+
-- Java 21
+- IntelliJ IDEA 2026.3+
+- Java 25
 
 ## Releasing
 
 1. Update `version` in `build.gradle.kts`
-2. Commit and push to main
-3. Tag and push:
+2. Rename `[Unreleased]` to `[X.Y.Z]` in `CHANGELOG.md` and add a new `[Unreleased]` section at the top
+3. Commit and push to main
+4. Tag and push:
    ```bash
-   git tag v0.2.0
+   git tag -s vX.Y.Z -m "description"
    git push --tags
    ```
-4. GitHub Actions builds, tests, and creates a Release with the plugin zip attached
+5. GitHub Actions builds, verifies, and publishes to JetBrains Marketplace automatically
 
 ## Contributing
 

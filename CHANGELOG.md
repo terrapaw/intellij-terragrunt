@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-14
+
 ### Added
 - Marketplace error handler — uncaught exceptions and IDE freezes are now automatically reported to the plugin page on JetBrains Marketplace
 - Rename block labels (Shift+F6) — rename dependency, include, and feature labels with all usages updated (`dependency.vpc.outputs.X`, `include.root.locals.Y`, `feature.flag.value`)
