@@ -6,6 +6,7 @@
 - Marketplace error handler — uncaught exceptions and IDE freezes are now automatically reported to the plugin page on JetBrains Marketplace
 - Rename block labels (Shift+F6) — rename dependency, include, and feature labels with all usages updated (`dependency.vpc.outputs.X`, `include.root.locals.Y`, `feature.flag.value`)
 - Dependency `config_path` completion now only shows directories and highlights those containing `terragrunt.hcl`
+- Ctrl+B on a `unit "name"` label in `terragrunt.stack.hcl` navigates to the unit's `terragrunt.hcl`
 
 ### Changed
 - Upgraded to IntelliJ IDEA 2026.3 (unified platform — Community Edition discontinued from 2025.3+)

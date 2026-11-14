@@ -81,6 +81,9 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
                 if ("feature".equals(blockType) || "dependency".equals(blockType)) {
                     return findBlockReferenceUsages(file, blockType, labelName);
                 }
+                if ("unit".equals(blockType)) {
+                    return navigateToUnitSource(block, file);
+                }
             }
         }
 
@@ -1075,6 +1078,37 @@ public class TerragruntGotoDeclarationHandler implements GotoDeclarationHandler 
     private PsiElement[] resolveDependency(PsiFile file, String name) {
         TerragruntBlock block = TerragruntPsiUtil.findBlock(file, "dependency", name);
         return block != null ? new PsiElement[]{block} : null;
+    }
+
+    private PsiElement[] navigateToUnitSource(TerragruntBlock unitBlock, PsiFile stackFile) {
+        TerragruntBody body = unitBlock.getBody();
+        if (body == null) return null;
+        // Prefer "source" attribute; fall back to "path"
+        String sourcePath = null;
+        for (TerragruntAttribute attr : PsiTreeUtil.getChildrenOfTypeAsList(body, TerragruntAttribute.class)) {
+            String attrName = attr.getIdentifier().getText();
+            if ("source".equals(attrName) || ("path".equals(attrName) && sourcePath == null)) {
+                PsiElement value = attr.getLastChild();
+                if (value != null) {
+                    String raw = value.getText().replace("\"", "").trim();
+                    if ("source".equals(attrName)) { sourcePath = raw; break; }
+                    sourcePath = raw;
+                }
+            }
+        }
+        if (sourcePath == null) return null;
+
+        com.intellij.openapi.vfs.VirtualFile stackDir = stackFile.getVirtualFile().getParent();
+        if (stackDir == null) return null;
+
+        com.intellij.openapi.vfs.VirtualFile unitDir = stackDir.findFileByRelativePath(sourcePath);
+        if (unitDir == null || !unitDir.isDirectory()) return null;
+
+        com.intellij.openapi.vfs.VirtualFile unitHcl = unitDir.findChild("terragrunt.hcl");
+        if (unitHcl == null) return null;
+
+        PsiFile psiUnit = PsiManager.getInstance(stackFile.getProject()).findFile(unitHcl);
+        return psiUnit != null ? new PsiElement[]{psiUnit} : null;
     }
 
     private PsiElement[] handleValuesKeyUsages(PsiElement keyElement, TerragruntBlock unitBlock) {
