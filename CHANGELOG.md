@@ -6,6 +6,10 @@
 - Rename block labels (Shift+F6) — rename dependency, include, and feature labels with all usages updated (`dependency.vpc.outputs.X`, `include.root.locals.Y`, `feature.flag.value`)
 - Dependency `config_path` completion now only shows directories and highlights those containing `terragrunt.hcl`
 
+### Changed
+- Upgraded to IntelliJ IDEA 2026.3 (unified platform — Community Edition discontinued from 2025.3+)
+- Minimum supported IDE version bumped to 2026.3 (build 263)
+
 ## [0.5.0] - 2026-07-12
 
 ### Added
