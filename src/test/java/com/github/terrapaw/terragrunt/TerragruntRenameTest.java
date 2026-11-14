@@ -4,6 +4,7 @@ import com.github.terrapaw.terragrunt.refactor.TerragruntNamesValidator;
 import com.github.terrapaw.terragrunt.refactor.TerragruntRenameHandler;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
+import com.intellij.openapi.actionSystem.impl.SimpleDataContext;
 import com.intellij.psi.PsiElement;
 import com.intellij.testFramework.fixtures.BasePlatformTestCase;
 import org.jetbrains.annotations.NotNull;
@@ -37,12 +38,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
                 }
                 """);
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available on local definition", handler.isAvailableOnDataContext(ctx));
     }
 
@@ -56,12 +56,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
                 }
                 """);
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available on local usage", handler.isAvailableOnDataContext(ctx));
     }
 
@@ -72,12 +71,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
                 }
                 """);
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertFalse("Rename should NOT be available on non-local identifier", handler.isAvailableOnDataContext(ctx));
     }
 
@@ -107,12 +105,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available on local definition", handler.isAvailableOnDataContext(ctx));
 
         // Perform the rename
@@ -238,12 +235,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available on inputs key", handler.isAvailableOnDataContext(ctx));
 
         handler.performRenameForTest(getProject(), myFixture.getFile(),
@@ -285,12 +281,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available on object key in locals", handler.isAvailableOnDataContext(ctx));
 
         handler.performRenameForTest(getProject(), myFixture.getFile(),
@@ -364,12 +359,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available on quoted object key", handler.isAvailableOnDataContext(ctx));
 
         handler.performRenameForTest(getProject(), myFixture.getFile(),
@@ -415,12 +409,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available on nested object key", handler.isAvailableOnDataContext(ctx));
 
         handler.performRenameForTest(getProject(), myFixture.getFile(),
@@ -458,12 +451,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available from usage", handler.isAvailableOnDataContext(ctx));
 
         handler.performRenameForTest(getProject(), myFixture.getFile(),
@@ -507,12 +499,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available from cross-file usage", handler.isAvailableOnDataContext(ctx));
 
         handler.performRenameForTest(getProject(), myFixture.getFile(),
@@ -556,12 +547,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available", handler.isAvailableOnDataContext(ctx));
 
         handler.performRenameForTest(getProject(), myFixture.getFile(),
@@ -680,12 +670,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available on mock_outputs key", handler.isAvailableOnDataContext(ctx));
 
         handler.performRenameForTest(getProject(), myFixture.getFile(),
@@ -719,12 +708,11 @@ public class TerragruntRenameTest extends BasePlatformTestCase {
         myFixture.getEditor().getCaretModel().moveToOffset(offset);
 
         var handler = new TerragruntRenameHandler();
-        DataContext ctx = dataId -> {
-            if (CommonDataKeys.EDITOR.is(dataId)) return myFixture.getEditor();
-            if (CommonDataKeys.PSI_FILE.is(dataId)) return myFixture.getFile();
-            if (CommonDataKeys.PROJECT.is(dataId)) return getProject();
-            return null;
-        };
+        DataContext ctx = SimpleDataContext.builder()
+                .add(CommonDataKeys.EDITOR, myFixture.getEditor())
+                .add(CommonDataKeys.PSI_FILE, myFixture.getFile())
+                .add(CommonDataKeys.PROJECT, getProject())
+                .build();
         assertTrue("Rename should be available on dependency outputs usage", handler.isAvailableOnDataContext(ctx));
 
         handler.performRenameForTest(getProject(), myFixture.getFile(),

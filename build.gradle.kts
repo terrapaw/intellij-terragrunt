@@ -1,6 +1,6 @@
 import org.gradle.api.tasks.testing.TestDescriptor
+import org.gradle.api.tasks.testing.TestListener
 import org.gradle.api.tasks.testing.TestResult
-import org.gradle.kotlin.dsl.KotlinClosure2
 
 plugins {
     id("java")
@@ -130,13 +130,13 @@ sourceSets {
 
 tasks {
     withType<JavaCompile> {
-        sourceCompatibility = "21"
-        targetCompatibility = "21"
+        sourceCompatibility = "25"
+        targetCompatibility = "25"
     }
 
     generateLexer {
         sourceFile.set(file("src/main/java/com/github/terrapaw/terragrunt/lang/TerragruntLexer.flex"))
-        targetOutputDir.set(file("src/main/gen/com/github/terrapaw/terragrunt/lang"))
+        targetRootOutputDir.set(file("src/main/gen/com/github/terrapaw/terragrunt/lang"))
         purgeOldFiles.set(true)
     }
 
@@ -160,17 +160,22 @@ tasks {
             showCauses = true
             showExceptions = true
 
-            afterSuite(KotlinClosure2<TestDescriptor, TestResult, Unit>({ desc, result ->
-                if (desc.parent == null) {
-                    println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                    println("  Results: ${result.resultType}")
-                    println("  Tests:   ${result.testCount}")
-                    println("  Passed:  ${result.successfulTestCount}")
-                    println("  Failed:  ${result.failedTestCount}")
-                    println("  Skipped: ${result.skippedTestCount}")
-                    println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+            addTestListener(object : TestListener {
+                override fun beforeSuite(suite: TestDescriptor) {}
+                override fun afterSuite(suite: TestDescriptor, result: TestResult) {
+                    if (suite.parent == null) {
+                        println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                        println("  Results: ${result.resultType}")
+                        println("  Tests:   ${result.testCount}")
+                        println("  Passed:  ${result.successfulTestCount}")
+                        println("  Failed:  ${result.failedTestCount}")
+                        println("  Skipped: ${result.skippedTestCount}")
+                        println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                    }
                 }
-            }))
+                override fun beforeTest(testDescriptor: TestDescriptor) {}
+                override fun afterTest(testDescriptor: TestDescriptor, result: TestResult) {}
+            })
         }
     }
 }
