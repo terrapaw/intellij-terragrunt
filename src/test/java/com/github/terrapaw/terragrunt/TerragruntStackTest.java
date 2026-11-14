@@ -470,4 +470,28 @@ public class TerragruntStackTest extends BasePlatformTestCase {
                 .count();
         assertEquals("Should flag multiple autoinclude in same unit", 1, errors);
     }
+
+    public void testUnitLabelNavigatesToSourceFile() {
+        myFixture.addFileToProject("units/vpc/terragrunt.hcl", """
+                inputs = {
+                  cidr = "10.0.0.0/16"
+                }
+                """);
+        myFixture.configureByText("terragrunt.stack.hcl", """
+                unit "v<caret>pc" {
+                  source = "./units/vpc"
+                  path   = "vpc"
+                }
+                """);
+
+        var handler = new com.github.terrapaw.terragrunt.reference.TerragruntGotoDeclarationHandler();
+        var targets = handler.getGotoDeclarationTargets(
+                myFixture.getFile().findElementAt(myFixture.getCaretOffset()),
+                myFixture.getCaretOffset(), myFixture.getEditor());
+
+        assertNotNull("Ctrl+B on unit label should return a target", targets);
+        assertTrue("Should find exactly one target", targets.length == 1);
+        assertTrue("Target should be the unit's terragrunt.hcl",
+                targets[0].getContainingFile().getName().equals("terragrunt.hcl"));
+    }
 }
