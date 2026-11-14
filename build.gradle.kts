@@ -21,7 +21,7 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity("2025.1.4.1")
+        intellijIdea("2026.3")
         testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform)
     }
     testImplementation("junit:junit:4.13.2")
@@ -84,13 +84,13 @@ intellijPlatform {
             <p>Supports Terragrunt 1.x including units, stacks, features, dependencies, remote state, generation, autoinclude, and catalog blocks.</p>
 
             <h3>Requirements</h3>
-            <p>IntelliJ IDEA 2025.1+ &bull; Java 21</p>
+            <p>IntelliJ IDEA 2026.3+ &bull; Java 21</p>
         """.trimIndent()
         vendor {
             name = "terrapaw"
         }
         ideaVersion {
-            sinceBuild = "251"
+            sinceBuild = "263"
         }
         changeNotes = providers.provider {
             val ver = project.version.toString()
