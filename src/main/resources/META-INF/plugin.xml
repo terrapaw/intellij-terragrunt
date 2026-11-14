@@ -5,6 +5,7 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
+        <errorHandler implementation="com.intellij.diagnostic.JetBrainsMarketplaceErrorReportSubmitter"/>
         <fileType name="Terragrunt HCL"
                   implementationClass="com.github.terrapaw.terragrunt.lang.TerragruntFileType"
                   fieldName="INSTANCE"
