@@ -4,8 +4,8 @@ import org.gradle.api.tasks.testing.TestResult
 
 plugins {
     id("java")
-    id("org.jetbrains.intellij.platform") version "2.20.0"
-    id("org.jetbrains.intellij.platform.grammarkit") version "2.20.0"
+    id("org.jetbrains.intellij.platform") version "2.20.1"
+    id("org.jetbrains.intellij.platform.grammarkit") version "2.20.1"
     id("org.jetbrains.changelog") version "2.5.0"
 }
 
